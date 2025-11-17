@@ -270,56 +270,113 @@ Write unit tests for:
 
 ### Test Execution
 
+**All builds and tests are done in Docker containers.**
+
 ```bash
+# Run tests (recommended)
+docker-compose up test
+
+# Or build and run tests manually
+docker build -t projectkeystone:latest .
+docker run --rm projectkeystone:latest
+```
+
+## Docker Build System
+
+**All development, building, and testing is done in Docker containers for consistency.**
+
+### Prerequisites
+
+- **Docker** 20.10+ installed
+- **docker-compose** 1.29+ (optional but recommended)
+
+### Quick Start
+
+```bash
+# Build and run tests
+docker-compose up test
+
+# Development environment (with mounted source)
+docker-compose up -d dev
+docker-compose exec dev bash
+
+# Inside dev container:
+cd build && cmake -G Ninja .. && ninja
+./phase1_e2e_tests
+```
+
+### Docker Commands
+
+#### Build and Test (Production)
+```bash
+# Build the runtime image and run tests
+docker-compose up test
+
+# Or using docker directly
+docker build --target runtime -t projectkeystone:latest .
+docker run --rm projectkeystone:latest
+```
+
+#### Development Environment
+```bash
+# Start development container with mounted source
+docker-compose up -d dev
+
+# Enter the container
+docker-compose exec dev bash
+
+# Inside container: build and test
 cd build
-cmake ..
-make
-ctest --output-on-failure
+cmake -G Ninja ..
+ninja
+./phase1_e2e_tests
+
+# Exit container
+exit
+
+# Stop container
+docker-compose down
 ```
 
-## Build Commands
-
-### Initial Setup
+#### Clean Build
 ```bash
-mkdir build && cd build
-cmake ..
-make
+# Remove build cache and rebuild
+docker-compose down -v
+docker-compose build --no-cache
+docker-compose up test
 ```
 
-### Run Tests
-```bash
-ctest --output-on-failure
-# OR
-./tests/e2e/phase1_tests
-```
+### Docker Architecture
 
-### Clean Build
-```bash
-rm -rf build
-mkdir build && cd build
-cmake ..
-make
-```
+The project uses a **multi-stage Dockerfile**:
+
+1. **builder** stage - Full build environment (Ubuntu 22.04, GCC 12, CMake, Ninja)
+2. **runtime** stage - Minimal runtime (just test executables)
+3. **development** stage - Dev tools (gdb, valgrind, clang-format)
+
+### Docker Compose Services
+
+- `test` - Build and run tests (runtime stage)
+- `dev` - Development environment with mounted source
+- `build` - Build only (for CI/CD)
 
 ## Dependencies
 
-### Required Libraries
+### System Requirements
 
-1. **Google Test** - Testing framework
-   - Install: `apt-get install libgtest-dev` or build from source
+- **Docker** 20.10+
+- **docker-compose** 1.29+ (recommended)
 
-2. **concurrentqueue** - Lock-free queue
-   - Header-only library
-   - Include in `third_party/concurrentqueue/`
+### Container Dependencies (Managed by Docker)
 
-3. **C++20 Compiler**
-   - GCC 10+ or Clang 12+
-   - Must support coroutines
+All dependencies are handled inside the Docker container:
 
-### Dependency Management
+1. **C++20 Compiler** - GCC 12 (installed in Dockerfile)
+2. **CMake** 3.22+ (installed in Dockerfile)
+3. **Google Test** - Fetched by CMake via FetchContent
+4. **Ninja** - Fast build system (installed in Dockerfile)
 
-- Use CMake `FetchContent` for external dependencies
-- Or include as git submodules in `third_party/`
+No manual dependency installation required on host!
 
 ## Coding Standards
 
@@ -394,11 +451,25 @@ Task<void> processMessageAsync(const KeystoneMessage& msg) {
 ### Current Test
 E2E test: ChiefArchitect sends bash command to add two random numbers, TaskAgent executes and returns result
 
+### Quick Commands
+
+```bash
+# Run tests in Docker
+docker-compose up test
+
+# Development environment
+docker-compose up -d dev
+docker-compose exec dev bash
+
+# Build from scratch
+docker-compose build --no-cache
+```
+
 ### Current Branch
 `claude/first-agent-test-<session-id>`
 
 ---
 
 **Last Updated**: 2025-11-17
-**Version**: 1.0
+**Version**: 1.1 (Docker-based build)
 **Project**: ProjectKeystone HMAS (C++20)
