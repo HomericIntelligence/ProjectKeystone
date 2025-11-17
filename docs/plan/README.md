@@ -2,20 +2,22 @@
 
 ## Executive Summary
 
-ProjectKeystone is a high-performance C++20 Hierarchical Multi-Agent System (HMAS) designed for orchestrating specialized AI agents in complex, enterprise-grade workloads. The system implements an actor-model architecture with three distinct hierarchical layers, leveraging modern C++20 features including coroutines, modules, and advanced concurrency primitives.
+ProjectKeystone is a high-performance C++20 Hierarchical Multi-Agent System (HMAS) designed for orchestrating specialized AI agents in complex, enterprise-grade workloads. The system implements an actor-model architecture with **four distinct hierarchical layers** (L0: Chief Architect, L1: Component Lead, L2: Module Lead, L3: Task Agent), leveraging modern C++20 features including coroutines, modules, and advanced concurrency primitives.
 
 ## 🚀 Development Approach: TDD with E2E Testing + 4-Layer Architecture
 
-**This project follows a strict Test-Driven Development (TDD) methodology with End-to-End (E2E) tests as the primary validation mechanism.**
+**This project follows strict Test-Driven Development (TDD) with End-to-End (E2E) tests as the primary validation method.**
 
-We build incrementally, starting with a **minimal 2-agent system** (Chief Architect + Task Agent) and progressively adding layers until we reach the full **4-layer hierarchy**:
+We build incrementally, starting with a **minimal 2-agent system** (Level 0 + Level 3) and progressively adding intermediate layers until we reach the full **4-layer hierarchy**:
 
-- **Level 0**: Chief Architect Agent (strategic orchestration)
-- **Level 1**: Component Lead Agent (component coordination)
-- **Level 2**: Module Lead Agent (module synthesis)
-- **Level 3**: Task Agent (concrete execution)
+- **Level 0**: Chief Architect Agent - Strategic decisions, system-wide coordination
+- **Level 1**: Component Lead Agent - Component-level architecture, module coordination
+- **Level 2**: Module Lead Agent - Task decomposition, result synthesis, code review
+- **Level 3**: Task Agent - Concrete execution, code implementation, testing
 
-👉 **See [TDD_FOUR_LAYER_ROADMAP.md](TDD_FOUR_LAYER_ROADMAP.md) for the complete TDD implementation plan**
+This architecture mirrors the agent development structure used to build the system itself, creating a self-similar, fractal-like organization.
+
+👉 **See [TDD_FOUR_LAYER_ROADMAP.md](TDD_FOUR_LAYER_ROADMAP.md) for the complete implementation plan**
 
 ## Vision
 
@@ -28,22 +30,18 @@ Build a production-ready, native C++ agent orchestration platform capable of:
 
 ## Documentation Structure
 
-### 🔴 Primary Implementation Guides (Start Here!)
+### 🔴 Start Here
 
-1. **[TDD_FOUR_LAYER_ROADMAP.md](TDD_FOUR_LAYER_ROADMAP.md)** - **READ THIS FIRST!** Complete TDD roadmap for 4-layer system
-2. **[FOUR_LAYER_ARCHITECTURE.md](FOUR_LAYER_ARCHITECTURE.md)** - Complete 4-layer architecture specification
-3. **[TDD_APPROACH.md](TDD_APPROACH.md)** - TDD methodology and E2E testing principles
+1. **[TDD_FOUR_LAYER_ROADMAP.md](TDD_FOUR_LAYER_ROADMAP.md)** - **READ THIS FIRST!** Complete TDD roadmap with E2E tests
+2. **[FOUR_LAYER_ARCHITECTURE.md](FOUR_LAYER_ARCHITECTURE.md)** - 4-layer system architecture specification
+3. **README.md** (this file) - Overview and quick start
 
-### 📘 Detailed Technical Documentation
+### 📘 Supporting Documentation
 
-4. **README.md** (this file) - Overview and roadmap
-5. **[TWO_AGENT_ARCHITECTURE.md](TWO_AGENT_ARCHITECTURE.md)** - Phase 1: Simplified 2-agent prototype
-6. **[architecture.md](architecture.md)** - Original 3-layer hierarchy (superseded by 4-layer)
-7. **[modules.md](modules.md)** - C++20 module structure and dependencies
-8. **[build-system.md](build-system.md)** - Build configuration and toolchain
-9. **[testing-strategy.md](testing-strategy.md)** - Testing frameworks and tools
-10. **[phases.md](phases.md)** - Original phases (reference only)
-11. **[risks.md](risks.md)** - Risk analysis and mitigation strategies
+4. **[modules.md](modules.md)** - C++20 module structure and dependencies
+5. **[build-system.md](build-system.md)** - CMake configuration and toolchain setup
+6. **[testing-strategy.md](testing-strategy.md)** - Testing frameworks and tools (GoogleTest, benchmarks)
+7. **[risks.md](risks.md)** - Risk analysis and mitigation strategies
 
 ## Project Directory Structure
 
