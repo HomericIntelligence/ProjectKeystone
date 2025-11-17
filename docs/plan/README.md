@@ -4,6 +4,14 @@
 
 ProjectKeystone is a high-performance C++20 Hierarchical Multi-Agent System (HMAS) designed for orchestrating specialized AI agents in complex, enterprise-grade workloads. The system implements an actor-model architecture with three distinct hierarchical layers, leveraging modern C++20 features including coroutines, modules, and advanced concurrency primitives.
 
+## 🚀 Development Approach: TDD with E2E Testing
+
+**This project follows a strict Test-Driven Development (TDD) methodology with End-to-End (E2E) tests as the primary validation mechanism.**
+
+We build incrementally, starting with a **minimal two-agent system** (Coordinator + Worker) and expanding to the full three-layer hierarchy only after validating each component works in real execution scenarios.
+
+👉 **See [TDD_APPROACH.md](TDD_APPROACH.md) for the complete TDD implementation plan**
+
 ## Vision
 
 Build a production-ready, native C++ agent orchestration platform capable of:
@@ -15,15 +23,20 @@ Build a production-ready, native C++ agent orchestration platform capable of:
 
 ## Documentation Structure
 
-This implementation plan consists of the following documents:
+### 🔴 Primary Implementation Guides (Start Here!)
 
-1. **README.md** (this file) - Overview and roadmap
-2. **[architecture.md](architecture.md)** - System architecture and design patterns
-3. **[phases.md](phases.md)** - Detailed implementation phases and timeline
-4. **[modules.md](modules.md)** - C++20 module structure and dependencies
-5. **[build-system.md](build-system.md)** - Build configuration and toolchain
-6. **[testing-strategy.md](testing-strategy.md)** - Testing approach and quality gates
-7. **[risks.md](risks.md)** - Risk analysis and mitigation strategies
+1. **[TDD_APPROACH.md](TDD_APPROACH.md)** - **READ THIS FIRST!** TDD methodology with E2E testing strategy
+2. **[TWO_AGENT_ARCHITECTURE.md](TWO_AGENT_ARCHITECTURE.md)** - Initial two-agent system design (Coordinator + Worker)
+
+### 📘 Detailed Technical Documentation
+
+3. **README.md** (this file) - Overview and roadmap
+4. **[architecture.md](architecture.md)** - Full system architecture (3-layer hierarchy)
+5. **[phases.md](phases.md)** - Original detailed timeline (replaced by TDD_APPROACH.md phases)
+6. **[modules.md](modules.md)** - C++20 module structure and dependencies
+7. **[build-system.md](build-system.md)** - Build configuration and toolchain
+8. **[testing-strategy.md](testing-strategy.md)** - Testing frameworks and tools
+9. **[risks.md](risks.md)** - Risk analysis and mitigation strategies
 
 ## Project Directory Structure
 
@@ -73,120 +86,164 @@ ProjectKeystone/
 └── vcpkg.json                   # Dependency manifest
 ```
 
-## Implementation Roadmap
+## TDD Implementation Roadmap (Revised)
 
-### Phase 0: Foundation (Weeks 1-2)
-**Goal**: Establish project infrastructure and development environment
+### 🎯 Core Principle: E2E Tests Drive Development
 
-- Set up CMake build system with C++20 module support
-- Configure dependency management (vcpkg/Conan)
-- Establish CI/CD pipeline
-- Create project documentation structure
-- Define coding standards and conventions
+Every phase begins with writing **failing E2E tests** that define the desired behavior, then implementing the minimal code to make them pass.
 
-**Deliverables**:
-- Working build system
-- CI pipeline with basic checks
-- Project structure and scaffolding
+### Phase 0: E2E Test Infrastructure (Week 1)
+**Goal**: Set up the ability to write and run E2E tests
 
-### Phase 1: Core Infrastructure (Weeks 3-5)
-**Goal**: Implement the foundational communication and concurrency layer
+**First E2E Test (Even Though Nothing Exists)**:
+```cpp
+TEST(E2E_Foundation, CanCreateAndRunTwoAgents) {
+    ThreadPool pool{2};
+    auto agent1 = std::make_unique<MinimalAgent>("agent1");
+    auto agent2 = std::make_unique<MinimalAgent>("agent2");
 
-- Implement message bus with `concurrentqueue`
-- Create C++20 coroutine framework
-- Build thread pool for coroutine execution
-- Develop custom `awaitable` for queue I/O
-- Implement synchronization primitives (`std::latch`, `std::barrier`)
+    agent1->initialize();
+    agent2->initialize();
 
-**Deliverables**:
-- Keystone.Core module
-- Message passing infrastructure
-- Unit tests with 95%+ coverage
-
-### Phase 2: Agent Framework (Weeks 6-8)
-**Goal**: Create the agent base classes and lifecycle management
-
-- Design and implement `AgentBase` interface
-- Create finite state machine framework
-- Implement agent lifecycle management
-- Build mailbox and message routing
-- Develop agent supervision tree
+    EXPECT_TRUE(agent1->isRunning());
+    EXPECT_TRUE(agent2->isRunning());
+}
+```
 
 **Deliverables**:
-- Keystone.Agents.Base module
-- Agent lifecycle tests
-- State machine validation
+- ✅ E2E test framework (GoogleTest)
+- ✅ CMake builds and runs E2E tests
+- ✅ First test passes (minimal agent stub)
+- ✅ CI runs E2E tests on every commit
 
-### Phase 3: Specialized Agents (Weeks 9-11)
-**Goal**: Implement the three-layer agent hierarchy
+### Phase 1: Core Message Passing (Weeks 2-3)
+**Goal**: Two agents can send messages to each other
 
-- Implement Root Agent (L1) - orchestrator logic
-- Implement Branch Agent (L2) - planning and synthesis
-- Implement Leaf Agent (L3) - execution and tool control
-- Create agent registration and discovery
-- Build hierarchical message routing
+**E2E Test First**:
+```cpp
+TEST(E2E_MessagePassing, AgentCanSendMessageToAnotherAgent) {
+    ThreadPool pool{2};
+    MessageBus bus;
+    auto sender = std::make_unique<TestAgent>("sender");
+    auto receiver = std::make_unique<TestAgent>("receiver");
 
-**Deliverables**:
-- Complete agent hierarchy
-- Integration tests for multi-layer workflows
-- Example agent implementations
+    sender->send(msg);
+    auto received = receiver->waitForMessage(1s);
 
-### Phase 4: Communication Protocols (Weeks 12-14)
-**Goal**: Implement internal and external communication
-
-- Define Keystone Inter-Agent Message (KIM) structure
-- Implement zero-copy serialization (Cista/FlatBuffers)
-- Integrate asynchronous gRPC client
-- Build Protocol Buffer definitions
-- Create serialization gateway in Leaf agents
+    EXPECT_EQ(received->payload, "Hello");
+}
+```
 
 **Deliverables**:
-- Keystone.Protocol module
-- gRPC integration
-- Serialization benchmarks
+- ✅ KeystoneMessage structure
+- ✅ MessageQueue with concurrentqueue
+- ✅ MessageBus routing
+- ✅ Custom awaitable for async receiving
+- ✅ **E2E test: Bidirectional agent communication**
 
-### Phase 5: External Integrations (Weeks 15-16)
-**Goal**: Connect to AI models and monitoring systems
+### Phase 2: Coordinator-Worker Pattern (Weeks 4-5)
+**Goal**: Coordinator delegates task to Worker, receives result
 
-- Integrate ONNX Runtime for local inference
-- Implement gRPC clients for remote AI services
-- Add APM/monitoring integration
-- Build metrics collection and export
-- Create health check endpoints
+**E2E Test First**:
+```cpp
+TEST(E2E_Delegation, CoordinatorDelegatesAndAggregates) {
+    auto coordinator = std::make_unique<CoordinatorAgent>();
+    auto worker = std::make_unique<WorkerAgent>();
 
-**Deliverables**:
-- Keystone.Integration module
-- ONNX and gRPC examples
-- Monitoring dashboard integration
+    auto result = coordinator->processGoal("Calculate: 2+2");
 
-### Phase 6: Robustness Features (Weeks 17-18)
-**Goal**: Ensure production-grade reliability
-
-- Implement graceful shutdown protocol
-- Add timeout handling at all levels
-- Build backpressure signaling
-- Create supervision and failure recovery
-- Implement session isolation
+    EXPECT_EQ(result.get(), "Result: 4");
+}
+```
 
 **Deliverables**:
-- Comprehensive error handling
-- Chaos testing suite
-- Failure recovery validation
+- ✅ CoordinatorAgent with task decomposition
+- ✅ WorkerAgent with execution
+- ✅ Agent state machines
+- ✅ **E2E test: Complete task delegation workflow**
 
-### Phase 7: Testing & Validation (Weeks 19-20)
-**Goal**: Validate system meets all performance and reliability requirements
+### Phase 3: Performance & Concurrency (Week 6)
+**Goal**: Validate performance targets with E2E tests
 
-- Complete integration testing
-- Execute performance benchmarks
-- Conduct stress testing
-- Perform security audit
-- Create production deployment guide
+**E2E Test First**:
+```cpp
+TEST(E2E_Performance, ThousandTasksPerSecond) {
+    // Send 1000 tasks, verify completes in <1 second
+    EXPECT_LT(duration_ms, 1000);
+}
+```
 
 **Deliverables**:
-- Test coverage reports
-- Performance benchmark results
-- Production readiness checklist
-- Deployment documentation
+- ✅ Performance optimizations
+- ✅ ThreadSanitizer validation
+- ✅ **E2E test: >1000 tasks/second**
+
+### Phase 4: External Integration (Weeks 7-8)
+**Goal**: Worker can call external AI services (gRPC)
+
+**E2E Test First**:
+```cpp
+TEST(E2E_AIIntegration, WorkerCallsExternalAIService) {
+    MockAIService mock_service("localhost:50051");
+    auto worker = std::make_unique<WorkerAgent>();
+    worker->setAIServiceEndpoint("localhost:50051");
+
+    auto result = coordinator->processGoal("Generate: Hello");
+
+    EXPECT_EQ(result.get(), "AI Response: Hi there!");
+}
+```
+
+**Deliverables**:
+- ✅ Mock gRPC AI service
+- ✅ Async gRPC client
+- ✅ Serialization gateway (Cista ↔ Protobuf)
+- ✅ **E2E test: Worker calls external AI**
+
+### Phase 5: Three-Layer Hierarchy (Weeks 9-11)
+**Goal**: Expand to full Root → Branch → Leaf
+
+**E2E Test First**:
+```cpp
+TEST(E2E_ThreeLayer, ComplexTaskDecomposition) {
+    auto root = createFullHierarchy(/*branches=*/3, /*leaves=*/9);
+
+    auto result = root->processGoal("Complex multi-step task");
+
+    // Verify all layers participated
+    EXPECT_GT(root->getTasksProcessed(), 0);
+    EXPECT_GT(branches[0]->getTasksProcessed(), 0);
+    EXPECT_GT(leaves[0]->getTasksProcessed(), 0);
+}
+```
+
+**Deliverables**:
+- ✅ RootAgent (evolved from Coordinator)
+- ✅ BranchAgent (new middle layer)
+- ✅ LeafAgent (evolved from Worker)
+- ✅ **E2E test: 3-layer hierarchy works**
+
+### Phase 6: Production Hardening (Weeks 12-14)
+**Goal**: Chaos testing and production readiness
+
+**E2E Test First**:
+```cpp
+TEST(E2E_Chaos, SystemRemainsStableUnderFailures) {
+    auto system = createFullHierarchy();
+
+    // Inject random failures while processing 1000 tasks
+    injectChaos(system);
+    auto completed = processTasksBatch(1000);
+
+    EXPECT_GT(completed, 900);  // >90% success despite chaos
+}
+```
+
+**Deliverables**:
+- ✅ Graceful shutdown
+- ✅ Failure recovery
+- ✅ **E2E test: 24-hour stability**
+- ✅ **E2E test: Chaos resilience**
 
 ## Technology Stack
 
