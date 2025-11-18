@@ -1,5 +1,5 @@
 #include "core/message_bus.hpp"
-#include "agents/base_agent.hpp"
+#include "agents/agent_base.hpp"
 #include "concurrency/work_stealing_scheduler.hpp"
 #include <stdexcept>
 
@@ -16,7 +16,7 @@ concurrency::WorkStealingScheduler* MessageBus::getScheduler() const {
     return scheduler_;
 }
 
-void MessageBus::registerAgent(const std::string& agent_id, agents::BaseAgent* agent) {
+void MessageBus::registerAgent(const std::string& agent_id, agents::AgentBase* agent) {
     if (!agent) {
         throw std::invalid_argument("Cannot register null agent");
     }
@@ -43,7 +43,7 @@ bool MessageBus::routeMessage(const KeystoneMessage& msg) {
         return false;  // Receiver not found
     }
 
-    agents::BaseAgent* agent = it->second;
+    agents::AgentBase* agent = it->second;
 
     // Async routing if scheduler present (Phase A Week 3+)
     if (scheduler_) {

@@ -11,7 +11,7 @@ namespace keystone {
 
 // Forward declarations
 namespace agents {
-    class BaseAgent;
+    class AgentBase;
 }
 
 namespace concurrency {
@@ -66,7 +66,7 @@ public:
      * @param agent Pointer to the agent (must outlive registration)
      * @throws std::runtime_error if agent_id already registered
      */
-    void registerAgent(const std::string& agent_id, agents::BaseAgent* agent);
+    void registerAgent(const std::string& agent_id, agents::AgentBase* agent);
 
     /**
      * @brief Unregister an agent from the bus
@@ -104,7 +104,7 @@ public:
 
 private:
     mutable std::mutex registry_mutex_;
-    std::unordered_map<std::string, agents::BaseAgent*> agents_;
+    std::unordered_map<std::string, agents::AgentBase*> agents_;
     concurrency::WorkStealingScheduler* scheduler_{nullptr};
 };
 
