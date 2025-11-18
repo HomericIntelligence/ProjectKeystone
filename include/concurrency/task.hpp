@@ -176,6 +176,16 @@ public:
         return get();
     }
 
+    /**
+     * @brief Get the underlying coroutine handle
+     *
+     * WARNING: Use with caution. The handle is managed by this Task object.
+     * Do not call destroy() on the returned handle.
+     */
+    std::coroutine_handle<> get_handle() const {
+        return handle_;
+    }
+
 private:
     std::coroutine_handle<promise_type> handle_;
 };
@@ -271,6 +281,16 @@ public:
 
     void await_resume() {
         get();
+    }
+
+    /**
+     * @brief Get the underlying coroutine handle
+     *
+     * WARNING: Use with caution. The handle is managed by this Task object.
+     * Do not call destroy() on the returned handle.
+     */
+    std::coroutine_handle<> get_handle() const {
+        return handle_;
     }
 
 private:
