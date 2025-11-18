@@ -4,7 +4,10 @@
  */
 
 #include "concurrency/task.hpp"
+#include <atomic>
 #include <gtest/gtest.h>
+#include <iostream>
+#include <memory>
 #include <string>
 
 using namespace keystone::concurrency;
@@ -23,18 +26,21 @@ TEST(TaskTest, SimpleIntTask) {
 
 // Test: Simple Task<void> creation and get()
 TEST(TaskTest, SimpleVoidTask) {
-    bool executed = false;
-    auto task = [&]() -> Task<void> {
-        executed = true;
-        co_return;
-    }();
+    auto executed = std::make_shared<std::atomic<bool>>(false);
 
-    EXPECT_FALSE(executed);
+    auto lambda = [executed]() -> Task<void> {
+        executed->store(true);
+        co_return;
+    };
+
+    auto task = lambda();
+
+    EXPECT_FALSE(executed->load());
     EXPECT_FALSE(task.done());
 
     task.get();
 
-    EXPECT_TRUE(executed);
+    EXPECT_TRUE(executed->load());
     EXPECT_TRUE(task.done());
 }
 
@@ -152,23 +158,25 @@ TEST(TaskTest, ExceptionInChainedCoroutine) {
 
 // Test: Task<void> chaining
 TEST(TaskTest, VoidTaskChaining) {
-    int counter = 0;
+    auto counter = std::make_shared<std::atomic<int>>(0);
 
-    auto increment = [&]() -> Task<void> {
-        counter++;
+    auto increment = [counter]() -> Task<void> {
+        counter->fetch_add(1);
         co_return;
     };
 
-    auto multiIncrement = [&]() -> Task<void> {
+    auto multiIncrementLambda = [&increment]() -> Task<void> {
         co_await increment();
         co_await increment();
         co_await increment();
         co_return;
-    }();
+    };
 
-    EXPECT_EQ(counter, 0);
+    auto multiIncrement = multiIncrementLambda();
+
+    EXPECT_EQ(counter->load(), 0);
     multiIncrement.get();
-    EXPECT_EQ(counter, 3);
+    EXPECT_EQ(counter->load(), 3);
 }
 
 // Test: await_ready returns correct value
