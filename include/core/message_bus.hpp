@@ -9,9 +9,13 @@
 
 namespace keystone {
 
-// Forward declaration
+// Forward declarations
 namespace agents {
     class BaseAgent;
+}
+
+namespace concurrency {
+    class WorkStealingScheduler;
 }
 
 namespace core {
@@ -22,7 +26,12 @@ namespace core {
  * MessageBus decouples agents from each other, enabling:
  * - Dynamic agent registration/discovery
  * - Automatic message routing by agent ID
- * - Future evolution to async/distributed messaging
+ * - Async message processing via WorkStealingScheduler (Phase A Week 3+)
+ * - Backward compatibility with synchronous routing
+ *
+ * Architecture:
+ * - Without scheduler: Synchronous routing (Phase 1-3 behavior)
+ * - With scheduler: Async routing via work-stealing threads
  */
 class MessageBus {
 public:
@@ -34,6 +43,21 @@ public:
     MessageBus& operator=(const MessageBus&) = delete;
     MessageBus(MessageBus&&) = delete;
     MessageBus& operator=(MessageBus&&) = delete;
+
+    /**
+     * @brief Set the work-stealing scheduler for async message routing
+     *
+     * When scheduler is set, routeMessage() submits messages as work items
+     * to the scheduler instead of synchronous delivery.
+     *
+     * @param scheduler Pointer to scheduler (must outlive MessageBus)
+     */
+    void setScheduler(concurrency::WorkStealingScheduler* scheduler);
+
+    /**
+     * @brief Get the current scheduler (may be nullptr)
+     */
+    concurrency::WorkStealingScheduler* getScheduler() const;
 
     /**
      * @brief Register an agent with the bus
@@ -54,8 +78,12 @@ public:
     /**
      * @brief Route a message to the appropriate agent
      *
+     * Behavior depends on scheduler:
+     * - No scheduler: Synchronous delivery via agent->receiveMessage()
+     * - With scheduler: Async delivery via scheduler->submit()
+     *
      * @param msg Message to route (uses msg.receiver_id for routing)
-     * @return true if message was delivered, false if receiver not found
+     * @return true if message was delivered/submitted, false if receiver not found
      */
     bool routeMessage(const KeystoneMessage& msg);
 
@@ -77,6 +105,7 @@ public:
 private:
     mutable std::mutex registry_mutex_;
     std::unordered_map<std::string, agents::BaseAgent*> agents_;
+    concurrency::WorkStealingScheduler* scheduler_{nullptr};
 };
 
 } // namespace core

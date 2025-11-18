@@ -64,6 +64,11 @@ add_library(keystone_core
 target_include_directories(keystone_core PUBLIC
     ${PROJECT_SOURCE_DIR}/include
     ${cista_SOURCE_DIR}/include
+    ${concurrentqueue_SOURCE_DIR}
+)
+
+target_link_libraries(keystone_core PUBLIC
+    spdlog::spdlog
 )
 
 # Concurrency library (Phase A)
@@ -144,11 +149,13 @@ gtest_discover_tests(phase3_e2e_tests)
 add_executable(unit_tests
     tests/unit/test_message_bus.cpp
     tests/unit/test_message_serializer.cpp
+    tests/unit/test_message_bus_async.cpp
 )
 
 target_link_libraries(unit_tests
     keystone_agents
     keystone_core
+    keystone_concurrency
     GTest::gtest_main
 )
 
