@@ -1,9 +1,8 @@
 #pragma once
 
 #include "core/message.hpp"
+#include "concurrentqueue.h"
 #include <string>
-#include <queue>
-#include <mutex>
 #include <optional>
 
 namespace keystone {
@@ -20,6 +19,9 @@ namespace agents {
  *
  * Provides inbox management and message routing functionality.
  * Subclasses implement either sync or async message processing.
+ *
+ * Phase C Enhancement: Uses lock-free concurrent queue for inbox
+ * to eliminate contention under high message load.
  */
 class AgentBase {
 public:
@@ -43,12 +45,16 @@ public:
     /**
      * @brief Receive a message into the inbox (called by MessageBus)
      *
+     * Lock-free operation - no mutex contention.
+     *
      * @param msg Message to receive
      */
     virtual void receiveMessage(const core::KeystoneMessage& msg);
 
     /**
      * @brief Get the next message from inbox
+     *
+     * Lock-free operation - no mutex contention.
      *
      * @return std::optional<core::KeystoneMessage> Next message if available
      */
@@ -72,8 +78,8 @@ protected:
     std::string agent_id_;
     core::MessageBus* message_bus_{nullptr};
 
-    std::queue<core::KeystoneMessage> inbox_;
-    std::mutex inbox_mutex_;
+    // Lock-free concurrent queue for inbox (Phase C optimization)
+    moodycamel::ConcurrentQueue<core::KeystoneMessage> inbox_;
 };
 
 } // namespace agents
