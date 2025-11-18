@@ -1,9 +1,20 @@
 #include "core/message_bus.hpp"
 #include "agents/base_agent.hpp"
+#include "concurrency/work_stealing_scheduler.hpp"
 #include <stdexcept>
 
 namespace keystone {
 namespace core {
+
+void MessageBus::setScheduler(concurrency::WorkStealingScheduler* scheduler) {
+    std::lock_guard<std::mutex> lock(registry_mutex_);
+    scheduler_ = scheduler;
+}
+
+concurrency::WorkStealingScheduler* MessageBus::getScheduler() const {
+    std::lock_guard<std::mutex> lock(registry_mutex_);
+    return scheduler_;
+}
 
 void MessageBus::registerAgent(const std::string& agent_id, agents::BaseAgent* agent) {
     if (!agent) {
@@ -32,8 +43,19 @@ bool MessageBus::routeMessage(const KeystoneMessage& msg) {
         return false;  // Receiver not found
     }
 
-    // Synchronous delivery for Phase 1
-    it->second->receiveMessage(msg);
+    agents::BaseAgent* agent = it->second;
+
+    // Async routing if scheduler present (Phase A Week 3+)
+    if (scheduler_) {
+        // Submit message delivery as work item to scheduler
+        scheduler_->submit([agent, msg]() {
+            agent->receiveMessage(msg);
+        });
+        return true;
+    }
+
+    // Synchronous delivery for backward compatibility (Phase 1-3)
+    agent->receiveMessage(msg);
     return true;
 }
 
