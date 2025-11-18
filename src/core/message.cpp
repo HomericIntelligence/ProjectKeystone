@@ -39,6 +39,37 @@ KeystoneMessage KeystoneMessage::create(
     msg.command = cmd;
     msg.payload = data;
     msg.timestamp = std::chrono::system_clock::now();
+
+    // Phase A: Initialize new fields with defaults for backward compatibility
+    msg.action_type = ActionType::EXECUTE;
+    msg.content_type = ContentType::TEXT_PLAIN;
+    msg.session_id = "default";
+    // metadata is empty by default
+
+    return msg;
+}
+
+KeystoneMessage KeystoneMessage::create(
+    const std::string& sender,
+    const std::string& receiver,
+    ActionType action,
+    const std::string& session,
+    const std::optional<std::string>& data,
+    ContentType content
+) {
+    KeystoneMessage msg;
+    msg.msg_id = generate_uuid();
+    msg.sender_id = sender;
+    msg.receiver_id = receiver;
+    msg.action_type = action;
+    msg.content_type = content;
+    msg.session_id = session;
+    msg.payload = data;
+    msg.timestamp = std::chrono::system_clock::now();
+
+    // Legacy field: set command based on action type
+    msg.command = actionTypeToString(action);
+
     return msg;
 }
 
