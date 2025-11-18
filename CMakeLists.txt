@@ -145,6 +145,20 @@ target_link_libraries(phase3_e2e_tests
 
 gtest_discover_tests(phase3_e2e_tests)
 
+# E2E Tests - Phase A (Async Work-Stealing)
+add_executable(phase_a_e2e_tests
+    tests/e2e/phase_a_async_delegation.cpp
+)
+
+target_link_libraries(phase_a_e2e_tests
+    keystone_agents
+    keystone_core
+    keystone_concurrency
+    GTest::gtest_main
+)
+
+gtest_discover_tests(phase_a_e2e_tests)
+
 # Unit Tests
 add_executable(unit_tests
     tests/unit/test_message_bus.cpp
