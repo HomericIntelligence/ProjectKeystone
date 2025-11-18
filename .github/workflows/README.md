@@ -17,7 +17,7 @@ These workflows run on every PR and provide quick feedback:
 
 - **unit-tests.yml** - Unit test execution
   - Builds test environment in Docker
-  - Runs Google Test unit tests
+  - Runs Catch2 v3 unit tests
   - Generates coverage reports with gcovr
   - **Triggers**: PR, push to main, manual
   - **Timeout**: 15 minutes
@@ -52,6 +52,15 @@ These workflows provide deeper validation:
   - **Timeout**: 15-20 minutes
   - **Artifacts**: Security reports, SARIF files
 
+- **sanitizers.yml** - Runtime error detection
+  - AddressSanitizer (ASan) for memory errors
+  - UndefinedBehaviorSanitizer (UBSan) for undefined behavior
+  - ThreadSanitizer (TSan) for data races
+  - MemorySanitizer (MSan) on manual trigger
+  - **Triggers**: PR, push to main, manual
+  - **Timeout**: 20-30 minutes
+  - **Artifacts**: Sanitizer logs and reports
+
 ## Workflow Details
 
 ### Pre-commit Checks
@@ -83,7 +92,7 @@ git commit -m "fix: Apply pre-commit fixes"
 ```yaml
 File: unit-tests.yml
 Jobs:
-  - test-cpp: Builds and runs Google Test suites
+  - test-cpp: Builds and runs Catch2 v3 test suites
   - coverage-report: Generates coverage reports and PR comments
 ```
 
@@ -169,6 +178,49 @@ Jobs:
 - **CodeQL**: Deep semantic analysis for C++
 - **Cppcheck**: C++ static analysis for security issues
 
+### Sanitizers
+
+```yaml
+File: sanitizers.yml
+Jobs:
+  - asan-ubsan: AddressSanitizer + UndefinedBehaviorSanitizer (combined)
+  - tsan: ThreadSanitizer (separate, incompatible with ASan)
+  - msan: MemorySanitizer (manual trigger only)
+  - sanitizer-report: Aggregates results and comments PR
+```
+
+**Key Features**:
+- Runtime error detection during test execution
+- Parallel execution of compatible sanitizers
+- Automatic PR comments with findings
+- Logs uploaded as artifacts for investigation
+- Fails workflow if issues detected
+
+**Sanitizer Types**:
+- **AddressSanitizer (ASan)**: Detects memory errors
+  - Use-after-free, buffer overflows
+  - Memory leaks
+  - Double-free errors
+- **UndefinedBehaviorSanitizer (UBSan)**: Detects undefined behavior
+  - Integer overflow/underflow
+  - Null pointer dereference
+  - Division by zero
+- **ThreadSanitizer (TSan)**: Detects threading issues
+  - Data races
+  - Deadlocks
+  - Thread leaks
+- **MemorySanitizer (MSan)**: Detects uninitialized memory reads
+  - Only runs on manual trigger (complex setup)
+
+**Local Testing**:
+```bash
+# Run with ASan + UBSan
+docker build --build-arg CMAKE_CXX_FLAGS="-fsanitize=address,undefined" .
+
+# Run with TSan
+docker build --build-arg CMAKE_CXX_FLAGS="-fsanitize=thread" .
+```
+
 ## Workflow Triggers
 
 ### Pull Requests
@@ -190,11 +242,12 @@ All workflows support `workflow_dispatch` for manual triggering
 
 | Artifact | Retention | Size | Description |
 |----------|-----------|------|-------------|
-| Unit test results | 7 days | ~1 MB | JUnit XML test results |
+| Unit test results | 7 days | ~1 MB | Catch2 XML test results |
 | Coverage reports | 7 days | ~5 MB | HTML and XML coverage |
 | Build manifests | 7 days | <1 MB | Build metadata |
 | Integration reports | 30 days | ~2 MB | E2E test results |
 | Security reports | 90 days | ~10 MB | SARIF and scan results |
+| Sanitizer results | 30 days | ~5 MB | ASan/UBSan/TSan logs |
 
 ## PR Comment Integration
 
@@ -204,6 +257,7 @@ All workflows post automated comments to PRs with results:
 - **Build Validation**: Build status for all targets
 - **Integration Tests**: Phase-by-phase status table
 - **Security Scanning**: Security findings summary
+- **Sanitizers**: Sanitizer results with pass/fail status
 
 Comments are updated (not duplicated) on subsequent runs.
 
@@ -216,16 +270,19 @@ graph TD
     A --> D[build-validation.yml]
     A --> E[integration-tests.yml]
     A --> F[security-scan.yml]
+    A --> G[sanitizers.yml]
 
-    C --> G[coverage-report job]
-    D --> H[build-validation job]
-    E --> I[integration-report job]
-    F --> J[security-report job]
+    C --> H[coverage-report job]
+    D --> I[build-validation job]
+    E --> J[integration-report job]
+    F --> K[security-report job]
+    G --> L[sanitizer-report job]
 
-    G --> K[PR Comment]
-    H --> K
-    I --> K
-    J --> K
+    H --> M[PR Comment]
+    I --> M
+    J --> M
+    K --> M
+    L --> M
 ```
 
 ## Typical PR Timeline
@@ -237,15 +294,17 @@ graph TD
 0:03 - Build validation starts (parallel)
 0:05 - Integration tests start (parallel)
 0:05 - Security scans start (parallel)
+0:05 - Sanitizers start (parallel)
 0:10 - Pre-commit finishes ✅
 0:12 - Unit tests finish ✅
 0:15 - Build validation finishes ✅
 0:20 - Integration tests finish ✅
 0:20 - Security scans finish ✅
-0:21 - All checks complete, ready for review
+0:25 - Sanitizers finish ✅ (ASan, UBSan, TSan)
+0:26 - All checks complete, ready for review
 ```
 
-Total time: ~20 minutes for comprehensive validation
+Total time: ~25 minutes for comprehensive validation (including sanitizers)
 
 ## Failure Handling
 
@@ -273,6 +332,12 @@ Total time: ~20 minutes for comprehensive validation
 - Uploads findings to Security tab
 - Comments PR with summary
 - Fails workflow only on critical issues
+
+### Sanitizer Failures
+- Uploads sanitizer logs as artifacts
+- Comments PR with detected issues
+- Fails workflow if any sanitizer detects errors
+- Provides instructions for local reproduction
 
 ## Skipping Workflows
 
@@ -334,6 +399,28 @@ docker run --rm -v $(pwd):/src returntocorp/semgrep semgrep --config=auto /src
 cppcheck --enable=all --suppress=missingIncludeSystem -I include src/
 ```
 
+### Running Sanitizers Locally
+```bash
+# ASan + UBSan
+docker build \
+  --build-arg CMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -g" \
+  -t projectkeystone:asan .
+docker run --rm projectkeystone:asan
+
+# TSan
+docker build \
+  --build-arg CMAKE_CXX_FLAGS="-fsanitize=thread -g" \
+  -t projectkeystone:tsan .
+docker run --rm projectkeystone:tsan
+
+# Native build with sanitizers
+mkdir -p build-asan && cd build-asan
+cmake -DCMAKE_BUILD_TYPE=Debug \
+      -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer" ..
+make
+./phase1_e2e_tests
+```
+
 ## Troubleshooting
 
 ### Workflow Not Triggering
@@ -378,7 +465,7 @@ cppcheck --enable=all --suppress=missingIncludeSystem -I include src/
 
 - [GitHub Actions Documentation](https://docs.github.com/en/actions)
 - [Docker Build Best Practices](https://docs.docker.com/develop/dev-best-practices/)
-- [Google Test Documentation](https://google.github.io/googletest/)
+- [Catch2 v3 Documentation](https://github.com/catchorg/Catch2/tree/devel/docs)
 - [Semgrep Rules](https://semgrep.dev/r)
 - [CodeQL C++ Queries](https://codeql.github.com/codeql-query-help/cpp/)
 

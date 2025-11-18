@@ -55,8 +55,8 @@ jobs:
             projectkeystone:test \
             bash -c "cd build && \
               ./${{ matrix.suite }}_e2e_tests \
-                --gtest_output=xml:/workspace/test-results/results.xml \
-                --gtest_filter=*E2E* || exit 1"
+                --reporter JUnit::out=/workspace/test-results/results.xml \
+                '[e2e]' || exit 1"
         continue-on-error: true
 
       - name: Generate suite summary
