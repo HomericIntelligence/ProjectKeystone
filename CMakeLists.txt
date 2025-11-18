@@ -41,12 +41,13 @@ target_include_directories(keystone_core PUBLIC ${PROJECT_SOURCE_DIR}/include)
 add_library(keystone_agents
     src/agents/base_agent.cpp
     src/agents/chief_architect_agent.cpp
+    src/agents/module_lead_agent.cpp
     src/agents/task_agent.cpp
 )
 
 target_link_libraries(keystone_agents PUBLIC keystone_core)
 
-# E2E Tests
+# E2E Tests - Phase 1
 add_executable(phase1_e2e_tests
     tests/e2e/phase1_basic_delegation.cpp
 )
@@ -57,8 +58,21 @@ target_link_libraries(phase1_e2e_tests
     GTest::gtest_main
 )
 
-include(GoogleTest)
 gtest_discover_tests(phase1_e2e_tests)
+
+# E2E Tests - Phase 2
+add_executable(phase2_e2e_tests
+    tests/e2e/phase2_module_coordination.cpp
+)
+
+target_link_libraries(phase2_e2e_tests
+    keystone_agents
+    keystone_core
+    GTest::gtest_main
+)
+
+include(GoogleTest)
+gtest_discover_tests(phase2_e2e_tests)
 
 # Unit Tests
 add_executable(unit_tests
@@ -76,5 +90,5 @@ gtest_discover_tests(unit_tests)
 # Add test target
 add_custom_target(run_tests
     COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
-    DEPENDS phase1_e2e_tests unit_tests
+    DEPENDS phase1_e2e_tests phase2_e2e_tests unit_tests
 )
