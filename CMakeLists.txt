@@ -71,6 +71,7 @@ add_library(keystone_concurrency
     src/concurrency/task.cpp
     src/concurrency/thread_pool.cpp
     src/concurrency/work_stealing_queue.cpp
+    src/concurrency/logger.cpp
 )
 
 target_include_directories(keystone_concurrency PUBLIC
@@ -156,6 +157,7 @@ add_executable(concurrency_unit_tests
     tests/unit/test_task.cpp
     tests/unit/test_thread_pool.cpp
     tests/unit/test_work_stealing_queue.cpp
+    tests/unit/test_logger.cpp
 )
 
 target_link_libraries(concurrency_unit_tests
