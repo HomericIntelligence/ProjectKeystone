@@ -10,6 +10,8 @@
 - ✅ **Serialization**: Cista (zero-copy, header-only)
 - ✅ **Modules**: C++20 Modules structure
 - ✅ **External Model Communication**: Process execution + filesystem (NO gRPC, NO ONNX Runtime)
+- ✅ **Logging**: `spdlog` (structured, async, thread-safe, header-only)
+- ✅ **Checkpoint/Resume**: Full hierarchy state serialization for fault tolerance
 - ✅ **NO Facebook libraries** (no folly)
 - ✅ **NO GPU dependencies** (no CUDA/cuDNN)
 
@@ -1027,9 +1029,17 @@ Keystone.Concurrency
 └── WorkStealingScheduler (work_stealing_scheduler.hpp)
     └── depends on: Keystone.Core
 
+Keystone.Observability
+├── Logger           (logger.hpp)
+├── LogContext       (log_context.hpp)
+├── Checkpoint       (checkpoint.hpp)
+├── CheckpointResume (checkpoint_resume.hpp)
+└── SafePointDetector (safe_point_detector.hpp)
+    └── depends on: Keystone.Core, Keystone.Concurrency
+
 Keystone.Agents
 ├── BaseAgent        (base_agent.hpp)
-│   └── depends on: Keystone.Core, Keystone.Concurrency
+│   └── depends on: Keystone.Core, Keystone.Concurrency, Keystone.Observability
 ├── Root
 │   └── ChiefArchitectAgent
 ├── Branch
@@ -1063,6 +1073,14 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(cista)
 
+# Fetch spdlog
+FetchContent_Declare(
+    spdlog
+    GIT_REPOSITORY https://github.com/gabime/spdlog.git
+    GIT_TAG v1.12.0
+)
+FetchContent_MakeAvailable(spdlog)
+
 # Core module
 add_library(keystone_core)
 target_sources(keystone_core
@@ -1087,6 +1105,23 @@ target_link_libraries(keystone_concurrency
     PUBLIC concurrentqueue
 )
 
+# Observability module
+add_library(keystone_observability)
+target_sources(keystone_observability
+    PUBLIC FILE_SET CXX_MODULES FILES
+        src/observability/logger.cpp
+        src/observability/log_context.cpp
+        src/observability/checkpoint.cpp
+        src/observability/checkpoint_resume.cpp
+        src/observability/safe_point_detector.cpp
+)
+target_link_libraries(keystone_observability
+    PUBLIC keystone_core
+    PUBLIC keystone_concurrency
+    PUBLIC spdlog::spdlog
+    PUBLIC cista::cista
+)
+
 # Agents module
 add_library(keystone_agents)
 target_sources(keystone_agents
@@ -1100,6 +1135,7 @@ target_sources(keystone_agents
 target_link_libraries(keystone_agents
     PUBLIC keystone_core
     PUBLIC keystone_concurrency
+    PUBLIC keystone_observability
 )
 ```
 
@@ -1193,6 +1229,519 @@ private:
 
 ---
 
+### 3.6. Structured Logging Infrastructure
+
+**Purpose**: Comprehensive, thread-safe, async logging for debugging, monitoring, and production operations
+
+**Library Choice**: **spdlog** (header-only, fast, async-capable, widely adopted)
+
+**File**: `include/observability/logger.hpp` (Module: `Keystone.Observability`)
+
+#### 3.6.1. Logger Interface
+
+```cpp
+export module Keystone.Observability:Logger;
+
+import <spdlog/spdlog.h>;
+import <spdlog/async.h>;
+import <spdlog/sinks/rotating_file_sink.h>;
+import <spdlog/sinks/stdout_color_sinks.h>;
+import <string>;
+import <memory>;
+import <map>;
+
+namespace keystone::observability {
+
+enum class LogLevel {
+    TRACE,    // Fine-grained debug (e.g., "Attempting to steal from queue 3")
+    DEBUG,    // Debug info (e.g., "Agent state transition: IDLE -> PLANNING")
+    INFO,     // Important milestones (e.g., "ModuleLead delegated 3 tasks")
+    WARN,     // Warnings (e.g., "Queue depth exceeds 80% capacity")
+    ERROR,    // Errors (e.g., "Process execution failed")
+    CRITICAL  // Critical failures (e.g., "Work-stealing deadlock detected")
+};
+
+class Logger {
+public:
+    // Initialize logging system (call once at startup)
+    static void initialize(
+        const std::string& log_file_path = "keystone.log",
+        LogLevel level = LogLevel::INFO,
+        bool async = true  // Async logging for performance
+    );
+
+    // Get logger instance
+    static std::shared_ptr<spdlog::logger> get();
+
+    // Structured logging with context
+    static void log(
+        LogLevel level,
+        const std::string& message,
+        const std::map<std::string, std::string>& context = {}
+    );
+
+    // Convenience methods with automatic context propagation
+    static void trace(const std::string& msg, const std::map<std::string, std::string>& ctx = {});
+    static void debug(const std::string& msg, const std::map<std::string, std::string>& ctx = {});
+    static void info(const std::string& msg, const std::map<std::string, std::string>& ctx = {});
+    static void warn(const std::string& msg, const std::map<std::string, std::string>& ctx = {});
+    static void error(const std::string& msg, const std::map<std::string, std::string>& ctx = {});
+    static void critical(const std::string& msg, const std::map<std::string, std::string>& ctx = {});
+
+    // Shutdown (flush all async logs)
+    static void shutdown();
+
+private:
+    static std::shared_ptr<spdlog::logger> logger_;
+};
+
+} // namespace keystone::observability
+```
+
+#### 3.6.2. Contextual Logging
+
+**Context Propagation**: Automatically include critical metadata in all logs
+
+```cpp
+export module Keystone.Observability:LogContext;
+
+import <string>;
+import <map>;
+
+namespace keystone::observability {
+
+// Thread-local log context (automatically included in all logs)
+class LogContext {
+public:
+    // Set context for current thread
+    static void set(const std::string& key, const std::string& value);
+    static void setSessionId(const std::string& session_id);
+    static void setAgentId(const std::string& agent_id);
+    static void setMessageId(const std::string& msg_id);
+    static void setThreadId(size_t thread_id);
+
+    // Get current context
+    static std::map<std::string, std::string> get();
+
+    // Clear context (e.g., at end of task)
+    static void clear();
+
+private:
+    thread_local static std::map<std::string, std::string> context_;
+};
+
+} // namespace keystone::observability
+```
+
+**Usage Example**:
+```cpp
+// In TaskAgent::run()
+Task<void> TaskAgent::run() {
+    while (true) {
+        auto msg = co_await pullOrSteal();
+
+        // Set log context
+        LogContext::setSessionId(msg.session_id);
+        LogContext::setAgentId(agent_id_);
+        LogContext::setMessageId(msg.msg_id);
+
+        // All subsequent logs automatically include this context
+        Logger::info("Received message", {
+            {"action_type", actionTypeToString(msg.action_type)},
+            {"sender", msg.sender_id}
+        });
+        // Log output:
+        // [2025-01-15 10:23:45.123] [info] [session=abc123] [agent=task-1] [msg=msg-456]
+        // Received message | action_type=EXECUTE | sender=module-lead-1
+
+        state_ = State::EXECUTING;
+        Logger::debug("State transition", {{"from", "IDLE"}, {"to", "EXECUTING"}});
+
+        auto result = co_await executeProcess(msg.payload.value_or(""));
+
+        if (result.starts_with("ERROR")) {
+            Logger::error("Process execution failed", {{"command", msg.payload.value_or("")}});
+        } else {
+            Logger::info("Process completed successfully", {{"result_length", std::to_string(result.size())}});
+        }
+
+        // Clear context at end
+        LogContext::clear();
+    }
+}
+```
+
+#### 3.6.3. Performance Considerations
+
+**Async Logging**: Use spdlog's async mode to avoid blocking worker threads
+- Logs are written to a lock-free queue
+- Dedicated background thread flushes to disk
+- Worker threads never block on I/O
+
+**Log Levels**: Configurable at runtime
+- Production: INFO and above
+- Development: DEBUG and above
+- Performance testing: WARN and above (minimal overhead)
+
+**Structured Format**: JSON-compatible for log aggregation
+```json
+{
+  "timestamp": "2025-01-15T10:23:45.123Z",
+  "level": "INFO",
+  "session_id": "abc123",
+  "agent_id": "task-1",
+  "msg_id": "msg-456",
+  "thread_id": 3,
+  "message": "Received message",
+  "action_type": "EXECUTE",
+  "sender": "module-lead-1"
+}
+```
+
+#### 3.6.4. Key Logging Points
+
+**Agent Lifecycle**:
+- Agent creation/destruction
+- State machine transitions (IDLE → PLANNING → EXECUTING → IDLE)
+- Coroutine suspension/resumption
+
+**Message Flow**:
+- Message sent (from, to, action_type)
+- Message received
+- Message processing started/completed
+
+**Work-Stealing**:
+- Local queue pull success/failure
+- Steal attempt (victim thread, success/failure)
+- Queue depth changes
+
+**Process Execution** (TaskAgent):
+- Process start (command, PID)
+- Process completion (exit code, duration)
+- Process errors (stderr output)
+
+**Coordination** (Branch Agents):
+- Task decomposition (num tasks created)
+- Barrier wait (num subordinates)
+- Result synthesis (num results aggregated)
+
+**Performance Metrics**:
+- Message latency (time from send to receive)
+- Agent processing time (time in EXECUTING state)
+- Queue depth warnings (>80% capacity)
+
+**Testing**:
+- Unit test: Logger initialization, async mode
+- Unit test: Log context propagation
+- Integration test: Logs from multiple threads (no interleaving)
+- Performance test: Logging overhead (<1% impact on throughput)
+
+---
+
+### 3.7. Checkpoint/Resume System
+
+**Purpose**: Serialize entire hierarchy state to disk for fault tolerance, debugging, and resume after interruption
+
+**Challenge**: C++20 coroutines do not have built-in serialization - we need a **logical checkpoint** approach
+
+#### 3.7.1. Checkpoint Strategy
+
+**Snapshot at Safe Points**: Only checkpoint when the entire hierarchy is in a consistent, quiescent state
+
+**Safe Point Definition**:
+1. All agents are in `IDLE` state (no in-flight work)
+2. All message queues are empty (no pending messages)
+3. No coroutines are suspended mid-execution
+4. All external process executions have completed
+
+**Checkpoint Trigger**:
+- Manual trigger (external signal, e.g., `SIGUSR1`)
+- Periodic checkpointing (e.g., every 5 minutes if idle)
+- Pre-shutdown checkpoint (before graceful shutdown)
+
+**Checkpoint Scope**:
+- Agent metadata (agent_id, type, state)
+- Hierarchy topology (parent-child relationships)
+- Session states (active sessions, their progress)
+- Execution history (completed tasks, results)
+- Configuration (available task agents, routing tables)
+
+**NOT Checkpointed** (ephemeral state):
+- Coroutine suspension points (not serializable in C++20)
+- Thread-local queues (transient, reconstructed on resume)
+- In-flight messages (not allowed at safe points)
+
+#### 3.7.2. Checkpoint Data Model
+
+**File**: `include/observability/checkpoint.hpp` (Module: `Keystone.Observability`)
+
+```cpp
+export module Keystone.Observability:Checkpoint;
+
+import Keystone.Core:Message;
+import <cista.h>;
+import <string>;
+import <vector>;
+import <map>;
+import <chrono>;
+
+namespace keystone::observability {
+
+// Checkpoint format version (for compatibility)
+constexpr uint32_t CHECKPOINT_VERSION = 1;
+
+// Agent state snapshot
+struct AgentSnapshot {
+    cista::offset::string agent_id;
+    cista::offset::string agent_type;  // "ChiefArchitect", "ModuleLead", etc.
+    uint8_t state;  // State enum as uint8_t
+    cista::offset::vector<cista::offset::string> subordinate_ids;  // Child agents
+    cista::offset::map<cista::offset::string, cista::offset::string> metadata;  // Custom state
+};
+
+// Session state snapshot
+struct SessionSnapshot {
+    cista::offset::string session_id;
+    cista::offset::string root_goal;  // Original user request
+    int64_t start_time_ns;  // Timestamp
+    cista::offset::vector<cista::offset::string> completed_tasks;  // Task IDs
+    cista::offset::map<cista::offset::string, cista::offset::string> partial_results;  // Intermediate results
+};
+
+// Full hierarchy checkpoint
+struct HierarchyCheckpoint {
+    uint32_t version{CHECKPOINT_VERSION};
+    int64_t checkpoint_time_ns;  // When checkpoint was taken
+
+    // Hierarchy topology
+    cista::offset::string root_agent_id;
+    cista::offset::vector<AgentSnapshot> agents;
+
+    // Active sessions
+    cista::offset::vector<SessionSnapshot> sessions;
+
+    // Global configuration
+    cista::offset::map<cista::offset::string, cista::offset::string> config;
+};
+
+class CheckpointManager {
+public:
+    // Take a checkpoint (must be at safe point)
+    static bool takeCheckpoint(
+        const std::string& checkpoint_path,
+        const HierarchyCheckpoint& checkpoint
+    );
+
+    // Load checkpoint from disk
+    static std::optional<HierarchyCheckpoint> loadCheckpoint(
+        const std::string& checkpoint_path
+    );
+
+    // Verify checkpoint integrity (version, consistency)
+    static bool verifyCheckpoint(const HierarchyCheckpoint& checkpoint);
+
+    // Get checkpoint metadata without loading full state
+    static std::optional<CheckpointMetadata> getCheckpointMetadata(
+        const std::string& checkpoint_path
+    );
+};
+
+struct CheckpointMetadata {
+    uint32_t version;
+    int64_t checkpoint_time_ns;
+    size_t num_agents;
+    size_t num_sessions;
+};
+
+} // namespace keystone::observability
+```
+
+#### 3.7.3. Checkpointing Protocol
+
+**Safe Point Detection**:
+
+```cpp
+export module Keystone.Concurrency:SafePointDetector;
+
+import Keystone.Agents:BaseAgent;
+import <atomic>;
+import <vector>;
+import <barrier>;
+
+namespace keystone::concurrency {
+
+class SafePointDetector {
+public:
+    // Check if all agents are at safe point (IDLE, queues empty)
+    static bool atSafePoint(const std::vector<BaseAgent*>& all_agents);
+
+    // Request all agents to reach safe point
+    static void requestSafePoint();
+
+    // Wait until safe point is reached (with timeout)
+    static bool waitForSafePoint(std::chrono::milliseconds timeout);
+
+private:
+    static std::atomic<bool> safe_point_requested_;
+    static std::unique_ptr<std::barrier<>> safe_point_barrier_;
+};
+
+} // namespace keystone::concurrency
+```
+
+**Checkpoint Flow**:
+
+1. **Trigger**: External signal (SIGUSR1) or periodic timer
+2. **Request Safe Point**: Set global flag, agents stop pulling new work
+3. **Drain Queues**: All agents finish current tasks, enter IDLE
+4. **Barrier Sync**: All agents reach safe point barrier
+5. **Collect State**: Traverse hierarchy, serialize agent states
+6. **Write to Disk**: Serialize HierarchyCheckpoint using Cista
+7. **Resume**: Agents resume normal operation
+
+**Integration with Agents**:
+
+```cpp
+// In BaseAgent::run()
+Task<void> BaseAgent::run() {
+    while (true) {
+        // Check for checkpoint request
+        if (SafePointDetector::isSafePointRequested() && state_ == State::IDLE) {
+            // Participate in safe point barrier
+            co_await SafePointDetector::reachSafePoint(this);
+            // Checkpoint taken by coordinator, now resume
+        }
+
+        auto msg = co_await pullOrSteal();
+        // ... process message
+    }
+}
+```
+
+#### 3.7.4. Resume from Checkpoint
+
+**Resume Flow**:
+
+1. **Load Checkpoint**: Deserialize HierarchyCheckpoint from disk
+2. **Validate**: Check version compatibility, integrity
+3. **Reconstruct Hierarchy**:
+   - Create agents (ChiefArchitect, ComponentLeads, ModuleLeads, TaskAgents)
+   - Restore parent-child relationships
+   - Restore agent state (set state machine to checkpointed state)
+4. **Restore Sessions**:
+   - Recreate session contexts
+   - Restore partial results
+5. **Resume Execution**:
+   - Start all agent coroutines
+   - ChiefArchitect resumes from last checkpoint
+   - May need to replay or re-delegate incomplete tasks
+
+**Limitations**:
+- **No Mid-Execution Resume**: Cannot resume from arbitrary coroutine suspension points
+- **Replay Required**: If tasks were partially completed, may need to re-execute from last safe point
+- **External State**: File system state (process outputs) must be managed separately
+
+**Resume Interface**:
+
+```cpp
+export module Keystone.Observability:CheckpointResume;
+
+import Keystone.Observability:Checkpoint;
+import Keystone.Concurrency:WorkStealingScheduler;
+
+namespace keystone::observability {
+
+class CheckpointResume {
+public:
+    // Resume system from checkpoint
+    static bool resumeFromCheckpoint(
+        const std::string& checkpoint_path,
+        WorkStealingScheduler* scheduler
+    );
+
+private:
+    // Reconstruct agent hierarchy from snapshot
+    static void reconstructHierarchy(
+        const HierarchyCheckpoint& checkpoint,
+        WorkStealingScheduler* scheduler
+    );
+
+    // Restore session states
+    static void restoreSessions(const HierarchyCheckpoint& checkpoint);
+};
+
+} // namespace keystone::observability
+```
+
+#### 3.7.5. Checkpoint File Format
+
+**File Structure** (Cista binary):
+```
+┌─────────────────────────────────┐
+│ Magic Number: "KCHK" (4 bytes) │
+├─────────────────────────────────┤
+│ Version: uint32_t               │
+├─────────────────────────────────┤
+│ Timestamp: int64_t              │
+├─────────────────────────────────┤
+│ Cista-serialized                │
+│ HierarchyCheckpoint             │
+│ (variable length)               │
+└─────────────────────────────────┘
+```
+
+**File Naming**: `keystone_checkpoint_<timestamp>.ckpt`
+
+**Compression**: Optional gzip compression for large checkpoints
+
+**Versioning**: Version field allows future format evolution
+
+#### 3.7.6. Advanced Checkpoint Features (Future)
+
+**Incremental Checkpointing**:
+- Only serialize changed state since last checkpoint
+- Delta compression
+
+**Multi-Version Checkpoints**:
+- Keep last N checkpoints for rollback
+- Automatic cleanup of old checkpoints
+
+**Distributed Checkpointing** (if hierarchy is distributed):
+- Each agent writes local checkpoint
+- Coordinator merges into global checkpoint
+
+**Checkpoint Verification**:
+- CRC checksum for corruption detection
+- Automatic checkpoint integrity tests
+
+#### 3.7.7. Testing
+
+**Unit Tests**:
+- Checkpoint serialization/deserialization (round-trip)
+- Version compatibility (load old checkpoint format)
+- Checkpoint verification (detect corruption)
+
+**Integration Tests**:
+- Safe point detection (all agents reach IDLE)
+- Checkpoint during execution (trigger, wait, verify)
+- Resume from checkpoint (restore hierarchy)
+
+**E2E Tests**:
+- Full workflow checkpoint/resume:
+  1. Start hierarchy, process some tasks
+  2. Take checkpoint at safe point
+  3. Shutdown system
+  4. Resume from checkpoint
+  5. Complete remaining tasks
+  6. Verify final result matches original workflow
+
+**Chaos Tests**:
+- Checkpoint with random agent failures (verify state consistency)
+- Resume with missing checkpoint file (graceful error)
+- Resume with corrupted checkpoint (validation catches error)
+
+---
+
 ## 4. Migration Phases
 
 ### Phase A: Foundation (Weeks 1-3)
@@ -1205,11 +1754,14 @@ private:
 - ✅ WorkStealingScheduler
 - ✅ Enhanced KeystoneMessage (KIM)
 - ✅ Cista serialization layer
+- ✅ **Logging infrastructure (spdlog integration)**
+- ✅ **LogContext for thread-local context propagation**
 
 **Test Coverage**:
-- 20+ unit tests for new components
+- 25+ unit tests for new components (including logging tests)
 - ThreadSanitizer clean (no data races)
 - ASan clean (no memory leaks)
+- Logging overhead < 1% (performance test)
 
 **DO NOT BREAK**: Existing 17 E2E tests (keep old MessageBus temporarily)
 
@@ -1249,21 +1801,27 @@ private:
 
 ---
 
-### Phase D: Graceful Shutdown & Monitoring (Weeks 9-10)
+### Phase D: Graceful Shutdown, Monitoring & Checkpointing (Weeks 9-11)
 
 **Deliverables**:
 - ✅ Signal handler thread
 - ✅ Shutdown protocol
 - ✅ Metrics collection (queue depth, steal rate, latency)
 - ✅ Simple metrics exporter (stdout for now)
+- ✅ **Checkpoint/Resume system (Cista serialization)**
+- ✅ **Safe point detection and coordination**
+- ✅ **Checkpoint file management (versioning, integrity checks)**
 
 **Test Coverage**:
 - Shutdown tests (SIGTERM during execution)
 - Metrics accuracy tests
+- **Checkpoint tests (save/load/verify)**
+- **Resume tests (full workflow checkpoint/resume)**
+- **Safe point coordination tests**
 
 ---
 
-### Phase E: Performance & Load Testing (Weeks 11-12)
+### Phase E: Performance & Load Testing (Weeks 12-13)
 
 **Deliverables**:
 - ✅ Load test: 100+ agents running concurrently
@@ -1387,6 +1945,14 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/felixguendling/cista.git
     GIT_TAG v0.14
 )
+
+# spdlog (structured, async logging)
+FetchContent_Declare(
+    spdlog
+    GIT_REPOSITORY https://github.com/gabime/spdlog.git
+    GIT_TAG v1.12.0
+)
+FetchContent_MakeAvailable(spdlog)
 ```
 
 **Compiler Requirements**:
@@ -1473,14 +2039,18 @@ This migration plan transforms ProjectKeystone from a synchronous MessageBus arc
 - **concurrentqueue** for lock-free queues
 - **Custom Task<T>** for C++20 coroutines
 - **Cista** for zero-copy serialization
+- **spdlog** for structured, async logging
+- **Checkpoint/Resume** for fault tolerance and debugging
 - **C++20 Modules** for code organization
 - **Process execution + filesystem** for model communication
 
-The phased approach ensures we maintain test coverage, minimize risk, and deliver a production-ready system.
+The phased approach ensures we maintain test coverage, minimize risk, and deliver a production-ready system with comprehensive observability and fault tolerance.
 
-**Estimated Timeline**: 12 weeks
+**Estimated Timeline**: 13-15 weeks (13 weeks core features, +2 weeks for C++20 modules)
 **Test Coverage Target**: 100% (all existing tests + new tests)
 **Performance Target**: No regression, potential improvements from work-stealing
+**Observability**: Comprehensive structured logging with context propagation
+**Fault Tolerance**: Checkpoint/resume at safe points for production resilience
 
 ---
 
