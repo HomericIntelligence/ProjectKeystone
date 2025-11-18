@@ -93,11 +93,14 @@ target_link_libraries(keystone_concurrency PUBLIC
 
 # Agents library
 add_library(keystone_agents
+    src/agents/agent_base.cpp
     src/agents/base_agent.cpp
     src/agents/chief_architect_agent.cpp
     src/agents/component_lead_agent.cpp
     src/agents/module_lead_agent.cpp
     src/agents/task_agent.cpp
+    src/agents/async_base_agent.cpp
+    src/agents/async_task_agent.cpp
 )
 
 target_link_libraries(keystone_agents PUBLIC
@@ -159,11 +162,26 @@ target_link_libraries(phase_a_e2e_tests
 
 gtest_discover_tests(phase_a_e2e_tests)
 
+# E2E Tests - Phase B (Async Agent Coroutines)
+add_executable(phase_b_e2e_tests
+    tests/e2e/phase_b_async_agents.cpp
+)
+
+target_link_libraries(phase_b_e2e_tests
+    keystone_agents
+    keystone_core
+    keystone_concurrency
+    GTest::gtest_main
+)
+
+gtest_discover_tests(phase_b_e2e_tests)
+
 # Unit Tests
 add_executable(unit_tests
     tests/unit/test_message_bus.cpp
     tests/unit/test_message_serializer.cpp
     tests/unit/test_message_bus_async.cpp
+    tests/unit/test_async_task_agent.cpp
 )
 
 target_link_libraries(unit_tests
