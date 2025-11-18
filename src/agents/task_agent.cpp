@@ -1,4 +1,5 @@
 #include "agents/task_agent.hpp"
+#include "core/metrics.hpp"
 #include <cstdio>
 #include <array>
 #include <stdexcept>
@@ -12,6 +13,17 @@ TaskAgent::TaskAgent(const std::string& agent_id)
 }
 
 core::Response TaskAgent::processMessage(const core::KeystoneMessage& msg) {
+    // FIX: Record message processed for metrics tracking
+    core::Metrics::getInstance().recordMessageProcessed(msg.msg_id);
+
+    // FIX: Check if deadline was missed
+    if (msg.deadline.has_value() && msg.hasDeadlinePassed()) {
+        auto time_remaining = msg.getTimeUntilDeadline();
+        // Deadline passed - time_remaining will be 0, we want the absolute value
+        // For now, record as 0ms late (we don't track when it was supposed to be processed)
+        core::Metrics::getInstance().recordDeadlineMiss(msg.msg_id, 0);
+    }
+
     try {
         // Execute the bash command
         std::string result = executeBash(msg.command);

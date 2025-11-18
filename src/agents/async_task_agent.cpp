@@ -1,4 +1,5 @@
 #include "agents/async_task_agent.hpp"
+#include "core/metrics.hpp"
 #include <cstdio>
 #include <array>
 #include <stdexcept>
@@ -15,6 +16,17 @@ AsyncTaskAgent::AsyncTaskAgent(const std::string& agent_id)
 }
 
 concurrency::Task<core::Response> AsyncTaskAgent::processMessage(const core::KeystoneMessage& msg) {
+    // FIX: Record message processed for metrics tracking
+    core::Metrics::getInstance().recordMessageProcessed(msg.msg_id);
+
+    // FIX: Check if deadline was missed
+    if (msg.deadline.has_value() && msg.hasDeadlinePassed()) {
+        auto time_remaining = msg.getTimeUntilDeadline();
+        // Deadline passed - time_remaining will be 0, we want the absolute value
+        // For now, record as 0ms late (we don't track when it was supposed to be processed)
+        core::Metrics::getInstance().recordDeadlineMiss(msg.msg_id, 0);
+    }
+
     try {
         // Skip response messages (avoid infinite loop)
         if (msg.command == "response") {

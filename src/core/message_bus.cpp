@@ -1,4 +1,5 @@
 #include "core/message_bus.hpp"
+#include "core/metrics.hpp"
 #include "agents/agent_base.hpp"
 #include "concurrency/work_stealing_scheduler.hpp"
 #include <stdexcept>
@@ -44,6 +45,9 @@ bool MessageBus::routeMessage(const KeystoneMessage& msg) {
     }
 
     agents::AgentBase* agent = it->second;
+
+    // FIX: Record message sent to metrics for tracking
+    Metrics::getInstance().recordMessageSent(msg.msg_id, msg.priority);
 
     // Async routing if scheduler present (Phase A Week 3+)
     if (scheduler_) {
