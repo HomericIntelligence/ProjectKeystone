@@ -225,6 +225,7 @@ add_executable(concurrency_unit_tests
     tests/unit/test_logger.cpp
     tests/unit/test_pull_or_steal.cpp
     tests/unit/test_work_stealing_scheduler.cpp
+    tests/unit/test_cpu_affinity.cpp  # Phase D.2: CPU affinity tests
 )
 
 target_link_libraries(concurrency_unit_tests

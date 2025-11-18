@@ -6,11 +6,18 @@
 #include "concurrency/work_stealing_scheduler.hpp"
 #include <sstream>
 
+// Phase D: CPU affinity support (Linux-specific)
+#ifdef __linux__
+#include <pthread.h>
+#include <sched.h>
+#endif
+
 namespace keystone {
 namespace concurrency {
 
-WorkStealingScheduler::WorkStealingScheduler(size_t num_workers)
-    : num_workers_(num_workers) {
+WorkStealingScheduler::WorkStealingScheduler(size_t num_workers, bool enable_cpu_affinity)
+    : num_workers_(num_workers),
+      enable_cpu_affinity_(enable_cpu_affinity) {
 
     if (num_workers_ == 0) {
         num_workers_ = 1;  // At least one worker
@@ -132,6 +139,11 @@ void WorkStealingScheduler::workerLoop(size_t worker_index) {
     oss << "worker_" << worker_index;
     LogContext::set(oss.str(), static_cast<int>(worker_index), "scheduler");
 
+    // Phase D: Set CPU affinity if enabled
+    if (enable_cpu_affinity_) {
+        setCPUAffinity(worker_index);
+    }
+
     Logger::debug("Worker {} starting", worker_index);
 
     auto& own_queue = *worker_queues_[worker_index];
@@ -174,6 +186,32 @@ void WorkStealingScheduler::workerLoop(size_t worker_index) {
 
     Logger::debug("Worker {} exiting", worker_index);
     LogContext::clear();
+}
+
+void WorkStealingScheduler::setCPUAffinity(size_t worker_index) {
+#ifdef __linux__
+    // Linux: Use pthread_setaffinity_np()
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+
+    // Map worker to CPU core (wrap around if more workers than cores)
+    size_t cpu_id = worker_index % std::thread::hardware_concurrency();
+    CPU_SET(cpu_id, &cpuset);
+
+    pthread_t thread = pthread_self();
+    int result = pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
+
+    if (result != 0) {
+        Logger::warn("Worker {} failed to set CPU affinity to core {}: error {}",
+                     worker_index, cpu_id, result);
+    } else {
+        Logger::debug("Worker {} pinned to CPU core {}", worker_index, cpu_id);
+    }
+#else
+    // Other platforms: No-op (affinity not supported or not implemented)
+    Logger::debug("Worker {}: CPU affinity not supported on this platform", worker_index);
+    (void)worker_index;  // Suppress unused parameter warning
+#endif
 }
 
 } // namespace concurrency

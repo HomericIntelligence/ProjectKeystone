@@ -45,8 +45,14 @@ public:
      * @brief Construct a work-stealing scheduler
      *
      * @param num_workers Number of worker threads (default: hardware_concurrency)
+     * @param enable_cpu_affinity Pin worker threads to CPU cores (default: false)
+     *
+     * Phase D: CPU affinity improves cache locality by preventing thread migration.
+     * When enabled, worker i is pinned to CPU core (i % num_cores).
      */
-    explicit WorkStealingScheduler(size_t num_workers = std::thread::hardware_concurrency());
+    explicit WorkStealingScheduler(
+        size_t num_workers = std::thread::hardware_concurrency(),
+        bool enable_cpu_affinity = false);
 
     /**
      * @brief Destructor - ensures graceful shutdown
@@ -129,9 +135,10 @@ private:
      *
      * Each worker:
      * 1. Sets thread-local LogContext
-     * 2. Loops: co_await PullOrSteal
-     * 3. Executes work items
-     * 4. Exits on shutdown
+     * 2. (Phase D) Sets CPU affinity if enabled
+     * 3. Loops: co_await PullOrSteal
+     * 4. Executes work items
+     * 5. Exits on shutdown
      *
      * @param worker_index This worker's index
      */
@@ -142,7 +149,18 @@ private:
      */
     size_t getNextWorkerIndex();
 
+    /**
+     * @brief Set CPU affinity for current thread (Phase D)
+     *
+     * Pins the calling thread to a specific CPU core to improve cache locality.
+     * On Linux, uses pthread_setaffinity_np(). On other platforms, no-op.
+     *
+     * @param worker_index Worker index (maps to CPU core via modulo)
+     */
+    void setCPUAffinity(size_t worker_index);
+
     size_t num_workers_;
+    bool enable_cpu_affinity_;  // Phase D: Enable CPU affinity
     std::vector<std::unique_ptr<WorkStealingQueue>> worker_queues_;
     std::vector<WorkStealingQueue*> queue_pointers_;  // For PullOrSteal
     std::vector<std::thread> workers_;
