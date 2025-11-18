@@ -33,10 +33,10 @@ public:
      * @brief Send a command to a task agent and wait for response
      *
      * @param command Command string to execute
-     * @param task_agent Target task agent
+     * @param task_agent_id Target task agent ID
      * @return core::Response Response from the task agent
      */
-    core::Response sendCommand(const std::string& command, BaseAgent* task_agent);
+    core::Response sendCommand(const std::string& command, const std::string& task_agent_id);
 };
 
 } // namespace agents

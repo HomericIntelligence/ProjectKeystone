@@ -1,4 +1,6 @@
 #include "agents/base_agent.hpp"
+#include "core/message_bus.hpp"
+#include <stdexcept>
 
 namespace keystone {
 namespace agents {
@@ -7,10 +9,12 @@ BaseAgent::BaseAgent(const std::string& agent_id)
     : agent_id_(agent_id) {
 }
 
-void BaseAgent::sendMessage(const core::KeystoneMessage& msg, BaseAgent* target) {
-    if (target) {
-        target->receiveMessage(msg);
+void BaseAgent::sendMessage(const core::KeystoneMessage& msg) {
+    if (!message_bus_) {
+        throw std::runtime_error("Message bus not set for agent: " + agent_id_);
     }
+
+    message_bus_->routeMessage(msg);
 }
 
 void BaseAgent::receiveMessage(const core::KeystoneMessage& msg) {
@@ -28,14 +32,8 @@ std::optional<core::KeystoneMessage> BaseAgent::getMessage() {
     return msg;
 }
 
-void BaseAgent::storeResponse(const core::Response& resp) {
-    std::lock_guard<std::mutex> lock(response_mutex_);
-    stored_response_ = resp;
-}
-
-std::optional<core::Response> BaseAgent::getStoredResponse() {
-    std::lock_guard<std::mutex> lock(response_mutex_);
-    return stored_response_;
+void BaseAgent::setMessageBus(core::MessageBus* bus) {
+    message_bus_ = bus;
 }
 
 } // namespace agents
