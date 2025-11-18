@@ -1,5 +1,6 @@
 #include "agents/agent_base.hpp"
 #include "core/message_bus.hpp"
+#include "core/metrics.hpp"
 #include <stdexcept>
 
 namespace keystone {
@@ -52,11 +53,14 @@ std::optional<core::KeystoneMessage> AgentBase::getMessage() {
 
         // Try NORMAL first (give it priority over LOW)
         if (normal_priority_inbox_.try_dequeue(msg)) {
+            // FIX: Track queue depth after dequeue
+            updateQueueDepthMetrics();
             return msg;
         }
 
         // Then try LOW
         if (low_priority_inbox_.try_dequeue(msg)) {
+            updateQueueDepthMetrics();
             return msg;
         }
 
@@ -66,18 +70,30 @@ std::optional<core::KeystoneMessage> AgentBase::getMessage() {
     // Standard priority order: HIGH -> NORMAL -> LOW
     if (high_priority_inbox_.try_dequeue(msg)) {
         high_priority_processed_.fetch_add(1, std::memory_order_relaxed);
+        updateQueueDepthMetrics();
         return msg;
     }
 
     if (normal_priority_inbox_.try_dequeue(msg)) {
+        updateQueueDepthMetrics();
         return msg;
     }
 
     if (low_priority_inbox_.try_dequeue(msg)) {
+        updateQueueDepthMetrics();
         return msg;
     }
 
     return std::nullopt;
+}
+
+void AgentBase::updateQueueDepthMetrics() {
+    // FIX: Calculate total queue depth across all priority levels
+    size_t total_depth = high_priority_inbox_.size_approx() +
+                        normal_priority_inbox_.size_approx() +
+                        low_priority_inbox_.size_approx();
+
+    core::Metrics::getInstance().recordQueueDepth(agent_id_, total_depth);
 }
 
 void AgentBase::setMessageBus(core::MessageBus* bus) {

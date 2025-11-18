@@ -76,6 +76,13 @@ public:
     void setMessageBus(core::MessageBus* bus);
 
 protected:
+    /**
+     * @brief Update queue depth metrics
+     *
+     * Calculates total messages across all priority queues and reports to Metrics.
+     * Called after each getMessage() operation.
+     */
+    void updateQueueDepthMetrics();
     std::string agent_id_;
     core::MessageBus* message_bus_{nullptr};
 
