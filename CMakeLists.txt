@@ -200,6 +200,7 @@ add_executable(unit_tests
     tests/unit/test_message_serializer.cpp
     tests/unit/test_message_bus_async.cpp
     tests/unit/test_async_task_agent.cpp
+    tests/unit/test_message_priority.cpp
 )
 
 target_link_libraries(unit_tests

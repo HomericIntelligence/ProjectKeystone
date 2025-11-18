@@ -9,6 +9,30 @@ namespace keystone {
 namespace core {
 
 /**
+ * @brief Message priority levels
+ *
+ * Phase C: Priority-based message processing.
+ * Higher priority messages are processed before lower priority ones.
+ */
+enum class Priority {
+    HIGH = 0,       ///< Urgent, time-sensitive messages
+    NORMAL = 1,     ///< Standard priority (default)
+    LOW = 2         ///< Background, non-urgent messages
+};
+
+/**
+ * @brief Convert Priority to string
+ */
+inline std::string priorityToString(Priority priority) {
+    switch (priority) {
+        case Priority::HIGH: return "HIGH";
+        case Priority::NORMAL: return "NORMAL";
+        case Priority::LOW: return "LOW";
+        default: return "UNKNOWN";
+    }
+}
+
+/**
  * @brief Action types for agent communication in HMAS
  *
  * Defines the different types of actions that can be requested or performed
@@ -78,6 +102,9 @@ struct KeystoneMessage {
     ContentType content_type;  ///< Format of the payload
     std::string session_id;    ///< Session/context identifier
     std::map<std::string, std::string> metadata;  ///< Extensible metadata
+
+    // Phase C: Priority field
+    Priority priority;         ///< Message priority (HIGH/NORMAL/LOW)
 
     // Payload and timing
     std::string command;       ///< Command string to execute (legacy/convenience)

@@ -78,8 +78,11 @@ protected:
     std::string agent_id_;
     core::MessageBus* message_bus_{nullptr};
 
-    // Lock-free concurrent queue for inbox (Phase C optimization)
-    moodycamel::ConcurrentQueue<core::KeystoneMessage> inbox_;
+    // Phase C: Priority-based lock-free inboxes
+    // Messages are routed to queues by priority and processed HIGH -> NORMAL -> LOW
+    moodycamel::ConcurrentQueue<core::KeystoneMessage> high_priority_inbox_;
+    moodycamel::ConcurrentQueue<core::KeystoneMessage> normal_priority_inbox_;
+    moodycamel::ConcurrentQueue<core::KeystoneMessage> low_priority_inbox_;
 };
 
 } // namespace agents

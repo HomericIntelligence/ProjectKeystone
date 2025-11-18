@@ -46,6 +46,9 @@ KeystoneMessage KeystoneMessage::create(
     msg.session_id = "default";
     // metadata is empty by default
 
+    // Phase C: Initialize priority to NORMAL by default
+    msg.priority = Priority::NORMAL;
+
     return msg;
 }
 
