@@ -1,0 +1,154 @@
+# CODEOWNERS for ProjectKeystone HMAS
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# ============================================================================
+# Default Ownership
+# ============================================================================
+# All files default to primary maintainer unless more specific patterns apply below
+* @mvillmow
+
+# ============================================================================
+# Critical Infrastructure & Configuration
+# ============================================================================
+
+# Repository configuration
+CMakeLists.txt @mvillmow
+docker-compose.yml @mvillmow
+Dockerfile @mvillmow
+.dockerignore @mvillmow
+
+# CI/CD workflows - changes affect all development
+.github/workflows/ @mvillmow
+.github/dependabot.yml @mvillmow
+.github/CODEOWNERS @mvillmow
+
+# Pre-commit hooks
+.pre-commit-config.yaml @mvillmow
+
+# Claude Code agent configuration
+.claude/ @mvillmow
+
+# ============================================================================
+# Documentation
+# ============================================================================
+
+# Core project documentation
+README.md @mvillmow
+CLAUDE.md @mvillmow
+LICENSE @mvillmow
+
+# Architecture and planning documentation
+docs/plan/ @mvillmow
+
+# TDD roadmap and testing strategy
+docs/plan/TDD_FOUR_LAYER_ROADMAP.md @mvillmow
+docs/plan/testing-strategy.md @mvillmow
+
+# ============================================================================
+# Core System Components
+# ============================================================================
+
+# Message protocol and core infrastructure
+include/core/message.hpp @mvillmow
+include/core/message_bus.hpp @mvillmow
+include/core/message_queue.hpp @mvillmow
+src/core/ @mvillmow
+
+# Concurrency infrastructure (ThreadPool, coroutines)
+include/concurrency/ @mvillmow
+src/concurrency/ @mvillmow
+
+# ============================================================================
+# Agent Hierarchy
+# ============================================================================
+
+# Base agent interface - affects all agent implementations
+include/agents/base_agent.hpp @mvillmow
+src/agents/base_agent.cpp @mvillmow
+
+# Level 0: ChiefArchitect (strategic decisions)
+include/agents/chief_architect_agent.hpp @mvillmow
+src/agents/chief_architect_agent.cpp @mvillmow
+
+# Level 1: ComponentLead (component coordination)
+include/agents/component_lead_agent.hpp @mvillmow
+src/agents/component_lead_agent.cpp @mvillmow
+
+# Level 2: ModuleLead (module design)
+include/agents/module_lead_agent.hpp @mvillmow
+src/agents/module_lead_agent.cpp @mvillmow
+
+# Level 3: TaskAgent (concrete execution)
+include/agents/task_agent.hpp @mvillmow
+src/agents/task_agent.cpp @mvillmow
+
+# ============================================================================
+# Testing Infrastructure
+# ============================================================================
+
+# E2E test framework and specifications
+tests/e2e/ @mvillmow
+
+# Phase-specific E2E tests (critical for TDD approach)
+tests/e2e/phase1/ @mvillmow
+tests/e2e/phase2/ @mvillmow
+tests/e2e/phase3/ @mvillmow
+tests/e2e/phase4/ @mvillmow
+
+# Unit tests
+tests/unit/ @mvillmow
+
+# ============================================================================
+# Third-Party Dependencies
+# ============================================================================
+
+# External dependencies require careful review for licensing and security
+third_party/ @mvillmow
+
+# ============================================================================
+# Special Cases
+# ============================================================================
+
+# Security-sensitive files
+*.key @mvillmow
+*.pem @mvillmow
+*.crt @mvillmow
+.env @mvillmow
+.env.* @mvillmow
+
+# Performance-critical code (requires benchmarking)
+*benchmark* @mvillmow
+*perf* @mvillmow
+
+# All C++ header and source files (code quality standards)
+*.hpp @mvillmow
+*.cpp @mvillmow
+
+# CMake build configuration
+*.cmake @mvillmow
+
+# ============================================================================
+# Future Team Structure (Template for when team grows)
+# ============================================================================
+
+# When expanding the team, consider these specialized roles:
+
+# Architecture Team (system design decisions)
+# include/agents/ @architecture-team
+# docs/plan/FOUR_LAYER_ARCHITECTURE.md @architecture-team
+
+# Performance Engineering Team (optimization and benchmarking)
+# include/concurrency/ @performance-team
+# *benchmark* @performance-team
+
+# Security Team (security reviews and audits)
+# .github/workflows/security-scan.yml @security-team
+
+# Testing Team (test infrastructure and strategy)
+# tests/ @testing-team
+# docs/plan/testing-strategy.md @testing-team
+
+# DevOps Team (CI/CD and infrastructure)
+# .github/workflows/ @devops-team
+# Dockerfile @devops-team
+# docker-compose.yml @devops-team

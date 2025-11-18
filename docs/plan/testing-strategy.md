@@ -19,7 +19,7 @@ ProjectKeystone adopts a comprehensive, multi-tiered testing approach to ensure 
 
 **Scope**: Individual functions, classes, and modules in isolation
 
-**Framework**: GoogleTest (GTest)
+**Framework**: Catch2 v3
 
 **Coverage Target**: >95% for Keystone.Core, >90% for other modules
 
@@ -29,30 +29,31 @@ ProjectKeystone adopts a comprehensive, multi-tiered testing approach to ensure 
 
 ```cpp
 // tests/unit/core/MessageQueueTest.cpp
-import Keystone.Core.Messaging;
-import <gtest/gtest.h>;
+#include <catch2/catch_test_macros.hpp>
+#include <catch2/catch_session.hpp>
+#include "core/message_queue.hpp"
 
 namespace Keystone::Core::Test {
 
-class MessageQueueTest : public ::testing::Test {
-protected:
-    MessageQueue<int> queue_;
-};
+TEST_CASE("MessageQueue can push and pop values", "[unit][message-queue]") {
+    MessageQueue<int> queue;
 
-TEST_F(MessageQueueTest, PushAndPop) {
-    queue_.push(42);
+    SECTION("Push and pop single value") {
+        queue.push(42);
 
-    int value;
-    ASSERT_TRUE(queue_.try_pop(value));
-    EXPECT_EQ(value, 42);
+        int value;
+        REQUIRE(queue.try_pop(value));
+        CHECK(value == 42);
+    }
+
+    SECTION("Try pop from empty queue") {
+        int value;
+        REQUIRE_FALSE(queue.try_pop(value));
+    }
 }
 
-TEST_F(MessageQueueTest, TryPopEmptyQueue) {
-    int value;
-    ASSERT_FALSE(queue_.try_pop(value));
-}
-
-TEST_F(MessageQueueTest, ConcurrentPushPop) {
+TEST_CASE("MessageQueue handles concurrent access", "[unit][message-queue][concurrent]") {
+    MessageQueue<int> queue;
     constexpr int NUM_ITEMS = 10000;
     std::vector<std::thread> producers;
     std::vector<std::thread> consumers;
@@ -64,7 +65,7 @@ TEST_F(MessageQueueTest, ConcurrentPushPop) {
     for (int i = 0; i < 4; ++i) {
         producers.emplace_back([&]() {
             for (int j = 0; j < NUM_ITEMS / 4; ++j) {
-                queue_.push(j);
+                queue.push(j);
                 ++produced;
             }
         });
@@ -75,7 +76,7 @@ TEST_F(MessageQueueTest, ConcurrentPushPop) {
         consumers.emplace_back([&]() {
             int value;
             while (consumed < NUM_ITEMS) {
-                if (queue_.try_pop(value)) {
+                if (queue.try_pop(value)) {
                     ++consumed;
                 }
             }
@@ -85,7 +86,7 @@ TEST_F(MessageQueueTest, ConcurrentPushPop) {
     for (auto& t : producers) t.join();
     for (auto& t : consumers) t.join();
 
-    EXPECT_EQ(consumed, NUM_ITEMS);
+    CHECK(consumed == NUM_ITEMS);
 }
 
 } // namespace Keystone::Core::Test
@@ -118,7 +119,7 @@ tests/unit/
 
 **Scope**: Multi-component interactions and workflows
 
-**Framework**: GoogleTest with test fixtures
+**Framework**: Catch2 v3 with sections and fixtures
 
 **Coverage Target**: All critical integration points
 
@@ -128,16 +129,14 @@ tests/unit/
 
 ```cpp
 // tests/integration/HierarchyTest.cpp
-import Keystone.Agents;
-import Keystone.Core;
-import Keystone.Protocol;
-import <gtest/gtest.h>;
+#include <catch2/catch_test_macros.hpp>
+#include "agents/chief_architect_agent.hpp"
+#include "core/thread_pool.hpp"
 
 namespace Keystone::Agents::Test {
 
-class AgentHierarchyTest : public ::testing::Test {
-protected:
-    void SetUp() override {
+struct AgentHierarchyFixture {
+    AgentHierarchyFixture() {
         // Initialize thread pool
         thread_pool_ = std::make_unique<Core::ThreadPool>(4);
 
@@ -146,7 +145,7 @@ protected:
         root_->initialize();
     }
 
-    void TearDown() override {
+    ~AgentHierarchyFixture() {
         root_->shutdown();
         thread_pool_->shutdown();
     }
@@ -155,32 +154,34 @@ protected:
     std::unique_ptr<RootAgent> root_;
 };
 
-TEST_F(AgentHierarchyTest, TaskDecompositionFlow) {
-    // Create a complex task
-    std::string goal = "Generate report from multiple data sources";
+TEST_CASE_METHOD(AgentHierarchyFixture, "Hierarchical agent delegation", "[integration][hierarchy]") {
+    SECTION("Task decomposition flow") {
+        // Create a complex task
+        std::string goal = "Generate report from multiple data sources";
 
-    // Root decomposes task
-    auto future = root_->decomposeGoal(goal);
+        // Root decomposes task
+        auto future = root_->decomposeGoal(goal);
 
-    // Wait for completion (with timeout)
-    auto result = future.wait_for(std::chrono::seconds(5));
+        // Wait for completion (with timeout)
+        auto result = future.wait_for(std::chrono::seconds(5));
 
-    ASSERT_EQ(result, std::future_status::ready);
-    EXPECT_FALSE(future.get().empty());
-}
+        REQUIRE(result == std::future_status::ready);
+        CHECK_FALSE(future.get().empty());
+    }
 
-TEST_F(AgentHierarchyTest, ResultAggregation) {
-    // Simulate branch agents returning results
-    // Verify root correctly aggregates results
+    SECTION("Result aggregation") {
+        // Simulate branch agents returning results
+        // Verify root correctly aggregates results
 
-    // Test implementation...
-}
+        // Test implementation...
+    }
 
-TEST_F(AgentHierarchyTest, FailureRecovery) {
-    // Simulate leaf agent failure
-    // Verify branch agent detects and recovers
+    SECTION("Failure recovery") {
+        // Simulate leaf agent failure
+        // Verify branch agent detects and recovers
 
-    // Test implementation...
+        // Test implementation...
+    }
 }
 
 } // namespace Keystone::Agents::Test
@@ -298,26 +299,26 @@ BENCHMARK_MAIN();
 
 **Scope**: System resilience under extreme conditions
 
-**Framework**: Custom chaos framework + GTest
+**Framework**: Custom chaos framework + Catch2 v3
 
 **Targets**:
 - Stability: 24+ hour continuous operation
 - Recovery: <100ms failure detection and recovery
-- No memory leaks (verified by Valgrind)
+- No memory leaks (verified by AddressSanitizer)
 - No data races (verified by ThreadSanitizer)
+- No undefined behavior (verified by UBSanitizer)
 
 #### Example: Chaos Test
 
 ```cpp
 // tests/stress/ChaosTest.cpp
-import Keystone.Agents;
-import Keystone.Core;
-import <gtest/gtest.h>;
+#include <catch2/catch_test_macros.hpp>
+#include "agents/chief_architect_agent.hpp"
+#include "core/thread_pool.hpp"
 
 namespace Keystone::Stress::Test {
 
-class ChaosTest : public ::testing::Test {
-protected:
+struct ChaosFixture {
     // Randomly kill agents
     void injectAgentFailure() {
         // Implementation...
@@ -334,7 +335,7 @@ protected:
     }
 };
 
-TEST_F(ChaosTest, RandomAgentFailures) {
+TEST_CASE_METHOD(ChaosFixture, "System handles random agent failures", "[stress][chaos]") {
     // Create hierarchy
     auto root = createRootAgent();
     root->initialize();
@@ -355,11 +356,11 @@ TEST_F(ChaosTest, RandomAgentFailures) {
     chaos_thread.join();
 
     // Verify system still functional
-    EXPECT_TRUE(root->getState() != AgentState::ERROR);
+    CHECK(root->getState() != AgentState::ERROR);
 }
 
-TEST_F(ChaosTest, LongDurationStability) {
-    // Run for 24 hours
+TEST_CASE("Long duration stability test", "[stress][chaos][.long]") {
+    // Run for 24 hours (tagged with .long to exclude from normal runs)
     auto start = std::chrono::steady_clock::now();
     auto end = start + std::chrono::hours(24);
 
@@ -401,7 +402,7 @@ TEST_F(ChaosTest, LongDurationStability) {
 
 ```cpp
 // Step 1: RED - Write failing test
-TEST(AgentBaseTest, SendMessageUpdatesMailbox) {
+TEST_CASE("AgentBase can send messages", "[unit][agent-base]") {
     AgentBase sender, receiver;
     KeystoneMessage msg = MessageBuilder()
         .from(sender.getId())
@@ -411,7 +412,7 @@ TEST(AgentBaseTest, SendMessageUpdatesMailbox) {
 
     sender.sendMessage(msg);
 
-    EXPECT_EQ(receiver.mailbox_.size(), 1);  // FAILS - not implemented
+    REQUIRE(receiver.mailbox_.size() == 1);  // FAILS - not implemented
 }
 
 // Step 2: GREEN - Implement minimal solution
@@ -472,6 +473,84 @@ genhtml coverage.info --output-directory coverage-report
 
 # View report
 open coverage-report/index.html
+```
+
+## Sanitizers
+
+### Overview
+
+Sanitizers are runtime error detection tools built into GCC/Clang that help catch bugs that tests alone might miss:
+
+- **AddressSanitizer (ASan)**: Detects memory errors (use-after-free, buffer overflows, leaks)
+- **UndefinedBehaviorSanitizer (UBSan)**: Detects undefined behavior (integer overflow, null deref)
+- **ThreadSanitizer (TSan)**: Detects data races and threading issues
+- **MemorySanitizer (MSan)**: Detects uninitialized memory reads
+
+### Building with Sanitizers
+
+```bash
+# AddressSanitizer + UndefinedBehaviorSanitizer (compatible)
+cmake -DCMAKE_BUILD_TYPE=Debug \
+      -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -g" \
+      ..
+
+# ThreadSanitizer (incompatible with ASan, separate build required)
+cmake -DCMAKE_BUILD_TYPE=Debug \
+      -DCMAKE_CXX_FLAGS="-fsanitize=thread -g" \
+      ..
+
+# MemorySanitizer (requires instrumented stdlib, advanced use case)
+cmake -DCMAKE_BUILD_TYPE=Debug \
+      -DCMAKE_CXX_FLAGS="-fsanitize=memory -fno-omit-frame-pointer -g" \
+      ..
+```
+
+### Running Tests with Sanitizers
+
+```bash
+# Run tests with ASan
+docker-compose up test-asan
+
+# Run tests with TSan
+docker-compose up test-tsan
+
+# Or manually with Docker
+docker build --build-arg SANITIZER=address -t projectkeystone:asan .
+docker run --rm projectkeystone:asan
+```
+
+### Sanitizer Options
+
+```bash
+# ASan: Detect leaks
+export ASAN_OPTIONS=detect_leaks=1:fast_unwind_on_malloc=0
+
+# TSan: Report on exit
+export TSAN_OPTIONS=halt_on_error=1:second_deadlock_stack=1
+
+# UBSan: Print stack traces
+export UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1
+```
+
+### CI Integration
+
+All pull requests automatically run tests with sanitizers:
+- **Fast checks**: ASan + UBSan (combined)
+- **Concurrency checks**: TSan (separate job)
+- **Optional**: MSan (on-demand for critical code)
+
+### Suppression Files
+
+For known false positives, use suppression files:
+
+```bash
+# asan.supp
+leak:third_party/
+# Suppress known leak in library
+
+# tsan.supp
+race:^std::__atomic_base
+# Suppress race in standard library (false positive)
 ```
 
 ## Continuous Integration
@@ -583,52 +662,54 @@ jobs:
 ### 1. Test Naming Conventions
 
 ```cpp
-// Format: Test_<Component>_<Scenario>_<ExpectedResult>
+// Format: Descriptive test names with tags
 
-TEST(MessageQueue, Push_SingleItem_IncreasesSize)
-TEST(AgentBase, Shutdown_WithPendingMessages_DrainsMailbox)
-TEST(RootAgent, DecomposeGoal_ComplexTask_CreatesMultipleBranches)
+TEST_CASE("MessageQueue increases size when pushing items", "[unit][message-queue]")
+TEST_CASE("AgentBase drains mailbox when shutting down with pending messages", "[unit][agent-base]")
+TEST_CASE("RootAgent creates multiple branches for complex task decomposition", "[unit][root-agent]")
 ```
 
 ### 2. Test Independence
 
 ```cpp
 // BAD: Tests depend on each other
-TEST(BadExample, Test1) {
+TEST_CASE("Initialize global state", "[bad]") {
     global_state = initialize();  // ❌ Shared state
 }
-TEST(BadExample, Test2) {
-    EXPECT_TRUE(global_state.isReady());  // ❌ Depends on Test1
+TEST_CASE("Check state is ready", "[bad]") {
+    REQUIRE(global_state.isReady());  // ❌ Depends on previous test
 }
 
-// GOOD: Each test is independent
-class GoodExample : public ::testing::Test {
-protected:
-    void SetUp() override {
+// GOOD: Each test is independent using fixtures
+struct GoodExampleFixture {
+    GoodExampleFixture() {
         state_ = initialize();  // ✅ Fresh state per test
     }
-private:
     State state_;
 };
+
+TEST_CASE_METHOD(GoodExampleFixture, "State is properly initialized", "[unit]") {
+    REQUIRE(state_.isReady());
+}
 ```
 
 ### 3. Deterministic Tests
 
 ```cpp
 // BAD: Non-deterministic
-TEST(BadExample, RandomTimeout) {
+TEST_CASE("Work completes within timeout", "[bad]") {
     auto start = now();
     doWork();
     auto elapsed = now() - start;
-    EXPECT_LT(elapsed, 100ms);  // ❌ Flaky on slow machines
+    REQUIRE(elapsed < 100ms);  // ❌ Flaky on slow machines
 }
 
 // GOOD: Deterministic with mocking
-TEST(GoodExample, MockedTimeout) {
+TEST_CASE("Work uses expected clock time", "[unit]") {
     MockClock clock;
     clock.setTime(0);
     doWorkWithClock(clock);
-    EXPECT_EQ(clock.getTime(), 50);  // ✅ Deterministic
+    REQUIRE(clock.getTime() == 50);  // ✅ Deterministic
 }
 ```
 

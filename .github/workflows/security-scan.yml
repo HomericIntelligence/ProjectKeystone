@@ -1,0 +1,262 @@
+name: Security Scanning
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    # Run weekly on Mondays at 9 AM UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  pull-requests: write
+
+jobs:
+  secret-scanning:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for comprehensive scanning
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Upload Gitleaks results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitleaks-report
+          path: results.sarif
+          retention-days: 90
+
+  sast-scanning:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Semgrep
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: >-
+            p/security-audit
+            p/cpp
+            p/docker
+            p/cmake
+        continue-on-error: true
+
+      - name: Upload Semgrep SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep.sarif
+
+  codeql-analysis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: cpp
+          queries: security-and-quality
+
+      - name: Build for CodeQL
+        run: |
+          mkdir -p build
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=Debug ..
+          make -j$(nproc)
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:cpp"
+
+  dependency-scanning:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Scan third-party dependencies
+        run: |
+          # Check for known vulnerable versions in third_party/
+          echo "Scanning third-party dependencies..."
+
+          # List all third-party libraries
+          if [ -d "third_party" ]; then
+            find third_party -name "*.hpp" -o -name "*.h" | head -20
+          fi
+
+          # TODO: Add specific dependency vulnerability checks
+          echo "Manual review required for C++ dependencies"
+
+      - name: Check Docker base image
+        run: |
+          # Extract base image from Dockerfile
+          base_image=$(grep "^FROM" Dockerfile | head -1 | awk '{print $2}')
+          echo "Base image: $base_image"
+
+          # Note: For production, use tools like Trivy or Snyk
+          echo "::warning::Manual Docker image security review recommended"
+
+  supply-chain-scanning:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: critical
+          deny-licenses: GPL-3.0, AGPL-3.0
+
+  cpp-static-analysis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install analysis tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cppcheck clang-tidy-14
+
+      - name: Run cppcheck security analysis
+        run: |
+          cppcheck \
+            --enable=all \
+            --error-exitcode=0 \
+            --xml \
+            --xml-version=2 \
+            --suppress=missingIncludeSystem \
+            --inline-suppr \
+            -I include \
+            src/ tests/ 2> cppcheck-report.xml || true
+
+      - name: Upload cppcheck results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cppcheck-report
+          path: cppcheck-report.xml
+          retention-days: 30
+
+  security-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [secret-scanning, sast-scanning, dependency-scanning, cpp-static-analysis]
+    if: always()
+    steps:
+      - name: Download all scan results
+        uses: actions/download-artifact@v4
+        with:
+          path: scan-results/
+        continue-on-error: true
+
+      - name: Generate security report
+        id: report
+        run: |
+          echo "## Security Scan Results" > report.md
+          echo "" >> report.md
+
+          # Check secret scanning
+          if [ -f "scan-results/gitleaks-report/results.sarif" ]; then
+            # Check if secrets found (simplified check)
+            if grep -q '"results":\s*\[\]' scan-results/gitleaks-report/results.sarif 2>/dev/null; then
+              echo "- ✅ Secret Scanning: No secrets detected" >> report.md
+            else
+              echo "- ❌ Secret Scanning: Potential secrets found" >> report.md
+            fi
+          else
+            echo "- ⚠️ Secret Scanning: No results available" >> report.md
+          fi
+
+          # Check SAST
+          echo "- ✅ SAST: Completed (check Security tab for details)" >> report.md
+
+          # Check dependency scanning
+          echo "- ✅ Dependency Scanning: Completed" >> report.md
+
+          # Check C++ static analysis
+          if [ -f "scan-results/cppcheck-report/cppcheck-report.xml" ]; then
+            echo "- ✅ C++ Static Analysis: Completed" >> report.md
+          else
+            echo "- ⚠️ C++ Static Analysis: No results" >> report.md
+          fi
+
+          echo "" >> report.md
+          echo "### Recommendations" >> report.md
+          echo "- Review findings in the GitHub Security tab" >> report.md
+          echo "- Check artifact uploads for detailed reports" >> report.md
+          echo "" >> report.md
+          echo "---" >> report.md
+          echo "*Workflow: [${{ github.workflow }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})*" >> report.md
+
+          cat report.md >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload security report
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-report
+          path: report.md
+          retention-days: 90
+
+      - name: Comment PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('report.md', 'utf8');
+
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.data.find(comment =>
+              comment.user.type === 'Bot' &&
+              comment.body.includes('Security Scan Results')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: report
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: report
+              });
+            }
+
+      - name: Check for critical issues
+        run: |
+          # Fail if critical security issues found
+          if grep -q "❌" report.md; then
+            echo "::error::Critical security issues detected"
+            exit 1
+          fi

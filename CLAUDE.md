@@ -13,10 +13,11 @@
 #### Required Technologies:
 - **C++20** with modules support
 - **CMake** 3.20+ for build system
-- **Google Test** (gtest) for unit and E2E testing
+- **Catch2 v3** for unit and E2E testing
 - **C++20 Coroutines** (`co_await`, `co_return`) for async operations
 - **concurrentqueue** library for lock-free message queuing
 - **ThreadPool** for parallel agent execution
+- **Sanitizers** (ASan, UBSan, TSan) for runtime error detection
 
 #### Language Features Used:
 - C++20 Coroutines (`std::coroutine_handle`, `std::suspend_always`)
@@ -173,13 +174,24 @@ ProjectKeystone/
 ### Test Naming Convention
 
 ```cpp
-// E2E tests
-TEST(E2E_Phase1, ChiefArchitectDelegatesToTaskAgent)
-TEST(E2E_Phase2, ModuleLeadSynthesizesTaskResults)
+// E2E tests (Catch2 v3)
+TEST_CASE("ChiefArchitect delegates to TaskAgent", "[e2e][phase1]")
+TEST_CASE("ModuleLead synthesizes task results", "[e2e][phase2]")
 
-// Unit tests
-TEST(MessageQueue, PushAndPopMessage)
-TEST(ThreadPool, SubmitAndExecuteTask)
+// Unit tests (Catch2 v3)
+TEST_CASE("MessageQueue can push and pop messages", "[unit][message-queue]")
+TEST_CASE("ThreadPool submits and executes tasks", "[unit][thread-pool]")
+
+// Using SCENARIO for BDD-style tests
+SCENARIO("Agent delegation in Phase 1", "[e2e][phase1]") {
+    GIVEN("A ChiefArchitect and TaskAgent") {
+        WHEN("ChiefArchitect sends a command") {
+            THEN("TaskAgent executes and returns result") {
+                // test implementation
+            }
+        }
+    }
+}
 ```
 
 ### Git Workflow
@@ -254,11 +266,28 @@ E2E tests drive development. Each phase has specific E2E tests:
 
 **Phase 1**: Basic delegation (L0 → L3)
 ```cpp
-TEST(E2E_Phase1, ChiefArchitectDelegatesToTaskAgent)
-TEST(E2E_Phase1, ChiefArchitectCoordinatesThreeTaskAgents)
+TEST_CASE("ChiefArchitect delegates to TaskAgent", "[e2e][phase1]")
+TEST_CASE("ChiefArchitect coordinates three TaskAgents", "[e2e][phase1]")
 ```
 
 See [testing-strategy.md](docs/plan/testing-strategy.md) for complete test catalog.
+
+### Sanitizers
+
+Run tests with sanitizers to catch runtime errors:
+- **AddressSanitizer (ASan)**: Detects memory errors (use-after-free, buffer overflows)
+- **UndefinedBehaviorSanitizer (UBSan)**: Detects undefined behavior
+- **ThreadSanitizer (TSan)**: Detects data races and threading issues
+- **MemorySanitizer (MSan)**: Detects uninitialized memory reads
+
+Enable in CMake with:
+```cmake
+# For ASan + UBSan
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address,undefined -fno-omit-frame-pointer")
+
+# For TSan (separate build, incompatible with ASan)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=thread")
+```
 
 ### Unit Tests
 
@@ -275,6 +304,14 @@ Write unit tests for:
 ```bash
 # Run tests (recommended)
 docker-compose up test
+
+# Run tests with Catch2 filters
+./build/phase1_e2e_tests "[e2e][phase1]"
+
+# Run tests with sanitizers
+docker-compose up test-asan   # AddressSanitizer
+docker-compose up test-ubsan  # UndefinedBehaviorSanitizer
+docker-compose up test-tsan   # ThreadSanitizer
 
 # Or build and run tests manually
 docker build -t projectkeystone:latest .
@@ -371,10 +408,11 @@ The project uses a **multi-stage Dockerfile**:
 
 All dependencies are handled inside the Docker container:
 
-1. **C++20 Compiler** - GCC 12 (installed in Dockerfile)
+1. **C++20 Compiler** - GCC 12 with sanitizers support (installed in Dockerfile)
 2. **CMake** 3.22+ (installed in Dockerfile)
-3. **Google Test** - Fetched by CMake via FetchContent
+3. **Catch2 v3** - Fetched by CMake via FetchContent
 4. **Ninja** - Fast build system (installed in Dockerfile)
+5. **Sanitizers** - ASan, UBSan, TSan, MSan (built into GCC 12)
 
 No manual dependency installation required on host!
 
