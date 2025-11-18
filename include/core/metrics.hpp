@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/message.hpp"  // For Priority enum
 #include <atomic>
 #include <chrono>
 #include <string>
@@ -36,9 +37,9 @@ public:
     /**
      * @brief Record a message sent
      * @param msg_id Message identifier
-     * @param priority Message priority
+     * @param priority Message priority (FIX: now uses Priority enum for type safety)
      */
-    void recordMessageSent(const std::string& msg_id, int priority);
+    void recordMessageSent(const std::string& msg_id, Priority priority);
 
     /**
      * @brief Record a message processed
@@ -130,6 +131,17 @@ public:
 private:
     Metrics();
     ~Metrics() = default;
+
+    /**
+     * @brief Clean up old timestamps to prevent memory leak
+     *
+     * Called when timestamp map exceeds MAX_TIMESTAMP_ENTRIES.
+     * Removes oldest 50% of entries.
+     */
+    void cleanupOldTimestamps();
+
+    // Configuration constants
+    static constexpr size_t MAX_TIMESTAMP_ENTRIES = 10000;  ///< Max entries before cleanup
 
     // Message counters (atomic for lock-free increment)
     std::atomic<uint64_t> messages_sent_{0};

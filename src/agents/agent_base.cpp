@@ -30,24 +30,49 @@ void AgentBase::receiveMessage(const core::KeystoneMessage& msg) {
         case core::Priority::LOW:
             low_priority_inbox_.enqueue(msg);
             break;
+        default:
+            // FIX: Invalid priority - route to NORMAL queue as fallback
+            normal_priority_inbox_.enqueue(msg);
+            break;
     }
 }
 
 std::optional<core::KeystoneMessage> AgentBase::getMessage() {
-    // Phase C: Check priority queues in order: HIGH -> NORMAL -> LOW
-    core::KeystoneMessage msg;
+    // FIX: Weighted round-robin to prevent LOW priority starvation
+    // Strategy: After processing HIGH_PRIORITY_QUOTA high-priority messages,
+    // force-check NORMAL and LOW queues to ensure fairness
 
-    // Try HIGH priority first
+    core::KeystoneMessage msg;
+    uint64_t high_count = high_priority_processed_.load(std::memory_order_relaxed);
+
+    // Every HIGH_PRIORITY_QUOTA messages, give lower priorities a chance
+    if (high_count >= HIGH_PRIORITY_QUOTA) {
+        // Reset counter
+        high_priority_processed_.store(0, std::memory_order_relaxed);
+
+        // Try NORMAL first (give it priority over LOW)
+        if (normal_priority_inbox_.try_dequeue(msg)) {
+            return msg;
+        }
+
+        // Then try LOW
+        if (low_priority_inbox_.try_dequeue(msg)) {
+            return msg;
+        }
+
+        // Fall through to HIGH if NORMAL/LOW are empty
+    }
+
+    // Standard priority order: HIGH -> NORMAL -> LOW
     if (high_priority_inbox_.try_dequeue(msg)) {
+        high_priority_processed_.fetch_add(1, std::memory_order_relaxed);
         return msg;
     }
 
-    // Then NORMAL priority
     if (normal_priority_inbox_.try_dequeue(msg)) {
         return msg;
     }
 
-    // Finally LOW priority
     if (low_priority_inbox_.try_dequeue(msg)) {
         return msg;
     }
