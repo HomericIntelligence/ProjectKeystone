@@ -76,6 +76,30 @@ KeystoneMessage KeystoneMessage::create(
     return msg;
 }
 
+void KeystoneMessage::setDeadlineFromNow(std::chrono::milliseconds duration_ms) {
+    deadline = std::chrono::system_clock::now() + duration_ms;
+}
+
+bool KeystoneMessage::hasDeadlinePassed() const {
+    if (!deadline.has_value()) {
+        return false;  // No deadline means it can't be passed
+    }
+    return std::chrono::system_clock::now() > *deadline;
+}
+
+std::optional<std::chrono::milliseconds> KeystoneMessage::getTimeUntilDeadline() const {
+    if (!deadline.has_value()) {
+        return std::nullopt;
+    }
+
+    auto now = std::chrono::system_clock::now();
+    if (now > *deadline) {
+        return std::chrono::milliseconds(0);  // Deadline already passed
+    }
+
+    return std::chrono::duration_cast<std::chrono::milliseconds>(*deadline - now);
+}
+
 Response Response::createSuccess(
     const KeystoneMessage& original_msg,
     const std::string& sender,

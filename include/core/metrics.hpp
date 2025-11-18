@@ -101,6 +101,23 @@ public:
     PriorityStats getPriorityStats() const;
 
     /**
+     * @brief Record a deadline miss
+     * @param msg_id Message identifier that missed deadline
+     * @param late_by_ms How late the message was processed (in milliseconds)
+     */
+    void recordDeadlineMiss(const std::string& msg_id, int64_t late_by_ms);
+
+    /**
+     * @brief Get total deadline misses
+     */
+    uint64_t getTotalDeadlineMisses() const;
+
+    /**
+     * @brief Get average deadline miss time in milliseconds
+     */
+    std::optional<double> getAverageDeadlineMissMs() const;
+
+    /**
      * @brief Reset all metrics
      */
     void reset();
@@ -141,6 +158,10 @@ private:
     std::mutex worker_mutex_;
     std::atomic<uint64_t> total_busy_samples_{0};
     std::atomic<uint64_t> total_worker_samples_{0};
+
+    // Deadline tracking
+    std::atomic<uint64_t> deadline_misses_{0};
+    std::atomic<int64_t> total_deadline_miss_ms_{0};
 
     // Throughput calculation
     std::chrono::steady_clock::time_point start_time_;

@@ -203,6 +203,7 @@ add_executable(unit_tests
     tests/unit/test_async_task_agent.cpp
     tests/unit/test_message_priority.cpp
     tests/unit/test_metrics.cpp
+    tests/unit/test_deadline_scheduling.cpp
 )
 
 target_link_libraries(unit_tests

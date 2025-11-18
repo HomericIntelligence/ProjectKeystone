@@ -140,6 +140,25 @@ Metrics::PriorityStats Metrics::getPriorityStats() const {
     };
 }
 
+void Metrics::recordDeadlineMiss(const std::string& /* msg_id */, int64_t late_by_ms) {
+    deadline_misses_.fetch_add(1, std::memory_order_relaxed);
+    total_deadline_miss_ms_.fetch_add(late_by_ms, std::memory_order_relaxed);
+}
+
+uint64_t Metrics::getTotalDeadlineMisses() const {
+    return deadline_misses_.load(std::memory_order_relaxed);
+}
+
+std::optional<double> Metrics::getAverageDeadlineMissMs() const {
+    uint64_t misses = deadline_misses_.load(std::memory_order_relaxed);
+    if (misses == 0) {
+        return std::nullopt;
+    }
+
+    int64_t total_ms = total_deadline_miss_ms_.load(std::memory_order_relaxed);
+    return static_cast<double>(total_ms) / static_cast<double>(misses);
+}
+
 void Metrics::reset() {
     messages_sent_.store(0, std::memory_order_relaxed);
     messages_processed_.store(0, std::memory_order_relaxed);
@@ -151,6 +170,8 @@ void Metrics::reset() {
     max_queue_depth_.store(0, std::memory_order_relaxed);
     total_busy_samples_.store(0, std::memory_order_relaxed);
     total_worker_samples_.store(0, std::memory_order_relaxed);
+    deadline_misses_.store(0, std::memory_order_relaxed);
+    total_deadline_miss_ms_.store(0, std::memory_order_relaxed);
 
     {
         std::lock_guard<std::mutex> lock(timestamps_mutex_);
@@ -220,7 +241,17 @@ std::string Metrics::generateReport() const {
 
     // Worker utilization
     ss << "Worker Utilization:\n";
-    ss << "  Utilization:        " << getWorkerUtilization() << "%\n";
+    ss << "  Utilization:        " << getWorkerUtilization() << "%\n\n";
+
+    // Deadline tracking
+    ss << "Deadline Tracking:\n";
+    ss << "  Deadline Misses:    " << getTotalDeadlineMisses() << "\n";
+    auto avg_miss = getAverageDeadlineMissMs();
+    if (avg_miss.has_value()) {
+        ss << "  Avg Late By:        " << *avg_miss << " ms\n";
+    } else {
+        ss << "  Avg Late By:        No data\n";
+    }
 
     ss << "\n================================\n";
 

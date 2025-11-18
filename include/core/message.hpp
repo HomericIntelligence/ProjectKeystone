@@ -106,6 +106,9 @@ struct KeystoneMessage {
     // Phase C: Priority field
     Priority priority;         ///< Message priority (HIGH/NORMAL/LOW)
 
+    // Phase C: Deadline scheduling
+    std::optional<std::chrono::system_clock::time_point> deadline;  ///< Optional processing deadline
+
     // Payload and timing
     std::string command;       ///< Command string to execute (legacy/convenience)
     std::optional<std::string> payload;  ///< Optional payload data
@@ -149,6 +152,27 @@ struct KeystoneMessage {
         const std::optional<std::string>& data = std::nullopt,
         ContentType content = ContentType::TEXT_PLAIN
     );
+
+    /**
+     * @brief Set deadline relative to current time
+     *
+     * @param duration_ms Deadline in milliseconds from now
+     */
+    void setDeadlineFromNow(std::chrono::milliseconds duration_ms);
+
+    /**
+     * @brief Check if message has missed its deadline
+     *
+     * @return true if deadline exists and has passed, false otherwise
+     */
+    bool hasDeadlinePassed() const;
+
+    /**
+     * @brief Get time remaining until deadline
+     *
+     * @return milliseconds until deadline, nullopt if no deadline set
+     */
+    std::optional<std::chrono::milliseconds> getTimeUntilDeadline() const;
 };
 
 /**
