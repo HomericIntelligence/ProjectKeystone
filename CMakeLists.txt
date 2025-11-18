@@ -73,6 +73,7 @@ add_library(keystone_concurrency
     src/concurrency/work_stealing_queue.cpp
     src/concurrency/logger.cpp
     src/concurrency/pull_or_steal.cpp
+    src/concurrency/work_stealing_scheduler.cpp
 )
 
 target_include_directories(keystone_concurrency PUBLIC
@@ -160,6 +161,7 @@ add_executable(concurrency_unit_tests
     tests/unit/test_work_stealing_queue.cpp
     tests/unit/test_logger.cpp
     tests/unit/test_pull_or_steal.cpp
+    tests/unit/test_work_stealing_scheduler.cpp
 )
 
 target_link_libraries(concurrency_unit_tests
