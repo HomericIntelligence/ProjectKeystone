@@ -1,4 +1,5 @@
 #include "core/metrics.hpp"
+#include "concurrency/logger.hpp"  // Phase D: For queue depth alerting
 #include <sstream>
 #include <iomanip>
 #include <vector>
@@ -83,6 +84,15 @@ void Metrics::recordQueueDepth(const std::string& agent_id, size_t depth) {
                 std::memory_order_relaxed)) {
             break;
         }
+    }
+
+    // Phase D: Alert on queue depth thresholds
+    if (depth > QUEUE_DEPTH_CRITICAL) {
+        concurrency::Logger::critical("Agent {} queue CRITICAL: {} messages (threshold: {})",
+                                      agent_id, depth, QUEUE_DEPTH_CRITICAL);
+    } else if (depth > QUEUE_DEPTH_WARNING) {
+        concurrency::Logger::warn("Agent {} queue high: {} messages (threshold: {})",
+                                  agent_id, depth, QUEUE_DEPTH_WARNING);
     }
 }
 

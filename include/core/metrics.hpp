@@ -51,6 +51,10 @@ public:
      * @brief Record queue depth for an agent
      * @param agent_id Agent identifier
      * @param depth Current queue depth (high + normal + low)
+     *
+     * Phase D: Logs warnings when depth exceeds thresholds:
+     * - WARNING: depth > 1000 messages
+     * - CRITICAL: depth > 10000 messages
      */
     void recordQueueDepth(const std::string& agent_id, size_t depth);
 
@@ -142,6 +146,10 @@ private:
 
     // Configuration constants
     static constexpr size_t MAX_TIMESTAMP_ENTRIES = 10000;  ///< Max entries before cleanup
+
+    // Phase D: Queue depth alerting thresholds
+    static constexpr size_t QUEUE_DEPTH_WARNING = 1000;    ///< Log warning when exceeded
+    static constexpr size_t QUEUE_DEPTH_CRITICAL = 10000;  ///< Log critical when exceeded
 
     // Message counters (atomic for lock-free increment)
     std::atomic<uint64_t> messages_sent_{0};
