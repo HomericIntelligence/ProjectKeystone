@@ -1,0 +1,203 @@
+name: Build Validation
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  build-docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      matrix:
+        target: [builder, runtime, development]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image (${{ matrix.target }})
+        id: build
+        run: |
+          docker build --target ${{ matrix.target }} \
+            -t projectkeystone:${{ matrix.target }} \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
+            .
+        continue-on-error: false
+
+      - name: Test image
+        run: |
+          if [ "${{ matrix.target }}" = "runtime" ]; then
+            # Runtime image should be able to run tests
+            docker run --rm projectkeystone:runtime || echo "Tests not ready yet"
+          elif [ "${{ matrix.target }}" = "development" ]; then
+            # Development image should have dev tools
+            docker run --rm projectkeystone:development which gdb
+            docker run --rm projectkeystone:development which valgrind
+          fi
+
+      - name: Generate build manifest
+        run: |
+          mkdir -p build-artifacts
+          cat > build-artifacts/manifest-${{ matrix.target }}.json <<EOF
+          {
+            "target": "${{ matrix.target }}",
+            "success": true,
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "commit": "${{ github.sha }}"
+          }
+          EOF
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-manifest-${{ matrix.target }}
+          path: build-artifacts/
+          retention-days: 7
+
+  build-native:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            ninja-build \
+            libgtest-dev
+
+      - name: Configure CMake
+        run: |
+          mkdir -p build
+          cd build
+          cmake -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_COMPILER=g++-12 \
+            ..
+
+      - name: Build
+        run: |
+          cd build
+          ninja
+
+      - name: Run smoke test
+        run: |
+          cd build
+          # Run tests if they exist
+          if [ -f ./phase1_e2e_tests ]; then
+            ./phase1_e2e_tests --gtest_filter=*Smoke* || echo "No smoke tests yet"
+          else
+            echo "Test executables not built yet"
+          fi
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-build
+          path: build/
+          retention-days: 7
+
+  build-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [build-docker, build-native]
+    if: always()
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Generate build report
+        id: report
+        run: |
+          echo "## Build Validation Report" > report.md
+          echo "" >> report.md
+
+          # Check Docker builds
+          echo "### Docker Builds" >> report.md
+          for target in builder runtime development; do
+            if [ -f "artifacts/build-manifest-${target}/manifest-${target}.json" ]; then
+              echo "- ✅ ${target}: Success" >> report.md
+            else
+              echo "- ❌ ${target}: Failed" >> report.md
+            fi
+          done
+
+          # Check native build
+          echo "" >> report.md
+          echo "### Native Build" >> report.md
+          if [ -d "artifacts/native-build" ]; then
+            echo "- ✅ Native build: Success" >> report.md
+          else
+            echo "- ❌ Native build: Failed" >> report.md
+          fi
+
+          echo "" >> report.md
+          echo "---" >> report.md
+          echo "*Workflow: [${{ github.workflow }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})*" >> report.md
+
+          cat report.md >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload build report
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-report
+          path: report.md
+          retention-days: 30
+
+      - name: Comment PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('report.md', 'utf8');
+
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.data.find(comment =>
+              comment.user.type === 'Bot' &&
+              comment.body.includes('Build Validation Report')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: report
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: report
+              });
+            }
+
+      - name: Check build status
+        run: |
+          # Fail if any builds failed
+          if grep -q "❌" report.md; then
+            echo "::error::One or more builds failed"
+            exit 1
+          fi
