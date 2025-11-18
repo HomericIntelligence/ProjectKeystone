@@ -74,6 +74,7 @@ add_library(keystone_core
     src/core/message_bus.cpp
     src/core/message_serializer.cpp
     src/core/metrics.cpp
+    src/core/profiling.cpp  # Phase D: Performance profiling
 )
 
 target_include_directories(keystone_core PUBLIC
@@ -204,6 +205,7 @@ add_executable(unit_tests
     tests/unit/test_message_priority.cpp
     tests/unit/test_metrics.cpp
     tests/unit/test_deadline_scheduling.cpp
+    tests/unit/test_profiling.cpp  # Phase D: Profiling tests
 )
 
 target_link_libraries(unit_tests
