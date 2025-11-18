@@ -97,21 +97,65 @@ struct KeystoneMessage {
 };
 ```
 
+### Message Bus
+
+**MessageBus** is the central routing hub for all agent communication (introduced in Phase 1):
+
+```cpp
+class MessageBus {
+public:
+    void registerAgent(const std::string& agent_id, BaseAgent* agent);
+    void unregisterAgent(const std::string& agent_id);
+    bool routeMessage(const KeystoneMessage& msg);
+    bool hasAgent(const std::string& agent_id) const;
+    std::vector<std::string> listAgents() const;
+};
+```
+
+**Key Features**:
+- **Decoupled Communication**: Agents send messages by agent ID, not direct pointers
+- **Dynamic Discovery**: Agents can be registered/unregistered at runtime
+- **Thread-Safe**: Mutex-protected agent registry
+- **Synchronous Routing**: Phase 1 uses synchronous delivery (async in Phase 2+)
+- **Automatic Response Routing**: Messages automatically routed back to sender
+
+**Usage**:
+```cpp
+// Setup
+auto bus = std::make_unique<MessageBus>();
+bus->registerAgent(chief->getAgentId(), chief.get());
+bus->registerAgent(task->getAgentId(), task.get());
+chief->setMessageBus(bus.get());
+task->setMessageBus(bus.get());
+
+// Send message (MessageBus routes it)
+auto msg = KeystoneMessage::create("chief", "task", "echo hello");
+chief->sendMessage(msg);  // MessageBus handles routing
+```
+
+See [ADR-001](docs/plan/adr/ADR-001-message-bus-architecture.md) for architecture details.
+
 ### Agent Base Class
 
 ```cpp
-class AgentBase {
+class BaseAgent {
 public:
-    virtual Task<void> processMessage(const KeystoneMessage& msg) = 0;
-    virtual void run() = 0;
-    virtual void stop() = 0;
+    virtual Response processMessage(const KeystoneMessage& msg) = 0;
+    void sendMessage(const KeystoneMessage& msg);
+    void receiveMessage(const KeystoneMessage& msg);
+    void setMessageBus(MessageBus* bus);
 
 protected:
     std::string agent_id_;
-    MessageQueue inbox_;
-    bool is_running_;
+    MessageBus* message_bus_;
+
+private:
+    std::queue<KeystoneMessage> inbox_;
+    std::mutex inbox_mutex_;
 };
 ```
+
+**Phase 1 Design**: Synchronous message processing with MessageBus routing
 
 ### Concurrency Model
 
@@ -457,7 +501,13 @@ Task<void> processMessageAsync(const KeystoneMessage& msg) {
 - ✅ ChiefArchitect sends command to TaskAgent
 - ✅ TaskAgent executes bash command (add two numbers)
 - ✅ TaskAgent returns result to ChiefArchitect
-- ✅ All E2E tests passing
+- ✅ MessageBus properly routes all messages
+- ✅ All agents decoupled via MessageBus
+- ✅ All E2E tests passing (3/3)
+- ✅ All unit tests passing (MessageBus tests)
+- ✅ No memory leaks (valgrind clean)
+- ✅ Thread-safe UUID generation
+- ✅ RAII resource management (PipeHandle for popen/pclose)
 
 ### Overall Success
 - All 4 layers implemented

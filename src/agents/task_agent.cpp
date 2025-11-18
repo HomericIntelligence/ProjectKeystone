@@ -22,18 +22,17 @@ core::Response TaskAgent::processMessage(const core::KeystoneMessage& msg) {
         // Create success response
         auto response = core::Response::createSuccess(msg, agent_id_, result);
 
-        // Send response back to commander
+        // Send response back to sender via MessageBus
         auto response_msg = core::KeystoneMessage::create(
             agent_id_,
-            msg.sender_id,
+            msg.sender_id,  // Route back to original sender
             "response",
             result
         );
         response_msg.msg_id = msg.msg_id;  // Keep same msg_id for tracking
 
-        // Find commander and send back
-        // For Phase 1, we use a simple approach: send message back through inbox
-        sendMessage(response_msg, nullptr);  // Will be handled by the test infrastructure
+        // MessageBus routes it automatically
+        sendMessage(response_msg);
 
         return response;
 
@@ -41,7 +40,7 @@ core::Response TaskAgent::processMessage(const core::KeystoneMessage& msg) {
         // Create error response
         auto response = core::Response::createError(msg, agent_id_, e.what());
 
-        // Send error response back
+        // Send error response back via MessageBus
         auto response_msg = core::KeystoneMessage::create(
             agent_id_,
             msg.sender_id,
@@ -50,29 +49,29 @@ core::Response TaskAgent::processMessage(const core::KeystoneMessage& msg) {
         );
         response_msg.msg_id = msg.msg_id;
 
-        sendMessage(response_msg, nullptr);
+        sendMessage(response_msg);
 
         return response;
     }
 }
 
 std::string TaskAgent::executeBash(const std::string& command) {
-    std::array<char, 128> buffer;
+    std::array<char, 4096> buffer;  // Increased from 128 to handle larger outputs
     std::string result;
 
-    // Open pipe to command
-    FILE* pipe = popen(command.c_str(), "r");
+    // RAII pipe handle - automatically closes on exception or return
+    PipeHandle pipe(popen(command.c_str(), "r"));
     if (!pipe) {
         throw std::runtime_error("popen() failed");
     }
 
     // Read command output
-    while (fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
+    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
         result += buffer.data();
     }
 
-    // Close pipe and get status
-    int status = pclose(pipe);
+    // Manual close to get status (release() transfers ownership)
+    int status = pclose(pipe.release());
     if (status != 0) {
         std::stringstream ss;
         ss << "Command exited with status " << status;

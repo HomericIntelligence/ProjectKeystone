@@ -8,6 +8,12 @@
 #include <memory>
 
 namespace keystone {
+
+// Forward declaration
+namespace core {
+    class MessageBus;
+}
+
 namespace agents {
 
 /**
@@ -36,15 +42,15 @@ public:
     virtual core::Response processMessage(const core::KeystoneMessage& msg) = 0;
 
     /**
-     * @brief Send a message to another agent
+     * @brief Send a message via the message bus
      *
      * @param msg Message to send
-     * @param target Target agent
+     * @throws std::runtime_error if message bus not set
      */
-    void sendMessage(const core::KeystoneMessage& msg, BaseAgent* target);
+    void sendMessage(const core::KeystoneMessage& msg);
 
     /**
-     * @brief Receive a message into the inbox
+     * @brief Receive a message into the inbox (called by MessageBus)
      *
      * @param msg Message to receive
      */
@@ -65,25 +71,19 @@ public:
     const std::string& getAgentId() const { return agent_id_; }
 
     /**
-     * @brief Store a response for retrieval (for testing)
+     * @brief Set the message bus for this agent
      *
-     * @param resp Response to store
+     * @param bus Pointer to message bus (must outlive agent)
      */
-    void storeResponse(const core::Response& resp);
-
-    /**
-     * @brief Get stored response (for testing)
-     *
-     * @return std::optional<core::Response> Stored response if available
-     */
-    std::optional<core::Response> getStoredResponse();
+    void setMessageBus(core::MessageBus* bus);
 
 protected:
     std::string agent_id_;
+    core::MessageBus* message_bus_{nullptr};
+
+private:
     std::queue<core::KeystoneMessage> inbox_;
     std::mutex inbox_mutex_;
-    std::optional<core::Response> stored_response_;
-    std::mutex response_mutex_;
 };
 
 } // namespace agents

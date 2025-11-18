@@ -10,6 +10,7 @@
 #include <gtest/gtest.h>
 #include "agents/chief_architect_agent.hpp"
 #include "agents/task_agent.hpp"
+#include "core/message_bus.hpp"
 #include <random>
 #include <sstream>
 
@@ -28,9 +29,18 @@ using namespace keystone::core;
  *   6. Verify result is correct
  */
 TEST(E2E_Phase1, ChiefArchitectDelegatesToTaskAgent) {
-    // ARRANGE: Create agents
+    // ARRANGE: Create MessageBus and agents
+    auto bus = std::make_unique<MessageBus>();
     auto chief = std::make_unique<ChiefArchitectAgent>("chief_1");
     auto task_agent = std::make_unique<TaskAgent>("task_1");
+
+    // Register agents with bus
+    bus->registerAgent(chief->getAgentId(), chief.get());
+    bus->registerAgent(task_agent->getAgentId(), task_agent.get());
+
+    // Set message bus for each agent
+    chief->setMessageBus(bus.get());
+    task_agent->setMessageBus(bus.get());
 
     // Generate two random numbers
     std::random_device rd;
@@ -48,35 +58,24 @@ TEST(E2E_Phase1, ChiefArchitectDelegatesToTaskAgent) {
     cmd << "echo $((" << num1 << " + " << num2 << "))";
     std::string bash_command = cmd.str();
 
-    // ACT: ChiefArchitect sends command to TaskAgent
-    // 1. Create and send message
+    // ACT: Send message via MessageBus
     auto msg = KeystoneMessage::create(
         chief->getAgentId(),
         task_agent->getAgentId(),
         bash_command
     );
 
-    // Send message to task agent
-    chief->sendMessage(msg, task_agent.get());
+    // Chief sends message (MessageBus routes it)
+    chief->sendMessage(msg);
 
-    // 2. TaskAgent processes the message
+    // TaskAgent processes the message
     auto task_msg = task_agent->getMessage();
     ASSERT_TRUE(task_msg.has_value()) << "TaskAgent should receive message";
 
     auto response = task_agent->processMessage(*task_msg);
 
-    // 3. Send response back to chief
-    auto response_msg = KeystoneMessage::create(
-        task_agent->getAgentId(),
-        chief->getAgentId(),
-        "response",
-        response.result
-    );
-    response_msg.msg_id = msg.msg_id;
-
-    task_agent->sendMessage(response_msg, chief.get());
-
-    // 4. ChiefArchitect processes response
+    // Response is automatically routed back via MessageBus
+    // ChiefArchitect receives it
     auto chief_response_msg = chief->getMessage();
     ASSERT_TRUE(chief_response_msg.has_value()) << "ChiefArchitect should receive response";
 
@@ -102,9 +101,18 @@ TEST(E2E_Phase1, ChiefArchitectDelegatesToTaskAgent) {
  * @brief E2E Test: Multiple sequential commands
  */
 TEST(E2E_Phase1, ChiefArchitectSendsMultipleCommands) {
-    // ARRANGE
+    // ARRANGE: Create MessageBus and agents
+    auto bus = std::make_unique<MessageBus>();
     auto chief = std::make_unique<ChiefArchitectAgent>("chief_1");
     auto task_agent = std::make_unique<TaskAgent>("task_1");
+
+    // Register agents with bus
+    bus->registerAgent(chief->getAgentId(), chief.get());
+    bus->registerAgent(task_agent->getAgentId(), task_agent.get());
+
+    // Set message bus for each agent
+    chief->setMessageBus(bus.get());
+    task_agent->setMessageBus(bus.get());
 
     // Test cases: (num1, num2, expected_result)
     std::vector<std::tuple<int, int, int>> test_cases = {
@@ -119,30 +127,21 @@ TEST(E2E_Phase1, ChiefArchitectSendsMultipleCommands) {
         cmd << "echo $((" << num1 << " + " << num2 << "))";
         std::string bash_command = cmd.str();
 
-        // Send message
+        // Send message via MessageBus
         auto msg = KeystoneMessage::create(
             chief->getAgentId(),
             task_agent->getAgentId(),
             bash_command
         );
 
-        chief->sendMessage(msg, task_agent.get());
+        chief->sendMessage(msg);
 
         // Process
         auto task_msg = task_agent->getMessage();
         ASSERT_TRUE(task_msg.has_value());
         auto response = task_agent->processMessage(*task_msg);
 
-        // Send back
-        auto response_msg = KeystoneMessage::create(
-            task_agent->getAgentId(),
-            chief->getAgentId(),
-            "response",
-            response.result
-        );
-        response_msg.msg_id = msg.msg_id;
-        task_agent->sendMessage(response_msg, chief.get());
-
+        // Response automatically routed back via MessageBus
         // Verify
         auto chief_response_msg = chief->getMessage();
         ASSERT_TRUE(chief_response_msg.has_value());
@@ -164,21 +163,30 @@ TEST(E2E_Phase1, ChiefArchitectSendsMultipleCommands) {
  * @brief E2E Test: TaskAgent handles invalid commands gracefully
  */
 TEST(E2E_Phase1, TaskAgentHandlesCommandErrors) {
-    // ARRANGE
+    // ARRANGE: Create MessageBus and agents
+    auto bus = std::make_unique<MessageBus>();
     auto chief = std::make_unique<ChiefArchitectAgent>("chief_1");
     auto task_agent = std::make_unique<TaskAgent>("task_1");
+
+    // Register agents with bus
+    bus->registerAgent(chief->getAgentId(), chief.get());
+    bus->registerAgent(task_agent->getAgentId(), task_agent.get());
+
+    // Set message bus for each agent
+    chief->setMessageBus(bus.get());
+    task_agent->setMessageBus(bus.get());
 
     // Invalid command
     std::string invalid_command = "this_command_does_not_exist_12345";
 
-    // ACT: Send invalid command
+    // ACT: Send invalid command via MessageBus
     auto msg = KeystoneMessage::create(
         chief->getAgentId(),
         task_agent->getAgentId(),
         invalid_command
     );
 
-    chief->sendMessage(msg, task_agent.get());
+    chief->sendMessage(msg);
 
     auto task_msg = task_agent->getMessage();
     ASSERT_TRUE(task_msg.has_value());

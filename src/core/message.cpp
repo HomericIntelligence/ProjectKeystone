@@ -8,10 +8,11 @@ namespace core {
 
 namespace {
     // Simple UUID generation (not cryptographically secure, but sufficient for Phase 1)
+    // Thread-safe: uses thread_local to avoid data races across threads
     std::string generate_uuid() {
-        static std::random_device rd;
-        static std::mt19937 gen(rd());
-        static std::uniform_int_distribution<> dis(0, 15);
+        thread_local std::random_device rd;
+        thread_local std::mt19937 gen(rd());
+        thread_local std::uniform_int_distribution<> dis(0, 15);
         static const char* hex = "0123456789abcdef";
 
         std::stringstream ss;

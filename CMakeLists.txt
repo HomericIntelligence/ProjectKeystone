@@ -32,6 +32,7 @@ enable_testing()
 # Core library
 add_library(keystone_core
     src/core/message.cpp
+    src/core/message_bus.cpp
 )
 
 target_include_directories(keystone_core PUBLIC ${PROJECT_SOURCE_DIR}/include)
@@ -59,8 +60,21 @@ target_link_libraries(phase1_e2e_tests
 include(GoogleTest)
 gtest_discover_tests(phase1_e2e_tests)
 
+# Unit Tests
+add_executable(unit_tests
+    tests/unit/test_message_bus.cpp
+)
+
+target_link_libraries(unit_tests
+    keystone_agents
+    keystone_core
+    GTest::gtest_main
+)
+
+gtest_discover_tests(unit_tests)
+
 # Add test target
 add_custom_target(run_tests
     COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
-    DEPENDS phase1_e2e_tests
+    DEPENDS phase1_e2e_tests unit_tests
 )

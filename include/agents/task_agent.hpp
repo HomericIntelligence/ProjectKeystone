@@ -3,6 +3,8 @@
 #include "base_agent.hpp"
 #include <vector>
 #include <utility>
+#include <memory>
+#include <cstdio>
 
 namespace keystone {
 namespace agents {
@@ -40,6 +42,18 @@ public:
     }
 
 private:
+    /**
+     * @brief RAII wrapper for popen/pclose
+     */
+    struct PipeDeleter {
+        void operator()(FILE* pipe) const {
+            if (pipe) {
+                pclose(pipe);
+            }
+        }
+    };
+    using PipeHandle = std::unique_ptr<FILE, PipeDeleter>;
+
     /**
      * @brief Execute a bash command
      *
