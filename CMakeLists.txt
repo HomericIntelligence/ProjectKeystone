@@ -101,6 +101,9 @@ add_library(keystone_agents
     src/agents/task_agent.cpp
     src/agents/async_base_agent.cpp
     src/agents/async_task_agent.cpp
+    src/agents/async_chief_architect_agent.cpp
+    src/agents/async_module_lead_agent.cpp
+    src/agents/async_component_lead_agent.cpp
 )
 
 target_link_libraries(keystone_agents PUBLIC
@@ -165,6 +168,7 @@ gtest_discover_tests(phase_a_e2e_tests)
 # E2E Tests - Phase B (Async Agent Coroutines)
 add_executable(phase_b_e2e_tests
     tests/e2e/phase_b_async_agents.cpp
+    tests/e2e/phase_b_full_async_hierarchy.cpp
 )
 
 target_link_libraries(phase_b_e2e_tests
