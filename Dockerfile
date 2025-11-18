@@ -2,7 +2,7 @@
 # Multi-stage build for efficient image size
 
 # Stage 1: Build environment
-FROM ubuntu:22.04 as builder
+FROM ubuntu:24.04 as builder
 
 # Avoid interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
@@ -38,7 +38,7 @@ RUN mkdir -p build && cd build \
     && ninja
 
 # Stage 2: Runtime environment (smaller image)
-FROM ubuntu:22.04 as runtime
+FROM ubuntu:24.04 as runtime
 
 # Install only runtime dependencies
 RUN apt-get update && apt-get install -y \
