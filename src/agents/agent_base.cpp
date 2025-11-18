@@ -6,7 +6,7 @@ namespace keystone {
 namespace agents {
 
 AgentBase::AgentBase(const std::string& agent_id)
-    : agent_id_(agent_id) {
+    : agent_id_(agent_id), inbox_() {
 }
 
 void AgentBase::sendMessage(const core::KeystoneMessage& msg) {
@@ -18,18 +18,17 @@ void AgentBase::sendMessage(const core::KeystoneMessage& msg) {
 }
 
 void AgentBase::receiveMessage(const core::KeystoneMessage& msg) {
-    std::lock_guard<std::mutex> lock(inbox_mutex_);
-    inbox_.push(msg);
+    // Lock-free enqueue - no mutex needed!
+    inbox_.enqueue(msg);
 }
 
 std::optional<core::KeystoneMessage> AgentBase::getMessage() {
-    std::lock_guard<std::mutex> lock(inbox_mutex_);
-    if (inbox_.empty()) {
-        return std::nullopt;
+    // Lock-free dequeue - no mutex needed!
+    core::KeystoneMessage msg;
+    if (inbox_.try_dequeue(msg)) {
+        return msg;
     }
-    auto msg = inbox_.front();
-    inbox_.pop();
-    return msg;
+    return std::nullopt;
 }
 
 void AgentBase::setMessageBus(core::MessageBus* bus) {

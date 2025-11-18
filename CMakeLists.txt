@@ -29,6 +29,20 @@ if(NOT GTest_FOUND)
     FetchContent_MakeAvailable(googletest)
 endif()
 
+# Google Benchmark
+find_package(benchmark QUIET)
+if(NOT benchmark_FOUND)
+    message(STATUS "Google Benchmark not found, fetching from GitHub...")
+    FetchContent_Declare(
+        benchmark
+        GIT_REPOSITORY https://github.com/google/benchmark.git
+        GIT_TAG v1.8.3
+    )
+    set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
+    set(BENCHMARK_ENABLE_GTEST_TESTS OFF CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(benchmark)
+endif()
+
 # concurrentqueue - Lock-free MPMC queue
 FetchContent_Declare(
     concurrentqueue
@@ -219,4 +233,16 @@ gtest_discover_tests(concurrency_unit_tests)
 add_custom_target(run_tests
     COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
     DEPENDS phase1_e2e_tests phase2_e2e_tests phase3_e2e_tests unit_tests concurrency_unit_tests
+)
+
+# Benchmarks
+add_executable(hierarchy_benchmarks
+    benchmarks/hierarchy_performance.cpp
+)
+
+target_link_libraries(hierarchy_benchmarks
+    keystone_agents
+    keystone_core
+    keystone_concurrency
+    benchmark::benchmark
 )
