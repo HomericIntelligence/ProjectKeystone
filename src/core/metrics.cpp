@@ -1,0 +1,231 @@
+#include "core/metrics.hpp"
+#include <sstream>
+#include <iomanip>
+
+namespace keystone {
+namespace core {
+
+Metrics::Metrics() : start_time_(std::chrono::steady_clock::now()) {
+}
+
+Metrics& Metrics::getInstance() {
+    static Metrics instance;
+    return instance;
+}
+
+void Metrics::recordMessageSent(const std::string& msg_id, int priority) {
+    messages_sent_.fetch_add(1, std::memory_order_relaxed);
+
+    // Track priority distribution
+    switch (priority) {
+        case 0: // HIGH
+            high_priority_count_.fetch_add(1, std::memory_order_relaxed);
+            break;
+        case 1: // NORMAL
+            normal_priority_count_.fetch_add(1, std::memory_order_relaxed);
+            break;
+        case 2: // LOW
+            low_priority_count_.fetch_add(1, std::memory_order_relaxed);
+            break;
+    }
+
+    // Record timestamp for latency tracking
+    {
+        std::lock_guard<std::mutex> lock(timestamps_mutex_);
+        message_timestamps_[msg_id] = {std::chrono::steady_clock::now()};
+    }
+}
+
+void Metrics::recordMessageProcessed(const std::string& msg_id) {
+    messages_processed_.fetch_add(1, std::memory_order_relaxed);
+
+    // Calculate latency if we have send timestamp
+    {
+        std::lock_guard<std::mutex> lock(timestamps_mutex_);
+        auto it = message_timestamps_.find(msg_id);
+        if (it != message_timestamps_.end()) {
+            auto now = std::chrono::steady_clock::now();
+            auto latency_us = std::chrono::duration_cast<std::chrono::microseconds>(
+                now - it->second.send_time
+            ).count();
+
+            total_latency_us_.fetch_add(latency_us, std::memory_order_relaxed);
+            latency_sample_count_.fetch_add(1, std::memory_order_relaxed);
+
+            // Clean up timestamp
+            message_timestamps_.erase(it);
+        }
+    }
+}
+
+void Metrics::recordQueueDepth(const std::string& agent_id, size_t depth) {
+    {
+        std::lock_guard<std::mutex> lock(queue_depths_mutex_);
+        agent_queue_depths_[agent_id] = depth;
+    }
+
+    // Update max depth
+    size_t current_max = max_queue_depth_.load(std::memory_order_relaxed);
+    while (depth > current_max) {
+        if (max_queue_depth_.compare_exchange_weak(
+                current_max, depth,
+                std::memory_order_relaxed)) {
+            break;
+        }
+    }
+}
+
+void Metrics::recordWorkerActivity(int worker_id, bool is_busy) {
+    {
+        std::lock_guard<std::mutex> lock(worker_mutex_);
+        worker_busy_states_[worker_id] = is_busy;
+    }
+
+    // Sample worker utilization
+    total_worker_samples_.fetch_add(1, std::memory_order_relaxed);
+    if (is_busy) {
+        total_busy_samples_.fetch_add(1, std::memory_order_relaxed);
+    }
+}
+
+uint64_t Metrics::getTotalMessagesSent() const {
+    return messages_sent_.load(std::memory_order_relaxed);
+}
+
+uint64_t Metrics::getTotalMessagesProcessed() const {
+    return messages_processed_.load(std::memory_order_relaxed);
+}
+
+double Metrics::getMessagesPerSecond() const {
+    auto now = std::chrono::steady_clock::now();
+    auto elapsed_s = std::chrono::duration<double>(now - start_time_).count();
+
+    if (elapsed_s < 0.001) {
+        return 0.0;
+    }
+
+    uint64_t total = messages_processed_.load(std::memory_order_relaxed);
+    return static_cast<double>(total) / elapsed_s;
+}
+
+std::optional<double> Metrics::getAverageLatencyUs() const {
+    uint64_t count = latency_sample_count_.load(std::memory_order_relaxed);
+    if (count == 0) {
+        return std::nullopt;
+    }
+
+    uint64_t total = total_latency_us_.load(std::memory_order_relaxed);
+    return static_cast<double>(total) / static_cast<double>(count);
+}
+
+size_t Metrics::getMaxQueueDepth() const {
+    return max_queue_depth_.load(std::memory_order_relaxed);
+}
+
+double Metrics::getWorkerUtilization() const {
+    uint64_t samples = total_worker_samples_.load(std::memory_order_relaxed);
+    if (samples == 0) {
+        return 0.0;
+    }
+
+    uint64_t busy = total_busy_samples_.load(std::memory_order_relaxed);
+    return (static_cast<double>(busy) / static_cast<double>(samples)) * 100.0;
+}
+
+Metrics::PriorityStats Metrics::getPriorityStats() const {
+    return {
+        high_priority_count_.load(std::memory_order_relaxed),
+        normal_priority_count_.load(std::memory_order_relaxed),
+        low_priority_count_.load(std::memory_order_relaxed)
+    };
+}
+
+void Metrics::reset() {
+    messages_sent_.store(0, std::memory_order_relaxed);
+    messages_processed_.store(0, std::memory_order_relaxed);
+    high_priority_count_.store(0, std::memory_order_relaxed);
+    normal_priority_count_.store(0, std::memory_order_relaxed);
+    low_priority_count_.store(0, std::memory_order_relaxed);
+    total_latency_us_.store(0, std::memory_order_relaxed);
+    latency_sample_count_.store(0, std::memory_order_relaxed);
+    max_queue_depth_.store(0, std::memory_order_relaxed);
+    total_busy_samples_.store(0, std::memory_order_relaxed);
+    total_worker_samples_.store(0, std::memory_order_relaxed);
+
+    {
+        std::lock_guard<std::mutex> lock(timestamps_mutex_);
+        message_timestamps_.clear();
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(queue_depths_mutex_);
+        agent_queue_depths_.clear();
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(worker_mutex_);
+        worker_busy_states_.clear();
+    }
+
+    start_time_ = std::chrono::steady_clock::now();
+}
+
+std::string Metrics::generateReport() const {
+    std::stringstream ss;
+    ss << std::fixed << std::setprecision(2);
+
+    ss << "\n=== HMAS Performance Metrics ===\n\n";
+
+    // Throughput
+    ss << "Throughput:\n";
+    ss << "  Messages Sent:      " << getTotalMessagesSent() << "\n";
+    ss << "  Messages Processed: " << getTotalMessagesProcessed() << "\n";
+    ss << "  Messages/Second:    " << getMessagesPerSecond() << "\n\n";
+
+    // Latency
+    auto latency = getAverageLatencyUs();
+    ss << "Latency:\n";
+    if (latency.has_value()) {
+        ss << "  Average Latency:    " << *latency << " μs\n";
+    } else {
+        ss << "  Average Latency:    No data\n";
+    }
+    ss << "\n";
+
+    // Priority distribution
+    auto priority_stats = getPriorityStats();
+    uint64_t total_priority = priority_stats.high_count + 
+                             priority_stats.normal_count + 
+                             priority_stats.low_count;
+    ss << "Priority Distribution:\n";
+    ss << "  HIGH:    " << priority_stats.high_count;
+    if (total_priority > 0) {
+        ss << " (" << (100.0 * priority_stats.high_count / total_priority) << "%)";
+    }
+    ss << "\n";
+    ss << "  NORMAL:  " << priority_stats.normal_count;
+    if (total_priority > 0) {
+        ss << " (" << (100.0 * priority_stats.normal_count / total_priority) << "%)";
+    }
+    ss << "\n";
+    ss << "  LOW:     " << priority_stats.low_count;
+    if (total_priority > 0) {
+        ss << " (" << (100.0 * priority_stats.low_count / total_priority) << "%)";
+    }
+    ss << "\n\n";
+
+    // Queue depths
+    ss << "Queue Management:\n";
+    ss << "  Max Queue Depth:    " << getMaxQueueDepth() << "\n\n";
+
+    // Worker utilization
+    ss << "Worker Utilization:\n";
+    ss << "  Utilization:        " << getWorkerUtilization() << "%\n";
+
+    ss << "\n================================\n";
+
+    return ss.str();
+}
+
+} // namespace core
+} // namespace keystone

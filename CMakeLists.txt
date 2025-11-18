@@ -73,6 +73,7 @@ add_library(keystone_core
     src/core/message.cpp
     src/core/message_bus.cpp
     src/core/message_serializer.cpp
+    src/core/metrics.cpp
 )
 
 target_include_directories(keystone_core PUBLIC
@@ -201,6 +202,7 @@ add_executable(unit_tests
     tests/unit/test_message_bus_async.cpp
     tests/unit/test_async_task_agent.cpp
     tests/unit/test_message_priority.cpp
+    tests/unit/test_metrics.cpp
 )
 
 target_link_libraries(unit_tests
