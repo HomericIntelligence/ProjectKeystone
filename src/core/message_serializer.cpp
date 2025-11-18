@@ -1,0 +1,106 @@
+/**
+ * @file message_serializer.cpp
+ * @brief Implementation of Cista-based message serialization
+ */
+
+#include "core/message_serializer.hpp"
+#include <cista/serialization.h>
+
+namespace keystone {
+namespace core {
+
+SerializableMessage SerializableMessage::fromKeystoneMessage(const KeystoneMessage& msg) {
+    SerializableMessage smsg;
+
+    smsg.msg_id = cista::offset::string{msg.msg_id.c_str()};
+    smsg.sender_id = cista::offset::string{msg.sender_id.c_str()};
+    smsg.receiver_id = cista::offset::string{msg.receiver_id.c_str()};
+
+    smsg.action_type = static_cast<uint32_t>(msg.action_type);
+    smsg.content_type = static_cast<uint32_t>(msg.content_type);
+    smsg.session_id = cista::offset::string{msg.session_id.c_str()};
+
+    // Convert metadata map
+    for (const auto& [key, value] : msg.metadata) {
+        smsg.metadata[cista::offset::string{key.c_str()}] = cista::offset::string{value.c_str()};
+    }
+
+    smsg.command = cista::offset::string{msg.command.c_str()};
+
+    if (msg.payload.has_value()) {
+        smsg.payload = cista::offset::string{msg.payload.value().c_str()};
+        smsg.has_payload = true;
+    } else {
+        smsg.payload = cista::offset::string{""};
+        smsg.has_payload = false;
+    }
+
+    // Convert timestamp to nanoseconds since epoch
+    auto duration = msg.timestamp.time_since_epoch();
+    smsg.timestamp_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count();
+
+    return smsg;
+}
+
+KeystoneMessage SerializableMessage::toKeystoneMessage() const {
+    KeystoneMessage msg;
+
+    msg.msg_id = std::string{msg_id.data(), msg_id.size()};
+    msg.sender_id = std::string{sender_id.data(), sender_id.size()};
+    msg.receiver_id = std::string{receiver_id.data(), receiver_id.size()};
+
+    msg.action_type = static_cast<ActionType>(action_type);
+    msg.content_type = static_cast<ContentType>(content_type);
+    msg.session_id = std::string{session_id.data(), session_id.size()};
+
+    // Convert metadata map
+    for (const auto& [key, value] : metadata) {
+        msg.metadata[std::string{key.data(), key.size()}] = std::string{value.data(), value.size()};
+    }
+
+    msg.command = std::string{command.data(), command.size()};
+
+    if (has_payload) {
+        msg.payload = std::string{payload.data(), payload.size()};
+    } else {
+        msg.payload = std::nullopt;
+    }
+
+    // Convert timestamp from nanoseconds since epoch
+    auto duration = std::chrono::nanoseconds{timestamp_ns};
+    msg.timestamp = std::chrono::system_clock::time_point{
+        std::chrono::duration_cast<std::chrono::system_clock::duration>(duration)
+    };
+
+    return msg;
+}
+
+std::vector<uint8_t> MessageSerializer::serialize(const KeystoneMessage& msg) {
+    // Convert to serializable format
+    auto smsg = SerializableMessage::fromKeystoneMessage(msg);
+
+    // Serialize using Cista
+    auto buffer = cista::serialize(smsg);
+
+    return std::vector<uint8_t>(buffer.begin(), buffer.end());
+}
+
+KeystoneMessage MessageSerializer::deserialize(const uint8_t* buffer, size_t size) {
+    // Deserialize using Cista
+    auto smsg = cista::deserialize<SerializableMessage>(buffer, buffer + size);
+
+    // Convert back to KeystoneMessage
+    return smsg->toKeystoneMessage();
+}
+
+KeystoneMessage MessageSerializer::deserialize(const std::vector<uint8_t>& buffer) {
+    return deserialize(buffer.data(), buffer.size());
+}
+
+const SerializableMessage* MessageSerializer::deserializeInPlace(const uint8_t* buffer, size_t size) {
+    // Zero-copy deserialization - returns pointer into the buffer
+    return cista::deserialize<SerializableMessage>(buffer, buffer + size);
+}
+
+} // namespace core
+} // namespace keystone

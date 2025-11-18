@@ -58,9 +58,13 @@ enable_testing()
 add_library(keystone_core
     src/core/message.cpp
     src/core/message_bus.cpp
+    src/core/message_serializer.cpp
 )
 
-target_include_directories(keystone_core PUBLIC ${PROJECT_SOURCE_DIR}/include)
+target_include_directories(keystone_core PUBLIC
+    ${PROJECT_SOURCE_DIR}/include
+    ${cista_SOURCE_DIR}/include
+)
 
 # Concurrency library (Phase A)
 add_library(keystone_concurrency
@@ -136,6 +140,7 @@ gtest_discover_tests(phase3_e2e_tests)
 # Unit Tests
 add_executable(unit_tests
     tests/unit/test_message_bus.cpp
+    tests/unit/test_message_serializer.cpp
 )
 
 target_link_libraries(unit_tests
