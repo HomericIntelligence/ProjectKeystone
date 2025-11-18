@@ -1,0 +1,43 @@
+#pragma once
+
+#include "base_agent.hpp"
+#include <map>
+
+namespace keystone {
+namespace agents {
+
+/**
+ * @brief Level 0 Chief Architect Agent
+ *
+ * Strategic orchestrator that delegates tasks to lower-level agents.
+ * For Phase 1, delegates directly to TaskAgent (L3).
+ */
+class ChiefArchitectAgent : public BaseAgent {
+public:
+    /**
+     * @brief Construct a new Chief Architect Agent
+     *
+     * @param agent_id Unique identifier for this agent
+     */
+    explicit ChiefArchitectAgent(const std::string& agent_id);
+
+    /**
+     * @brief Process incoming message (typically responses from subordinates)
+     *
+     * @param msg Message to process
+     * @return core::Response Response to the message
+     */
+    core::Response processMessage(const core::KeystoneMessage& msg) override;
+
+    /**
+     * @brief Send a command to a task agent and wait for response
+     *
+     * @param command Command string to execute
+     * @param task_agent Target task agent
+     * @return core::Response Response from the task agent
+     */
+    core::Response sendCommand(const std::string& command, BaseAgent* task_agent);
+};
+
+} // namespace agents
+} // namespace keystone

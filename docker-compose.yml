@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  # Build and run tests
+  test:
+    build:
+      context: .
+      target: runtime
+    image: projectkeystone:latest
+    container_name: projectkeystone-test
+    command: phase1_e2e_tests
+
+  # Development environment with mounted source
+  dev:
+    build:
+      context: .
+      target: development
+    image: projectkeystone-dev:latest
+    container_name: projectkeystone-dev
+    volumes:
+      - .:/workspace
+      - build-cache:/workspace/build
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+    command: /bin/bash
+
+  # Build only (for CI/CD)
+  build:
+    build:
+      context: .
+      target: builder
+    image: projectkeystone-builder:latest
+    container_name: projectkeystone-build
+    volumes:
+      - .:/workspace
+      - build-cache:/workspace/build
+    command: >
+      bash -c "cd build && cmake -G Ninja .. && ninja"
+
+volumes:
+  build-cache:
+    driver: local
