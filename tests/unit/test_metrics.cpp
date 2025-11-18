@@ -33,9 +33,9 @@ TEST_F(MetricsTest, MessageCounting) {
     EXPECT_EQ(metrics.getTotalMessagesSent(), 0);
     EXPECT_EQ(metrics.getTotalMessagesProcessed(), 0);
 
-    metrics.recordMessageSent("msg1", 1);
-    metrics.recordMessageSent("msg2", 1);
-    metrics.recordMessageSent("msg3", 1);
+    metrics.recordMessageSent("msg1", Priority::NORMAL);
+    metrics.recordMessageSent("msg2", Priority::NORMAL);
+    metrics.recordMessageSent("msg3", Priority::NORMAL);
 
     EXPECT_EQ(metrics.getTotalMessagesSent(), 3);
     EXPECT_EQ(metrics.getTotalMessagesProcessed(), 0);
@@ -54,12 +54,12 @@ TEST_F(MetricsTest, PriorityDistribution) {
     auto& metrics = Metrics::getInstance();
 
     // Send messages with different priorities
-    metrics.recordMessageSent("msg_high1", 0);  // HIGH
-    metrics.recordMessageSent("msg_high2", 0);  // HIGH
-    metrics.recordMessageSent("msg_normal1", 1); // NORMAL
-    metrics.recordMessageSent("msg_normal2", 1); // NORMAL
-    metrics.recordMessageSent("msg_normal3", 1); // NORMAL
-    metrics.recordMessageSent("msg_low1", 2);    // LOW
+    metrics.recordMessageSent("msg_high1", Priority::HIGH);
+    metrics.recordMessageSent("msg_high2", Priority::HIGH);
+    metrics.recordMessageSent("msg_normal1", Priority::NORMAL);
+    metrics.recordMessageSent("msg_normal2", Priority::NORMAL);
+    metrics.recordMessageSent("msg_normal3", Priority::NORMAL);
+    metrics.recordMessageSent("msg_low1", Priority::LOW);
 
     auto stats = metrics.getPriorityStats();
     EXPECT_EQ(stats.high_count, 2);
@@ -77,7 +77,7 @@ TEST_F(MetricsTest, LatencyTracking) {
     EXPECT_FALSE(metrics.getAverageLatencyUs().has_value());
 
     // Send a message
-    metrics.recordMessageSent("msg1", 1);
+    metrics.recordMessageSent("msg1", Priority::NORMAL);
 
     // Simulate some processing time
     std::this_thread::sleep_for(std::chrono::microseconds(100));
@@ -138,7 +138,7 @@ TEST_F(MetricsTest, ThroughputCalculation) {
 
     // Process some messages
     for (int i = 0; i < 100; ++i) {
-        metrics.recordMessageSent("msg" + std::to_string(i), 1);
+        metrics.recordMessageSent("msg" + std::to_string(i), Priority::NORMAL);
         metrics.recordMessageProcessed("msg" + std::to_string(i));
     }
 
@@ -157,8 +157,8 @@ TEST_F(MetricsTest, MetricsReset) {
     auto& metrics = Metrics::getInstance();
 
     // Add some data
-    metrics.recordMessageSent("msg1", 0);
-    metrics.recordMessageSent("msg2", 1);
+    metrics.recordMessageSent("msg1", Priority::HIGH);
+    metrics.recordMessageSent("msg2", Priority::NORMAL);
     metrics.recordMessageProcessed("msg1");
     metrics.recordQueueDepth("agent1", 10);
     metrics.recordWorkerActivity(0, true);
@@ -187,8 +187,8 @@ TEST_F(MetricsTest, ReportGeneration) {
     auto& metrics = Metrics::getInstance();
 
     // Add some data
-    metrics.recordMessageSent("msg1", 0);  // HIGH
-    metrics.recordMessageSent("msg2", 1);  // NORMAL
+    metrics.recordMessageSent("msg1", Priority::HIGH);
+    metrics.recordMessageSent("msg2", Priority::NORMAL);
     metrics.recordMessageProcessed("msg1");
     metrics.recordQueueDepth("agent1", 5);
 
@@ -215,9 +215,11 @@ TEST_F(MetricsTest, ThreadSafety) {
     for (int t = 0; t < num_threads; ++t) {
         threads.emplace_back([&metrics, t, msgs_per_thread]() {
             for (int i = 0; i < msgs_per_thread; ++i) {
-                std::string msg_id = "thread" + std::to_string(t) + 
+                std::string msg_id = "thread" + std::to_string(t) +
                                     "_msg" + std::to_string(i);
-                metrics.recordMessageSent(msg_id, i % 3);
+                // Cycle through priorities: HIGH, NORMAL, LOW
+                Priority priority = static_cast<Priority>(i % 3);
+                metrics.recordMessageSent(msg_id, priority);
                 metrics.recordMessageProcessed(msg_id);
                 metrics.recordQueueDepth("agent" + std::to_string(t), i);
                 metrics.recordWorkerActivity(t, i % 2 == 0);

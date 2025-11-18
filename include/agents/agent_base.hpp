@@ -4,6 +4,7 @@
 #include "concurrentqueue.h"
 #include <string>
 #include <optional>
+#include <atomic>
 
 namespace keystone {
 
@@ -83,6 +84,11 @@ protected:
     moodycamel::ConcurrentQueue<core::KeystoneMessage> high_priority_inbox_;
     moodycamel::ConcurrentQueue<core::KeystoneMessage> normal_priority_inbox_;
     moodycamel::ConcurrentQueue<core::KeystoneMessage> low_priority_inbox_;
+
+    // FIX: Anti-starvation counters for weighted round-robin
+    // After N high-priority messages, force-check lower priorities
+    std::atomic<uint64_t> high_priority_processed_{0};
+    static constexpr uint64_t HIGH_PRIORITY_QUOTA = 10;  ///< Process max 10 HIGH before checking NORMAL/LOW
 };
 
 } // namespace agents

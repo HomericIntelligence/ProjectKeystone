@@ -1,6 +1,8 @@
 #include "core/metrics.hpp"
 #include <sstream>
 #include <iomanip>
+#include <vector>
+#include <algorithm>
 
 namespace keystone {
 namespace core {
@@ -13,19 +15,23 @@ Metrics& Metrics::getInstance() {
     return instance;
 }
 
-void Metrics::recordMessageSent(const std::string& msg_id, int priority) {
+void Metrics::recordMessageSent(const std::string& msg_id, Priority priority) {
     messages_sent_.fetch_add(1, std::memory_order_relaxed);
 
-    // Track priority distribution
+    // FIX: Track priority distribution using enum (type-safe)
     switch (priority) {
-        case 0: // HIGH
+        case Priority::HIGH:
             high_priority_count_.fetch_add(1, std::memory_order_relaxed);
             break;
-        case 1: // NORMAL
+        case Priority::NORMAL:
             normal_priority_count_.fetch_add(1, std::memory_order_relaxed);
             break;
-        case 2: // LOW
+        case Priority::LOW:
             low_priority_count_.fetch_add(1, std::memory_order_relaxed);
+            break;
+        default:
+            // Shouldn't happen with enum, but handle gracefully
+            normal_priority_count_.fetch_add(1, std::memory_order_relaxed);
             break;
     }
 
@@ -33,6 +39,11 @@ void Metrics::recordMessageSent(const std::string& msg_id, int priority) {
     {
         std::lock_guard<std::mutex> lock(timestamps_mutex_);
         message_timestamps_[msg_id] = {std::chrono::steady_clock::now()};
+
+        // FIX: Prevent memory leak by cleaning up old timestamps
+        if (message_timestamps_.size() > MAX_TIMESTAMP_ENTRIES) {
+            cleanupOldTimestamps();
+        }
     }
 }
 
@@ -256,6 +267,33 @@ std::string Metrics::generateReport() const {
     ss << "\n================================\n";
 
     return ss.str();
+}
+
+void Metrics::cleanupOldTimestamps() {
+    // FIX: Remove oldest 50% of entries to prevent unbounded growth
+    // Note: Caller must hold timestamps_mutex_
+
+    if (message_timestamps_.empty()) {
+        return;
+    }
+
+    // Sort entries by timestamp (oldest first)
+    std::vector<std::pair<std::string, LatencyRecord>> entries(
+        message_timestamps_.begin(),
+        message_timestamps_.end()
+    );
+
+    std::sort(entries.begin(), entries.end(),
+        [](const auto& a, const auto& b) {
+            return a.second.send_time < b.second.send_time;
+        }
+    );
+
+    // Remove oldest 50%
+    size_t to_remove = entries.size() / 2;
+    for (size_t i = 0; i < to_remove; ++i) {
+        message_timestamps_.erase(entries[i].first);
+    }
 }
 
 } // namespace core

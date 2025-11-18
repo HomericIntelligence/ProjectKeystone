@@ -73,6 +73,10 @@ KeystoneMessage KeystoneMessage::create(
     // Legacy field: set command based on action type
     msg.command = actionTypeToString(action);
 
+    // Phase C: Initialize priority and deadline (FIX: was missing!)
+    msg.priority = Priority::NORMAL;
+    msg.deadline = std::nullopt;
+
     return msg;
 }
 
