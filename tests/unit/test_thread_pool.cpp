@@ -55,14 +55,16 @@ TEST(ThreadPoolTest, SubmitCoroutineHandle) {
     ThreadPool pool(2);
     std::atomic<bool> executed{false};
 
-    auto task = [&]() -> Task<void> {
+    // Create task on heap to prevent dangling pointer
+    auto task = std::make_shared<Task<void>>([&]() -> Task<void> {
         executed.store(true);
         co_return;
-    }();
+    }());
 
     // Submit task for execution by manually resuming
-    pool.submit([task_ptr = &task]() mutable {
-        task_ptr->resume();
+    // Capture shared_ptr to keep task alive
+    pool.submit([task]() {
+        task->resume();
     });
 
     std::this_thread::sleep_for(std::chrono::milliseconds(100));

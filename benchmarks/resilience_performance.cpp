@@ -15,6 +15,7 @@
 #include <thread>
 
 using namespace keystone;
+using namespace keystone::core;
 
 // ==========================
 // Retry Policy Benchmarks

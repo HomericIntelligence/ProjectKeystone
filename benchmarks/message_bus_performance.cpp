@@ -11,11 +11,14 @@
 #include "core/message_bus.hpp"
 #include "core/message.hpp"
 #include "agents/base_agent.hpp"
+#include <nlohmann/json.hpp>
 #include <memory>
 #include <vector>
 #include <thread>
 
 using namespace keystone;
+using namespace keystone::core;
+using namespace keystone::agents;
 
 // Simple test agent for benchmarking
 class BenchmarkAgent : public BaseAgent {
