@@ -331,13 +331,63 @@ kubectl create configmap prometheus-rules \
 
 ## Grafana Dashboards
 
-### Deploying Grafana
+ProjectKeystone includes three pre-built Grafana dashboards for comprehensive HMAS monitoring:
+
+1. **HMAS Overview** - System-wide metrics and KPIs
+2. **HMAS Agent Details** - Detailed agent performance analysis
+3. **HMAS System Health** - Infrastructure and reliability monitoring
+
+### Deployment Options
+
+#### Option 1: Kubernetes Deployment (Recommended)
+
+Deploy Grafana with pre-configured dashboards:
 
 ```bash
+# Deploy Grafana with datasource and dashboard provisioning
+kubectl apply -f k8s/grafana.yaml
+
+# Deploy pre-built dashboards
+kubectl apply -f k8s/grafana-dashboards-configmap.yaml
+
+# Wait for Grafana to be ready
+kubectl wait --for=condition=ready pod -l app=grafana -n projectkeystone --timeout=120s
+
+# Port-forward to access Grafana UI
+kubectl port-forward -n projectkeystone svc/grafana 3000:3000
+
+# Open in browser
+open http://localhost:3000
+# Login: admin / admin (change in production!)
+```
+
+**What This Creates**:
+- Grafana deployment (1 replica)
+- PersistentVolumeClaim (10Gi for dashboards and data)
+- ConfigMap for Prometheus datasource (auto-configured)
+- ConfigMap for dashboard provisioning
+- ConfigMap with 3 pre-built dashboards
+- Service for Grafana UI (port 3000)
+
+**Dashboards Auto-Loaded**:
+The following dashboards are automatically available after deployment:
+- **HMAS Overview** (`/d/hmas-overview`)
+- **HMAS Agent Details** (`/d/hmas-agent-details`)
+- **HMAS System Health** (`/d/hmas-system-health`)
+
+#### Option 2: Helm Chart (Alternative)
+
+```bash
+# Add Grafana Helm repo
+helm repo add grafana https://grafana.github.io/helm-charts
+helm repo update
+
 # Install Grafana via Helm
 helm install grafana grafana/grafana \
   --namespace projectkeystone \
-  --set adminPassword=admin
+  --set adminPassword=admin \
+  --set persistence.enabled=true \
+  --set persistence.size=10Gi
 
 # Port-forward to access
 kubectl port-forward -n projectkeystone svc/grafana 3000:80
@@ -347,34 +397,162 @@ open http://localhost:3000
 # Login: admin / admin
 ```
 
-### Add Prometheus Data Source
+### Dashboard Descriptions
+
+#### 1. HMAS Overview Dashboard
+
+**Purpose**: High-level system monitoring and KPIs
+
+**Panels** (10 panels):
+- **Message Throughput** (Time Series) - Messages/sec rate over time
+- **Average Message Latency** (Gauge) - Current latency with thresholds (green <1ms, yellow <5ms, red >5ms)
+- **Messages by Priority** (Stacked Time Series) - High/Normal/Low priority breakdown
+- **Worker Utilization** (Gauge) - Worker thread utilization % (warning >70%, critical >90%)
+- **Queue Depth** (Time Series) - Max queue depth with 1000-message threshold
+- **Deadline Misses** (Time Series) - Deadline violation rate and miss time
+- **HMAS Status** (Stat) - Health check status (UP/DOWN)
+- **Uptime** (Stat) - System uptime in seconds
+- **Total Messages Processed** (Stat) - Cumulative message count
+- **Total Deadline Misses** (Stat) - Cumulative deadline violations
+
+**Refresh**: 10 seconds
+**Time Range**: Last 1 hour (default)
+
+**Use Cases**:
+- Ops dashboard for monitoring system health
+- Performance overview for stakeholders
+- First-line troubleshooting
+
+#### 2. HMAS Agent Details Dashboard
+
+**Purpose**: Detailed agent performance analysis and debugging
+
+**Panels** (7 panels):
+- **Message Processing Latency** (Time Series) - Current and 5-min average latency trends
+- **Message Priority Distribution** (Pie Chart) - Visual breakdown of priority distribution
+- **Agent Queue Depth** (Bar Chart) - Queue backlog visualization with thresholds
+- **Worker Thread Utilization** (Time Series) - Utilization % with 5-min average
+- **Latency Heatmap** (State Timeline) - Latency distribution (ready for histogram metrics)
+- **Message Rate by Priority** (Stacked Bars) - 1-minute message increments by priority
+- **Deadline Performance** (Time Series) - Miss time and rate per minute
+
+**Refresh**: 10 seconds
+**Time Range**: Last 1 hour (default)
+
+**Use Cases**:
+- Performance optimization and tuning
+- Identifying bottlenecks in message processing
+- Analyzing priority queue behavior
+- Debugging latency issues
+
+#### 3. HMAS System Health Dashboard
+
+**Purpose**: Infrastructure monitoring and reliability metrics
+
+**Panels** (9 panels):
+- **HMAS Health Status** (Large Stat) - Visual health indicator (GREEN=UP, RED=DOWN)
+- **System Uptime** (Stat) - Uptime with trend graph
+- **Total Messages Processed** (Stat) - Cumulative count with trend
+- **System Throughput** (Time Series) - 5-min and 1-min message rates
+- **Resource Utilization** (Time Series) - Worker utilization with thresholds
+- **Deadline Reliability** (Time Series) - Miss rate and hourly totals
+- **Queue Health** (Time Series) - Queue depth with warning thresholds
+- **Message Counts by Priority** (Multi-Stat) - Current counts color-coded by priority
+- **Current Message Latency** (Large Stat) - Latest latency with color thresholds
+
+**Refresh**: 10 seconds
+**Time Range**: Last 6 hours (default)
+
+**Use Cases**:
+- SRE monitoring and alerting
+- Capacity planning
+- Reliability tracking (SLO/SLA monitoring)
+- Incident response
+
+### Manual Datasource Configuration
+
+If not using auto-provisioned datasource:
 
 1. Navigate to **Configuration** → **Data Sources**
 2. Click **Add data source**
 3. Select **Prometheus**
-4. Set URL: `http://prometheus:9090`
-5. Click **Save & Test**
+4. Configure:
+   - **Name**: `Prometheus`
+   - **URL**: `http://prometheus:9090` (Kubernetes service)
+   - **Scrape interval**: `30s`
+   - **HTTP Method**: `POST`
+5. Click **Save & Test** (should show "Data source is working")
 
-### Example Dashboard Panels
+### Importing Dashboards Manually
+
+If dashboards are not auto-provisioned:
+
+```bash
+# Get dashboard JSON files
+kubectl cp projectkeystone/<hmas-pod>:/var/lib/grafana/dashboards/hmas-overview.json ./hmas-overview.json
+
+# Or use local files
+ls grafana/dashboards/
+# hmas-overview.json
+# agent-details.json
+# system-health.json
+```
+
+**Import via UI**:
+1. Navigate to **Dashboards** → **Import**
+2. Click **Upload JSON file**
+3. Select dashboard JSON (e.g., `hmas-overview.json`)
+4. Select datasource: `Prometheus`
+5. Click **Import**
+
+Repeat for all 3 dashboards.
+
+### Dashboard Customization
+
+All dashboards are editable and customizable:
+
+**Common Customizations**:
+- Adjust time ranges (default: 1h or 6h)
+- Modify refresh intervals (default: 10s)
+- Add alert thresholds
+- Clone panels for custom views
+- Export dashboards as JSON for version control
+
+**Adding Variables** (future enhancement):
+```
+$namespace - Kubernetes namespace filter
+$pod - Pod name filter
+$agent_id - Agent ID filter (when per-agent metrics available)
+```
+
+### Example Dashboard Queries
 
 **Messages Per Second**:
 ```promql
 rate(hmas_messages_processed_total[5m])
 ```
 
-**Latency Over Time**:
+**Latency Over Time (milliseconds)**:
 ```promql
 hmas_message_latency_microseconds / 1000
 ```
 
-**Queue Depth**:
+**Queue Depth with Threshold**:
 ```promql
 hmas_queue_depth_max
+# Alert expression: hmas_queue_depth_max > 1000
 ```
 
 **Worker Utilization**:
 ```promql
 hmas_worker_utilization_percent
+# Alert expression: hmas_worker_utilization_percent > 90
+```
+
+**Deadline Miss Rate**:
+```promql
+rate(hmas_deadline_misses_total[5m])
+# Alert expression: rate(hmas_deadline_misses_total[5m]) > 10
 ```
 
 ---
@@ -433,12 +611,20 @@ If you see warnings about high cardinality:
 
 ## Integration with Phase 6.4 (Grafana)
 
-Phase 6.4 will create pre-built Grafana dashboards:
-- **HMAS Overview** - Key metrics at a glance
-- **Agent Details** - Per-agent performance
-- **System Health** - Infrastructure monitoring
+Phase 6.4 is now complete! Three pre-built Grafana dashboards are available:
+- **HMAS Overview** (`hmas-overview`) - Key metrics at a glance (10 panels)
+- **Agent Details** (`hmas-agent-details`) - Per-agent performance analysis (7 panels)
+- **System Health** (`hmas-system-health`) - Infrastructure monitoring (9 panels)
 
-Stay tuned for Phase 6.4!
+See the [Grafana Dashboards](#grafana-dashboards) section above for deployment instructions and dashboard details.
+
+**Quick Start**:
+```bash
+kubectl apply -f k8s/grafana.yaml
+kubectl apply -f k8s/grafana-dashboards-configmap.yaml
+kubectl port-forward -n projectkeystone svc/grafana 3000:3000
+open http://localhost:3000  # Login: admin/admin
+```
 
 ---
 
@@ -504,23 +690,32 @@ resources:
 
 ## Next Steps
 
-### Phase 6.4: Grafana Dashboards
-
-Coming next:
-- Pre-built Grafana dashboards
-- Visual metrics exploration
-- Real-time monitoring
-- Alerting integration
-
 ### Phase 6.5: Centralized Logging
 
-After Grafana:
+Coming next:
 - Loki log aggregation
-- Structured logging
+- Promtail DaemonSet for log collection
+- Structured logging with spdlog
 - Log correlation with metrics
+- Unified logs + metrics view in Grafana
+
+### Phase 6.6: Production Readiness
+
+After logging:
+- Production readiness checklist
+- Deployment procedures and runbooks
+- Rollback procedures
+- Security hardening
+- Performance testing in Kubernetes
 
 ---
 
-**Phase**: 6.3 - Prometheus Monitoring
+**Phase**: 6.4 - Grafana Dashboards
 **Last Updated**: 2025-11-19
 **Status**: Complete ✅
+
+**Previous Phases**:
+- ✅ Phase 6.1 - Kubernetes Deployment Manifests
+- ✅ Phase 6.2 - Helm Chart
+- ✅ Phase 6.3 - Prometheus Monitoring
+- ✅ Phase 6.4 - Grafana Dashboards

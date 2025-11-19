@@ -1,0 +1,183 @@
+# Grafana deployment for ProjectKeystone HMAS monitoring
+# Provides visualization and dashboards for Prometheus metrics
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: projectkeystone
+  labels:
+    app: grafana
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+    - name: Prometheus
+      type: prometheus
+      access: proxy
+      url: http://prometheus:9090
+      isDefault: true
+      editable: true
+      jsonData:
+        timeInterval: 30s
+        httpMethod: POST
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: grafana-storage
+  namespace: projectkeystone
+  labels:
+    app: grafana
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  # storageClassName: standard  # Uncomment and set for specific storage class
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: projectkeystone
+  labels:
+    app: grafana
+    component: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+        component: monitoring
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 472  # Grafana user
+        fsGroup: 472
+
+      containers:
+      - name: grafana
+        image: grafana/grafana:10.2.2
+        imagePullPolicy: IfNotPresent
+
+        ports:
+        - name: web
+          containerPort: 3000
+          protocol: TCP
+
+        env:
+        - name: GF_SECURITY_ADMIN_USER
+          value: admin
+        - name: GF_SECURITY_ADMIN_PASSWORD
+          value: admin  # Change in production!
+        - name: GF_INSTALL_PLUGINS
+          value: ""
+        - name: GF_SERVER_ROOT_URL
+          value: "%(protocol)s://%(domain)s:%(http_port)s/"
+        - name: GF_AUTH_ANONYMOUS_ENABLED
+          value: "false"
+        - name: GF_ANALYTICS_REPORTING_ENABLED
+          value: "false"
+        - name: GF_ANALYTICS_CHECK_FOR_UPDATES
+          value: "false"
+
+        volumeMounts:
+        - name: grafana-storage
+          mountPath: /var/lib/grafana
+        - name: grafana-datasources
+          mountPath: /etc/grafana/provisioning/datasources
+        - name: grafana-dashboards-config
+          mountPath: /etc/grafana/provisioning/dashboards
+        - name: grafana-dashboards
+          mountPath: /var/lib/grafana/dashboards
+
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: web
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 10
+
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: web
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+
+      volumes:
+      - name: grafana-storage
+        persistentVolumeClaim:
+          claimName: grafana-storage
+      - name: grafana-datasources
+        configMap:
+          name: grafana-datasources
+      - name: grafana-dashboards-config
+        configMap:
+          name: grafana-dashboards-config
+      - name: grafana-dashboards
+        configMap:
+          name: grafana-dashboards
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: projectkeystone
+  labels:
+    app: grafana
+    component: monitoring
+spec:
+  type: ClusterIP
+  selector:
+    app: grafana
+  ports:
+  - name: web
+    port: 3000
+    targetPort: web
+    protocol: TCP
+
+---
+# ConfigMap for dashboard provisioning configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards-config
+  namespace: projectkeystone
+  labels:
+    app: grafana
+data:
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+    - name: 'ProjectKeystone HMAS'
+      orgId: 1
+      folder: 'HMAS'
+      type: file
+      disableDeletion: false
+      updateIntervalSeconds: 30
+      allowUiUpdates: true
+      options:
+        path: /var/lib/grafana/dashboards
