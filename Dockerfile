@@ -63,6 +63,9 @@ RUN apt-get update && apt-get install -y \
     valgrind \
     clang-format \
     clang-tidy \
+    cppcheck \
+    lcov \
+    bc \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /workspace
