@@ -273,6 +273,7 @@ add_executable(simulation_unit_tests
     tests/unit/test_simulated_numa_node.cpp
     tests/unit/test_simulated_network.cpp
     tests/unit/test_simulated_cluster.cpp
+    tests/unit/test_simulation_corner_cases.cpp
 )
 
 target_link_libraries(simulation_unit_tests
