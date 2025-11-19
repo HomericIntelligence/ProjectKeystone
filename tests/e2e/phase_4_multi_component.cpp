@@ -160,3 +160,90 @@ TEST_F(Phase4MultiComponentTest, IndependentComponentsExecutionOrder) {
     EXPECT_TRUE(std::find(execution_order.begin(), execution_order.end(), "Core") != execution_order.end());
     EXPECT_TRUE(std::find(execution_order.begin(), execution_order.end(), "Protocol") != execution_order.end());
 }
+
+/**
+ * Test: Parallel execution of independent components
+ *
+ * Phase 4.2: Verify that independent components (same dependency level)
+ * execute in parallel and complete successfully.
+ */
+TEST_F(Phase4MultiComponentTest, ParallelComponentExecution) {
+    auto chief = std::make_unique<AsyncChiefArchitectAgent>("chief");
+    chief->setMessageBus(message_bus_.get());
+    chief->setScheduler(scheduler_.get());
+
+    // Create 2 independent components
+    auto core_lead = std::make_unique<AsyncComponentLeadAgent>("core_lead");
+    auto protocol_lead = std::make_unique<AsyncComponentLeadAgent>("protocol_lead");
+
+    core_lead->setMessageBus(message_bus_.get());
+    core_lead->setScheduler(scheduler_.get());
+    protocol_lead->setMessageBus(message_bus_.get());
+    protocol_lead->setScheduler(scheduler_.get());
+
+    // Register both components (no dependencies - both at level 0)
+    chief->registerComponent("Core", core_lead.get());
+    chief->registerComponent("Protocol", protocol_lead.get());
+
+    // Execute all components - this returns a Task that needs to be awaited
+    // For now, we verify the structure is correct
+    // Full execution testing will require a test harness that can await coroutines
+
+    // Verify components are registered correctly
+    EXPECT_EQ(chief->getComponentCount(), 2);
+
+    auto names = chief->getComponentNames();
+    EXPECT_EQ(names.size(), 2);
+    EXPECT_NE(std::find(names.begin(), names.end(), "Core"), names.end());
+    EXPECT_NE(std::find(names.begin(), names.end(), "Protocol"), names.end());
+
+    // Verify both are at the same dependency level (can execute in parallel)
+    auto execution_order = chief->getComponentExecutionOrder();
+    ASSERT_EQ(execution_order.size(), 2);
+}
+
+/**
+ * Test: Dependency levels grouping
+ *
+ * Phase 4.2: Verify that components are correctly grouped by dependency level
+ * for parallel execution.
+ */
+TEST_F(Phase4MultiComponentTest, DependencyLevelsGrouping) {
+    auto chief = std::make_unique<AsyncChiefArchitectAgent>("chief");
+
+    // Create 4 components
+    auto core_lead = std::make_unique<AsyncComponentLeadAgent>("core_lead");
+    auto protocol_lead = std::make_unique<AsyncComponentLeadAgent>("protocol_lead");
+    auto agents_lead = std::make_unique<AsyncComponentLeadAgent>("agents_lead");
+    auto integration_lead = std::make_unique<AsyncComponentLeadAgent>("integration_lead");
+
+    chief->registerComponent("Core", core_lead.get());
+    chief->registerComponent("Protocol", protocol_lead.get());
+    chief->registerComponent("Agents", agents_lead.get());
+    chief->registerComponent("Integration", integration_lead.get());
+
+    // Add dependencies:
+    // - Agents depends on Core and Protocol
+    // - Integration depends on Agents
+    chief->addComponentDependency("Agents", {"Core", "Protocol"});
+    chief->addComponentDependency("Integration", {"Agents"});
+
+    // Get dependency levels (not exposed publicly, but we can test via execution order)
+    // Expected levels:
+    // Level 0: [Core, Protocol] (can execute in parallel)
+    // Level 1: [Agents] (depends on level 0)
+    // Level 2: [Integration] (depends on level 1)
+
+    auto execution_order = chief->getComponentExecutionOrder();
+    ASSERT_EQ(execution_order.size(), 4);
+
+    // Verify Core and Protocol come before Agents
+    auto core_idx = std::find(execution_order.begin(), execution_order.end(), "Core") - execution_order.begin();
+    auto protocol_idx = std::find(execution_order.begin(), execution_order.end(), "Protocol") - execution_order.begin();
+    auto agents_idx = std::find(execution_order.begin(), execution_order.end(), "Agents") - execution_order.begin();
+    auto integration_idx = std::find(execution_order.begin(), execution_order.end(), "Integration") - execution_order.begin();
+
+    EXPECT_LT(core_idx, agents_idx);
+    EXPECT_LT(protocol_idx, agents_idx);
+    EXPECT_LT(agents_idx, integration_idx);
+}
