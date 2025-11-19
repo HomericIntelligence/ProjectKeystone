@@ -78,6 +78,8 @@ add_library(keystone_core
     src/core/message_pool.cpp  # Phase D.2: Message pooling
     src/core/failure_injector.cpp  # Phase 5.1: Chaos engineering - agent failures
     src/core/retry_policy.cpp  # Phase 5.3: Chaos engineering - message retries
+    src/core/heartbeat_monitor.cpp  # Phase 5.4: Chaos engineering - heartbeat monitoring
+    src/core/circuit_breaker.cpp  # Phase 5.4: Chaos engineering - circuit breaker
 )
 
 target_include_directories(keystone_core PUBLIC
@@ -271,6 +273,8 @@ add_executable(unit_tests
     tests/unit/test_message_pool.cpp  # Phase D.2: Message pool tests
     tests/unit/test_failure_injector.cpp  # Phase 5.1: Chaos engineering - agent failures
     tests/unit/test_retry_policy.cpp  # Phase 5.3: Chaos engineering - message retries
+    tests/unit/test_heartbeat_monitor.cpp  # Phase 5.4: Chaos engineering - heartbeat monitoring
+    tests/unit/test_circuit_breaker.cpp  # Phase 5.4: Chaos engineering - circuit breaker
 )
 
 target_link_libraries(unit_tests
