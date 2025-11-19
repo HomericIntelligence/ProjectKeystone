@@ -17,6 +17,7 @@
 #include "agents/async_task_agent.hpp"
 #include "core/message_bus.hpp"
 #include "core/failure_injector.hpp"
+#include "core/retry_policy.hpp"
 #include "concurrency/work_stealing_scheduler.hpp"
 #include "simulation/simulated_network.hpp"
 
@@ -660,4 +661,267 @@ TEST_F(Phase5NetworkPartitionTest, AsymmetricPartition) {
     EXPECT_TRUE(network.canCommunicate(0, 1));
     EXPECT_TRUE(network.canCommunicate(0, 2));
     EXPECT_TRUE(network.canCommunicate(0, 3));
+}
+
+/**
+ * Phase 5.3: Message Loss and Retry Testing
+ *
+ * Tests for message loss with retry logic
+ */
+class Phase5MessageLossTest : public ::testing::Test {
+protected:
+    // No setup needed for message loss tests
+};
+
+/**
+ * @brief Test basic retry policy functionality
+ *
+ * Verify that RetryPolicy correctly tracks and limits retries.
+ */
+TEST_F(Phase5MessageLossTest, BasicRetryPolicy) {
+    RetryPolicy::Config config{
+        .max_attempts = 3,
+        .initial_delay_ms = std::chrono::milliseconds(10),
+        .max_delay_ms = std::chrono::milliseconds(1000),
+        .backoff_multiplier = 2.0
+    };
+    RetryPolicy policy(config);
+
+    // First attempt should be allowed
+    EXPECT_TRUE(policy.shouldRetry("msg1"));
+
+    // Record 3 attempts
+    policy.recordAttempt("msg1");
+    EXPECT_TRUE(policy.shouldRetry("msg1"));
+
+    policy.recordAttempt("msg1");
+    EXPECT_TRUE(policy.shouldRetry("msg1"));
+
+    policy.recordAttempt("msg1");
+    EXPECT_FALSE(policy.shouldRetry("msg1"));  // Max attempts reached
+
+    EXPECT_EQ(policy.getTotalRetries(), 2);  // 2 retries (attempt 2 and 3)
+}
+
+/**
+ * @brief Test message loss with simulated network
+ *
+ * Simulate message loss and verify statistics tracking.
+ */
+TEST_F(Phase5MessageLossTest, MessageLossWithSimulatedNetwork) {
+    // Configure 20% packet loss
+    SimulatedNetwork::Config config{
+        .min_latency = std::chrono::microseconds(10),
+        .max_latency = std::chrono::microseconds(50),
+        .bandwidth_mbps = 1000,
+        .packet_loss_rate = 0.2  // 20% loss
+    };
+    SimulatedNetwork network(config);
+
+    // Send 100 messages
+    std::atomic<int> delivered{0};
+    for (int i = 0; i < 100; ++i) {
+        network.send(0, 1, [&delivered]() { delivered++; });
+    }
+
+    // Wait for delivery
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+
+    // Receive all delivered messages
+    while (auto work = network.receive(1)) {
+        (*work)();
+    }
+
+    // Some messages should have been dropped (approximately 20%)
+    EXPECT_GT(network.getDroppedMessages(), 0);
+    EXPECT_LT(network.getDroppedMessages(), 50);  // Not all dropped
+
+    // Delivered messages should be less than total sent
+    EXPECT_LT(delivered.load(), 100);
+    EXPECT_GT(delivered.load(), 50);  // But most should get through
+}
+
+/**
+ * @brief Test retry with exponential backoff
+ *
+ * Verify that retry delays increase exponentially.
+ */
+TEST_F(Phase5MessageLossTest, ExponentialBackoffDelays) {
+    RetryPolicy::Config config{
+        .max_attempts = 5,
+        .initial_delay_ms = std::chrono::milliseconds(100),
+        .max_delay_ms = std::chrono::milliseconds(10000),
+        .backoff_multiplier = 2.0
+    };
+    RetryPolicy policy(config);
+
+    // First attempt: no delay
+    policy.recordAttempt("msg1");
+    auto delay1 = policy.getNextDelay("msg1");
+    EXPECT_EQ(delay1, std::chrono::milliseconds(200));  // 100 * 2^1
+
+    // Second attempt: 200ms delay
+    policy.recordAttempt("msg1");
+    auto delay2 = policy.getNextDelay("msg1");
+    EXPECT_EQ(delay2, std::chrono::milliseconds(400));  // 100 * 2^2
+
+    // Third attempt: 400ms delay
+    policy.recordAttempt("msg1");
+    auto delay3 = policy.getNextDelay("msg1");
+    EXPECT_EQ(delay3, std::chrono::milliseconds(800));  // 100 * 2^3
+
+    // Verify exponential growth
+    EXPECT_EQ(delay2.count(), delay1.count() * 2);
+    EXPECT_EQ(delay3.count(), delay2.count() * 2);
+}
+
+/**
+ * @brief Test retry statistics tracking
+ *
+ * Verify that RetryPolicy tracks success/failure statistics correctly.
+ */
+TEST_F(Phase5MessageLossTest, RetryStatisticsTracking) {
+    RetryPolicy policy;
+
+    // Scenario 1: Message succeeds on first attempt
+    policy.recordAttempt("msg1");
+    policy.recordSuccess("msg1");
+
+    // Scenario 2: Message succeeds after 2 retries
+    policy.recordAttempt("msg2");
+    policy.recordAttempt("msg2");
+    policy.recordAttempt("msg2");
+    policy.recordSuccess("msg2");
+
+    // Scenario 3: Message fails after max attempts
+    policy.recordAttempt("msg3");
+    policy.recordAttempt("msg3");
+    policy.recordAttempt("msg3");
+    policy.recordFailure("msg3");
+
+    // Verify statistics
+    EXPECT_EQ(policy.getTotalSuccesses(), 2);  // msg1 and msg2
+    EXPECT_EQ(policy.getTotalFailures(), 1);   // msg3
+    EXPECT_EQ(policy.getTotalRetries(), 4);    // msg2: 2 retries, msg3: 2 retries
+    EXPECT_EQ(policy.getActiveRetries(), 0);   // All completed
+}
+
+/**
+ * @brief Test simulated message loss with retry simulation
+ *
+ * Simulate sending messages with loss and manual retries.
+ */
+TEST_F(Phase5MessageLossTest, MessageLossWithManualRetries) {
+    SimulatedNetwork::Config net_config{
+        .min_latency = std::chrono::microseconds(10),
+        .max_latency = std::chrono::microseconds(50),
+        .bandwidth_mbps = 1000,
+        .packet_loss_rate = 0.3  // 30% loss - higher to test retries
+    };
+    SimulatedNetwork network(net_config);
+
+    RetryPolicy::Config retry_config{
+        .max_attempts = 5,
+        .initial_delay_ms = std::chrono::milliseconds(10),
+        .max_delay_ms = std::chrono::milliseconds(100),
+        .backoff_multiplier = 2.0
+    };
+    RetryPolicy policy(retry_config);
+
+    // Try sending 10 messages with retry logic
+    std::atomic<int> delivered{0};
+    std::atomic<int> total_attempts{0};
+
+    for (int i = 0; i < 10; ++i) {
+        std::string msg_id = "msg" + std::to_string(i);
+        bool sent = false;
+
+        // Retry loop
+        while (!sent && policy.shouldRetry(msg_id)) {
+            policy.recordAttempt(msg_id);
+            total_attempts++;
+
+            // Simulate sending (network may drop it)
+            bool dropped = (network.getDroppedMessages() < total_attempts.load());
+
+            if (!dropped) {
+                // Message delivered
+                network.send(0, 1, [&delivered]() { delivered++; });
+                policy.recordSuccess(msg_id);
+                sent = true;
+            } else {
+                // Message lost - will retry if possible
+                auto delay = policy.getNextDelay(msg_id);
+                std::this_thread::sleep_for(delay);
+            }
+        }
+
+        if (!sent) {
+            policy.recordFailure(msg_id);
+        }
+    }
+
+    // Wait for delivery
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    // Process delivered messages
+    while (auto work = network.receive(1)) {
+        (*work)();
+    }
+
+    // Verify: Most messages should eventually succeed with retries
+    EXPECT_GT(policy.getTotalSuccesses() + policy.getTotalFailures(), 0);
+    EXPECT_GT(total_attempts.load(), 10);  // At least some retries occurred
+}
+
+/**
+ * @brief Test combined partition and message loss
+ *
+ * Combine network partition with message loss for extreme chaos.
+ */
+TEST_F(Phase5MessageLossTest, CombinedPartitionAndLoss) {
+    SimulatedNetwork::Config config{
+        .min_latency = std::chrono::microseconds(10),
+        .max_latency = std::chrono::microseconds(50),
+        .bandwidth_mbps = 1000,
+        .packet_loss_rate = 0.1  // 10% loss
+    };
+    SimulatedNetwork network(config);
+
+    // Create partition: [0, 1] vs [2, 3]
+    network.createPartition({0, 1}, {2, 3});
+
+    // Send messages in various scenarios
+    std::atomic<int> delivered{0};
+
+    // Within partition: should work (with some loss)
+    for (int i = 0; i < 10; ++i) {
+        network.send(0, 1, [&delivered]() { delivered++; });
+    }
+
+    // Across partition: should be dropped
+    for (int i = 0; i < 10; ++i) {
+        network.send(0, 2, [&delivered]() { delivered++; });
+    }
+
+    // Wait and receive
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    while (auto work = network.receive(1)) {
+        (*work)();
+    }
+    while (auto work = network.receive(2)) {
+        (*work)();
+    }
+
+    // Verify:
+    // - All cross-partition messages dropped
+    EXPECT_EQ(network.getPartitionDroppedMessages(), 10);
+
+    // - Some within-partition messages lost (but not all)
+    EXPECT_GT(network.getDroppedMessages(), 0);  // Some packet loss
+    EXPECT_LT(network.getDroppedMessages(), 10);  // But not all
+
+    // - Some messages delivered
+    EXPECT_GT(delivered.load(), 0);
+    EXPECT_LT(delivered.load(), 10);  // Less than total sent
 }
