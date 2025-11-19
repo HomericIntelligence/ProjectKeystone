@@ -38,6 +38,20 @@ if(ENABLE_CLANG_TIDY)
     endif()
 endif()
 
+# Fuzz testing (Phase 9.2)
+option(ENABLE_FUZZING "Enable fuzz testing with libFuzzer" OFF)
+
+if(ENABLE_FUZZING)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        message(STATUS "Fuzz testing enabled")
+        set(FUZZING_FLAGS "-fsanitize=fuzzer,address,undefined -fno-omit-frame-pointer -g")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${FUZZING_FLAGS}")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${FUZZING_FLAGS}")
+    else()
+        message(WARNING "Fuzz testing only supported with Clang (use -DCMAKE_CXX_COMPILER=clang++)")
+    endif()
+endif()
+
 # Include directories
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
@@ -388,3 +402,51 @@ target_link_libraries(distributed_benchmarks
     keystone_core
     benchmark::benchmark
 )
+
+# Phase 9.2: Fuzz testing targets (requires -DENABLE_FUZZING=ON -DCMAKE_CXX_COMPILER=clang++)
+if(ENABLE_FUZZING)
+    # Fuzz test: Message serialization
+    add_executable(fuzz_message_serialization
+        fuzz/fuzz_message_serialization.cpp
+    )
+
+    target_link_libraries(fuzz_message_serialization
+        keystone_core
+    )
+
+    # Fuzz test: Message bus routing
+    add_executable(fuzz_message_bus_routing
+        fuzz/fuzz_message_bus_routing.cpp
+    )
+
+    target_link_libraries(fuzz_message_bus_routing
+        keystone_core
+        keystone_agents
+    )
+
+    # Fuzz test: Work-stealing scheduler
+    add_executable(fuzz_work_stealing
+        fuzz/fuzz_work_stealing.cpp
+    )
+
+    target_link_libraries(fuzz_work_stealing
+        keystone_concurrency
+        keystone_core
+    )
+
+    # Fuzz test: Retry policy
+    add_executable(fuzz_retry_policy
+        fuzz/fuzz_retry_policy.cpp
+    )
+
+    target_link_libraries(fuzz_retry_policy
+        keystone_core
+    )
+
+    message(STATUS "Fuzz testing targets enabled:")
+    message(STATUS "  - fuzz_message_serialization")
+    message(STATUS "  - fuzz_message_bus_routing")
+    message(STATUS "  - fuzz_work_stealing")
+    message(STATUS "  - fuzz_retry_policy")
+    message(STATUS "Run with: ./<fuzz_target> -max_len=4096 -runs=1000000")
+endif()
