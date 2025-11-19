@@ -557,6 +557,228 @@ rate(hmas_deadline_misses_total[5m])
 
 ---
 
+## Centralized Logging with Loki
+
+ProjectKeystone uses **Loki** for centralized log aggregation, providing a unified view of logs from all HMAS pods alongside metrics in Grafana.
+
+### Architecture
+
+**Components**:
+1. **Loki** - Log aggregation system (similar to Prometheus, but for logs)
+2. **Promtail** - Log collection agent (runs as DaemonSet on every node)
+3. **Grafana** - Unified metrics + logs visualization
+
+**Log Flow**:
+```
+HMAS Pods → Promtail (collects) → Loki (aggregates) → Grafana (visualizes)
+```
+
+### Deployment
+
+#### Deploy Loki
+
+```bash
+# Deploy Loki log aggregation server
+kubectl apply -f k8s/loki.yaml
+
+# Wait for Loki to be ready
+kubectl wait --for=condition=ready pod -l app=loki -n projectkeystone --timeout=120s
+
+# Verify Loki is running
+kubectl logs -n projectkeystone -l app=loki --tail=20
+```
+
+**What This Creates**:
+- Loki deployment (1 replica, Loki 2.9.3)
+- PersistentVolumeClaim (50Gi for log storage)
+- ConfigMap with Loki configuration
+- Service for Loki API (port 3100)
+- 31-day log retention policy
+
+#### Deploy Promtail
+
+```bash
+# Deploy Promtail DaemonSet for log collection
+kubectl apply -f k8s/promtail.yaml
+
+# Verify Promtail is running on all nodes
+kubectl get daemonset -n projectkeystone promtail
+kubectl get pods -n projectkeystone -l app=promtail
+
+# Check Promtail logs
+kubectl logs -n projectkeystone -l app=promtail --tail=20
+```
+
+**What This Creates**:
+- Promtail DaemonSet (runs on every node)
+- ConfigMap with Promtail configuration
+- ServiceAccount and RBAC permissions
+- ClusterRole for pod discovery
+
+**Promtail Features**:
+- Auto-discovers all pods in `projectkeystone` namespace
+- Parses log levels (ERROR, WARN, INFO)
+- Adds labels: namespace, pod, container, app, component
+- Ships logs to Loki in real-time
+
+#### Update Grafana
+
+The Loki datasource is auto-configured in Grafana (k8s/grafana.yaml):
+
+```bash
+# If Grafana is already running, restart to pick up new datasource
+kubectl rollout restart deployment/grafana -n projectkeystone
+
+# Verify Grafana has Loki datasource
+kubectl port-forward -n projectkeystone svc/grafana 3000:3000
+# Open http://localhost:3000
+# Navigate to Configuration → Data Sources
+# Loki should be listed
+```
+
+### Logs Dashboard
+
+A pre-built **HMAS Logs** dashboard is included (`/d/hmas-logs`):
+
+**Panels** (8 panels):
+1. **HMAS Log Stream** (Live Logs) - Real-time log stream from all pods
+2. **Log Volume by Pod** (Time Series) - Log rate per pod
+3. **Logs by Level** (Pie Chart) - Distribution of ERROR/WARN/INFO logs
+4. **Error Logs** (Log Panel) - Filtered error-only logs
+5. **Warning Logs** (Log Panel) - Filtered warning-only logs
+6. **Error and Warning Rate** (Time Series) - Trend of errors/warnings over time
+7. **Log Volume by Container** (Stacked Bars) - Logs per container
+8. **Total Log Volume** (Stat) - Total log count (last hour)
+
+**Features**:
+- Live streaming logs (10-second refresh)
+- LogQL filtering and search
+- Color-coded by log level
+- Correlation with metrics (via derived fields)
+
+### LogQL Queries
+
+LogQL is Loki's query language (similar to PromQL).
+
+#### Basic Queries
+
+**All logs from HMAS**:
+```logql
+{namespace="projectkeystone"}
+```
+
+**Logs from specific pod**:
+```logql
+{namespace="projectkeystone", pod="hmas-deployment-abc123"}
+```
+
+**Logs from specific container**:
+```logql
+{namespace="projectkeystone", container="hmas"}
+```
+
+#### Filtering
+
+**Error logs only**:
+```logql
+{namespace="projectkeystone"} |~ "ERROR"
+```
+
+**Warnings and errors**:
+```logql
+{namespace="projectkeystone"} |~ "ERROR|WARN"
+```
+
+**Exclude INFO logs**:
+```logql
+{namespace="projectkeystone"} != "INFO"
+```
+
+**Search for specific text**:
+```logql
+{namespace="projectkeystone"} |~ "deadline miss"
+```
+
+**Case-insensitive search**:
+```logql
+{namespace="projectkeystone"} |~ "(?i)error"
+```
+
+#### Aggregations
+
+**Log rate (logs per second)**:
+```logql
+rate({namespace="projectkeystone"}[5m])
+```
+
+**Log count over time**:
+```logql
+count_over_time({namespace="projectkeystone"}[5m])
+```
+
+**Error rate by pod**:
+```logql
+sum by (pod) (rate({namespace="projectkeystone"} |~ "ERROR" [5m]))
+```
+
+**Top 10 pods by log volume**:
+```logql
+topk(10, sum by (pod) (count_over_time({namespace="projectkeystone"}[1h])))
+```
+
+#### Advanced Queries
+
+**Parse JSON logs**:
+```logql
+{namespace="projectkeystone"} | json | level="ERROR"
+```
+
+**Extract specific field**:
+```logql
+{namespace="projectkeystone"} | json | latency_us > 1000
+```
+
+**Line format (custom output)**:
+```logql
+{namespace="projectkeystone"} | line_format "{{.pod}} - {{.level}} - {{.msg}}"
+```
+
+### Log Retention
+
+**Default Retention**: 31 days (744 hours)
+
+Configure in `k8s/loki.yaml`:
+```yaml
+limits_config:
+  retention_period: 744h  # 31 days
+
+compactor:
+  retention_enabled: true
+  retention_delete_delay: 2h
+```
+
+**Storage Requirements**:
+- Average: ~100 MB/day per pod (depends on log verbosity)
+- 2 pods × 100 MB/day × 31 days = ~6.2 GB
+- 50 GB PVC provides headroom for growth
+
+### Logs + Metrics Correlation
+
+Correlate logs with metrics using Grafana's **Explore** view:
+
+1. Open **Explore** in Grafana
+2. Select **Loki** datasource
+3. Run log query: `{namespace="projectkeystone"} |~ "ERROR"`
+4. Click **Split** and select **Prometheus** datasource
+5. Run metric query: `rate(hmas_deadline_misses_total[5m])`
+6. Synchronized time ranges show logs and metrics side-by-side
+
+**Derived Fields** (configured):
+- Automatically link trace IDs in logs to Prometheus metrics
+- Click trace ID in logs → jump to correlated metrics
+
+---
+
 ## Troubleshooting
 
 ### Metrics Endpoint Not Responding
@@ -609,22 +831,48 @@ If you see warnings about high cardinality:
 
 ---
 
-## Integration with Phase 6.4 (Grafana)
+## Monitoring Stack Integration
 
-Phase 6.4 is now complete! Three pre-built Grafana dashboards are available:
-- **HMAS Overview** (`hmas-overview`) - Key metrics at a glance (10 panels)
-- **Agent Details** (`hmas-agent-details`) - Per-agent performance analysis (7 panels)
-- **System Health** (`hmas-system-health`) - Infrastructure monitoring (9 panels)
+**Phase 6.3**: Prometheus Monitoring ✅
+- Metrics export from HMAS (port 9090)
+- Prometheus deployment with 30s scrape interval
+- 20+ metrics: messages, latency, queue depth, worker utilization, deadlines, system health
 
-See the [Grafana Dashboards](#grafana-dashboards) section above for deployment instructions and dashboard details.
+**Phase 6.4**: Grafana Dashboards ✅
+- 3 pre-built dashboards (HMAS Overview, Agent Details, System Health)
+- Auto-provisioned Prometheus datasource
+- 26 total panels across all dashboards
 
-**Quick Start**:
+**Phase 6.5**: Centralized Logging ✅
+- Loki log aggregation (31-day retention)
+- Promtail DaemonSet for log collection
+- HMAS Logs dashboard (8 panels)
+- Auto-provisioned Loki datasource
+- Logs + metrics correlation
+
+**Complete Monitoring Stack Quick Start**:
 ```bash
+# Deploy Prometheus (metrics)
+kubectl apply -f k8s/prometheus.yaml
+
+# Deploy Loki (logs)
+kubectl apply -f k8s/loki.yaml
+kubectl apply -f k8s/promtail.yaml
+
+# Deploy Grafana (visualization)
 kubectl apply -f k8s/grafana.yaml
 kubectl apply -f k8s/grafana-dashboards-configmap.yaml
+
+# Access Grafana
 kubectl port-forward -n projectkeystone svc/grafana 3000:3000
 open http://localhost:3000  # Login: admin/admin
 ```
+
+**Available Dashboards**:
+- `/d/hmas-overview` - System KPIs and health
+- `/d/hmas-agent-details` - Performance analysis
+- `/d/hmas-system-health` - Infrastructure monitoring
+- `/d/hmas-logs` - Centralized logs with filtering
 
 ---
 
@@ -690,32 +938,26 @@ resources:
 
 ## Next Steps
 
-### Phase 6.5: Centralized Logging
+### Phase 6.6: Production Readiness (Coming Next)
 
-Coming next:
-- Loki log aggregation
-- Promtail DaemonSet for log collection
-- Structured logging with spdlog
-- Log correlation with metrics
-- Unified logs + metrics view in Grafana
-
-### Phase 6.6: Production Readiness
-
-After logging:
+The final phase of production deployment:
 - Production readiness checklist
 - Deployment procedures and runbooks
-- Rollback procedures
-- Security hardening
+- Rollback procedures and disaster recovery
+- Security hardening (secrets management, RBAC, network policies)
 - Performance testing in Kubernetes
+- Incident response playbooks
+- SLO/SLA definitions
 
 ---
 
-**Phase**: 6.4 - Grafana Dashboards
+**Phase**: 6.5 - Centralized Logging
 **Last Updated**: 2025-11-19
 **Status**: Complete ✅
 
-**Previous Phases**:
+**Completed Phases**:
 - ✅ Phase 6.1 - Kubernetes Deployment Manifests
 - ✅ Phase 6.2 - Helm Chart
 - ✅ Phase 6.3 - Prometheus Monitoring
 - ✅ Phase 6.4 - Grafana Dashboards
+- ✅ Phase 6.5 - Centralized Logging (Loki + Promtail)
