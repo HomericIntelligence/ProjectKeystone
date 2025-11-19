@@ -1,31 +1,31 @@
 # Phase 6: Production Deployment Plan
 
 **Status**: 📝 Planning
-**Date Started**: TBD
-**Target Completion**: TBD
-**Branch**: TBD
+**Target Start**: 2025-11-20
+**Estimated Duration**: 3-4 weeks
+**Branch**: TBD (claude/phase-6-production-*)
 
 ## Overview
 
-Phase 6 prepares the ProjectKeystone HMAS for **production deployment** with containerization, orchestration, and observability. The system will be deployable to Kubernetes clusters with comprehensive monitoring, health checks, and graceful shutdown capabilities.
+Phase 6 transforms ProjectKeystone from a development prototype to a **production-ready deployment** with containerization, orchestration, monitoring, and operational tooling. This phase builds on the robust foundation of Phases 1-5 and Phase D performance optimizations.
 
-### Current Status (Post-Phase 5)
+### Current Status (Post-Phase 5 & 9.2-9.5)
 
 **What We Have**:
-- ✅ Full 4-layer async hierarchy (L0-L3)
-- ✅ Multi-component coordination (Phase 4)
+- ✅ Complete 4-layer HMAS hierarchy (329 tests, 86.2% coverage)
 - ✅ Chaos engineering infrastructure (Phase 5)
-- ✅ 329/329 tests passing
-- ✅ Work-stealing scheduler with C++20 coroutines
-- ✅ Distributed simulation framework
+- ✅ Performance optimizations with simulation (Phase D)
+- ✅ Quality gates: fuzz testing, static analysis, benchmarks, CI/CD (Phase 9.2-9.5)
+- ✅ Basic Docker containerization (Dockerfile + docker-compose.yml)
+- ✅ GitHub Actions CI/CD workflows
 
 **What Phase 6 Adds**:
-- Production-optimized Docker images
-- Kubernetes deployment manifests
-- Prometheus metrics exporter
-- Grafana dashboards
-- Health checks and readiness probes
-- Graceful shutdown handling
+- Kubernetes deployment manifests (Deployments, Services, ConfigMaps)
+- Production-grade monitoring (Prometheus + Grafana)
+- Centralized logging (ELK stack or Loki)
+- Helm charts for easy deployment
+- Production readiness checklist
+- Deployment automation and rollback procedures
 
 ---
 
@@ -33,559 +33,519 @@ Phase 6 prepares the ProjectKeystone HMAS for **production deployment** with con
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│ Kubernetes Cluster                                  │
-│                                                     │
-│  ┌────────────────────────────────────────────┐   │
-│  │ StatefulSet: HMAS Agents                   │   │
-│  │  - ChiefArchitect (replica: 1)             │   │
-│  │  - ComponentLeads (replicas: 4)            │   │
-│  │  - ModuleLeads (replicas: 12)              │   │
-│  │  - TaskAgents (replicas: 50)               │   │
-│  └────────────────────────────────────────────┘   │
-│                                                     │
-│  ┌────────────────────────────────────────────┐   │
-│  │ Service: MessageBus Endpoint               │   │
-│  │  - ClusterIP: internal communication       │   │
-│  │  - Port: 8080 (gRPC)                       │   │
-│  └────────────────────────────────────────────┘   │
-│                                                     │
-│  ┌────────────────────────────────────────────┐   │
-│  │ Service: Metrics Endpoint                  │   │
-│  │  - ClusterIP: Prometheus scraping          │   │
-│  │  - Port: 9090 (HTTP)                       │   │
-│  └────────────────────────────────────────────┘   │
-│                                                     │
-└─────────────────────────────────────────────────────┘
-         │                           │
-         │ Metrics                   │ Logs
-         ▼                           ▼
-┌──────────────────┐        ┌──────────────────┐
-│ Prometheus       │        │ Loki/ELK Stack   │
-│ (Metrics)        │        │ (Logs)           │
-└────────┬─────────┘        └──────────────────┘
-         │
-         ▼
-┌──────────────────┐
-│ Grafana          │
-│ (Dashboards)     │
-└──────────────────┘
+│               Ingress / Load Balancer               │
+│         (Route traffic to HMAS instances)           │
+└───────────────────┬─────────────────────────────────┘
+                    │
+    ┌───────────────┴───────────────┐
+    │                               │
+    ▼                               ▼
+┌─────────────────┐           ┌─────────────────┐
+│  HMAS Pod #1    │           │  HMAS Pod #2    │
+│                 │           │                 │
+│  - ChiefArch    │           │  - ChiefArch    │
+│  - 4 Components │           │  - 4 Components │
+│  - Work Stealing│           │  - Work Stealing│
+│  - Metrics      │           │  - Metrics      │
+└────────┬────────┘           └────────┬────────┘
+         │                             │
+         └──────────┬──────────────────┘
+                    │
+    ┌───────────────┼───────────────┐
+    │               │               │
+    ▼               ▼               ▼
+┌─────────┐   ┌──────────┐   ┌─────────────┐
+│Prometheus│  │ Grafana  │   │    Loki     │
+│ (Metrics)│  │(Dashboard)│   │  (Logs)     │
+└─────────┘   └──────────┘   └─────────────┘
 ```
 
 ---
 
-## Phase 6 Implementation Plan
+## Phase 6 Sub-Phases
 
-### Phase 6.1: Docker Production Build (Week 1)
+### Phase 6.1: Kubernetes Manifests (Week 1)
 
-**Goal**: Optimize Dockerfile for production deployment
-
-**Tasks**:
-
-1. **Multi-stage Dockerfile Optimization** (6 hours)
-   - **Builder stage**: Compile with optimizations (`-O3`, `-DNDEBUG`)
-   - **Runtime stage**: Minimal base image (Alpine or distroless)
-   - **Development stage**: Keep existing dev tools
-   - Strip debug symbols from production binaries
-   - Size target: < 50 MB runtime image
-
-2. **Security Hardening** (4 hours)
-   - Non-root user (`USER hmas:hmas`)
-   - Read-only filesystem where possible
-   - Minimal attack surface (no shell in runtime)
-   - CVE scanning with Trivy
-   - SBOM generation
-
-3. **Health Check Endpoint** (4 hours)
-   - HTTP endpoint `/health` (returns 200 OK if healthy)
-   - Check MessageBus connectivity
-   - Check agent registry status
-   - Return JSON with component health
-
-4. **Graceful Shutdown** (4 hours)
-   - Signal handling (SIGTERM, SIGINT)
-   - Drain message queues before exit
-   - Save state to persistent storage (if needed)
-   - Notify other agents of shutdown
-
-**Deliverables**:
-- ✅ Production Dockerfile (multi-stage)
-- ✅ Security-hardened runtime image
-- ✅ Health check endpoint
-- ✅ Graceful shutdown handler
-
-**Estimated Time**: 18 hours
-
----
-
-### Phase 6.2: Kubernetes Manifests (Week 2)
-
-**Goal**: Deploy HMAS to Kubernetes cluster
+**Goal**: Deploy HMAS to Kubernetes with basic manifests
 
 **Tasks**:
 
-1. **StatefulSet for HMAS Agents** (6 hours)
-   ```yaml
-   apiVersion: apps/v1
-   kind: StatefulSet
-   metadata:
-     name: hmas-chief-architect
-   spec:
-     serviceName: hmas
-     replicas: 1
-     selector:
-       matchLabels:
-         app: hmas
-         tier: chief
-     template:
-       metadata:
-         labels:
-           app: hmas
-           tier: chief
-       spec:
-         containers:
-         - name: chief-architect
-           image: projectkeystone:latest
-           ports:
-           - containerPort: 8080
-             name: grpc
-           - containerPort: 9090
-             name: metrics
-           livenessProbe:
-             httpGet:
-               path: /health
-               port: 9090
-             initialDelaySeconds: 10
-             periodSeconds: 10
-           readinessProbe:
-             httpGet:
-               path: /ready
-               port: 9090
-             initialDelaySeconds: 5
-             periodSeconds: 5
-   ```
+1. **Create Deployment manifest** (`k8s/deployment.yaml`) - 4 hours
+   - Define HMAS container spec
+   - Resource limits: CPU (1-2 cores), Memory (1-2 GB)
+   - Liveness/readiness probes
+   - Environment variables for configuration
+   - Replica count: 2-3 for HA
 
-2. **Service for MessageBus** (3 hours)
+2. **Create Service manifest** (`k8s/service.yaml`) - 2 hours
    - ClusterIP service for internal communication
-   - Headless service for StatefulSet DNS
-   - Load balancer for external access (optional)
+   - Expose metrics endpoint (port 9090)
+   - Health check endpoint (port 8080)
 
-3. **ConfigMap for Configuration** (3 hours)
-   - Agent configuration (thread pool size, queue depths)
-   - Logging configuration
+3. **Create ConfigMap** (`k8s/configmap.yaml`) - 2 hours
+   - HMAS configuration (worker count, timeouts, etc.)
+   - Logging levels
    - Feature flags
 
-4. **Secrets for Credentials** (2 hours)
-   - API keys (if using LLMs in future)
-   - Database credentials (if needed)
-   - TLS certificates
+4. **Create Namespace** (`k8s/namespace.yaml`) - 1 hour
+   - `projectkeystone` namespace for isolation
+   - Resource quotas
 
-5. **Persistent Volume Claims** (4 hours)
-   - StatefulSet storage for agent state
-   - Logs persistence
-   - Metrics retention
-
-**Deliverables**:
-- ✅ StatefulSet manifests (Chief, Component, Module, Task)
-- ✅ Service manifests (MessageBus, Metrics)
-- ✅ ConfigMap and Secret templates
-- ✅ PersistentVolumeClaim manifests
-
-**Estimated Time**: 18 hours
-
----
-
-### Phase 6.3: Prometheus Metrics Integration (Week 3)
-
-**Goal**: Export HMAS metrics to Prometheus
-
-**Tasks**:
-
-1. **Prometheus C++ Client Integration** (8 hours)
-   - Add `prometheus-cpp` library to CMake
-   - Create `MetricsExporter` class
-   - Expose metrics on `:9090/metrics`
-   - Integrate with existing `Metrics` class
-
-2. **Agent-Level Metrics** (6 hours)
-   ```cpp
-   // Counters
-   messages_sent_total
-   messages_received_total
-   tasks_completed_total
-   tasks_failed_total
-
-   // Gauges
-   active_agents
-   queue_depth
-   worker_utilization
-
-   // Histograms
-   message_latency_seconds
-   task_duration_seconds
-   ```
-
-3. **System-Level Metrics** (4 hours)
-   - CPU usage per agent
-   - Memory usage per agent
-   - Message bus throughput
-   - Work-stealing steal count
-
-4. **Prometheus Configuration** (2 hours)
-   ```yaml
-   scrape_configs:
-     - job_name: 'hmas'
-       static_configs:
-         - targets: ['hmas-metrics:9090']
-       scrape_interval: 10s
-   ```
+5. **Test local Kubernetes deployment** (kind or minikube) - 3 hours
+   - Deploy to local cluster
+   - Verify pod startup
+   - Test service connectivity
+   - Verify logs and metrics
 
 **Deliverables**:
-- ✅ `MetricsExporter` class
-- ✅ Prometheus metrics endpoint
-- ✅ Agent and system metrics
-- ✅ Prometheus scrape config
-
-**Estimated Time**: 20 hours
-
----
-
-### Phase 6.4: Grafana Dashboards (Week 4)
-
-**Goal**: Visualize HMAS metrics in Grafana
-
-**Tasks**:
-
-1. **HMAS Overview Dashboard** (6 hours)
-   - Agent hierarchy visualization (tree view)
-   - Total agents by tier (L0, L1, L2, L3)
-   - Messages sent/received (rate graphs)
-   - Task completion rate
-
-2. **Performance Dashboard** (6 hours)
-   - Message latency (p50, p95, p99)
-   - Task duration distribution
-   - Worker utilization heatmap
-   - Queue depth time series
-
-3. **Health Dashboard** (4 hours)
-   - Agent health status (up/down)
-   - Failed tasks over time
-   - Circuit breaker states
-   - Heartbeat monitoring
-
-4. **Chaos Dashboard** (4 hours)
-   - Failure injection statistics
-   - Network partition events
-   - Retry attempts and success rate
-   - Recovery time metrics
-
-**Deliverables**:
-- ✅ Grafana dashboard JSONs (4 dashboards)
-- ✅ Datasource configuration
-- ✅ Alert rules (optional)
-
-**Estimated Time**: 20 hours
-
----
-
-### Phase 6.5: Helm Chart (Week 5)
-
-**Goal**: Package HMAS for easy deployment
-
-**Tasks**:
-
-1. **Helm Chart Structure** (4 hours)
-   ```
-   hmas-chart/
-   ├── Chart.yaml
-   ├── values.yaml
-   ├── templates/
-   │   ├── statefulset.yaml
-   │   ├── service.yaml
-   │   ├── configmap.yaml
-   │   ├── secret.yaml
-   │   └── ingress.yaml
-   └── README.md
-   ```
-
-2. **Templating with Values** (6 hours)
-   ```yaml
-   # values.yaml
-   replicaCount:
-     chief: 1
-     component: 4
-     module: 12
-     task: 50
-
-   image:
-     repository: projectkeystone
-     tag: latest
-     pullPolicy: IfNotPresent
-
-   resources:
-     chief:
-       limits:
-         cpu: 2000m
-         memory: 2Gi
-       requests:
-         cpu: 1000m
-         memory: 1Gi
-   ```
-
-3. **Helm Install/Upgrade Commands** (2 hours)
-   ```bash
-   helm install hmas ./hmas-chart --namespace hmas --create-namespace
-   helm upgrade hmas ./hmas-chart --namespace hmas
-   helm rollback hmas 1 --namespace hmas
-   ```
-
-**Deliverables**:
-- ✅ Helm chart package
-- ✅ Customizable `values.yaml`
-- ✅ Installation guide
+- ✅ Kubernetes manifests for Deployment, Service, ConfigMap, Namespace
+- ✅ Successful deployment to local Kubernetes (kind/minikube)
+- ✅ Health checks working
+- ✅ Documentation: `docs/KUBERNETES_DEPLOYMENT.md`
 
 **Estimated Time**: 12 hours
+
+---
+
+### Phase 6.2: Helm Chart (Week 2)
+
+**Goal**: Create Helm chart for templated, versioned deployments
+
+**Tasks**:
+
+1. **Initialize Helm chart structure** (`helm/projectkeystone/`) - 2 hours
+   - `Chart.yaml` - Chart metadata
+   - `values.yaml` - Default configuration
+   - `templates/` - Templated manifests
+   - `README.md` - Usage instructions
+
+2. **Templatize Kubernetes manifests** - 4 hours
+   - Convert static manifests to Helm templates
+   - Add `values.yaml` parameters:
+     - Replica count
+     - Resource limits
+     - Image tag
+     - Environment variables
+   - Use Helm helpers for labels and selectors
+
+3. **Add Helm release management** - 3 hours
+   - Version tagging (SemVer)
+   - Chart versioning in `Chart.yaml`
+   - Release notes template
+
+4. **Test Helm deployment** - 3 hours
+   - `helm install projectkeystone ./helm/projectkeystone`
+   - Verify templating with different values
+   - Test upgrade and rollback
+   - `helm test` for validation
+
+**Deliverables**:
+- ✅ Helm chart in `helm/projectkeystone/`
+- ✅ Templated deployments with configurable values
+- ✅ Helm tests for validation
+- ✅ Documentation: `helm/projectkeystone/README.md`
+
+**Estimated Time**: 12 hours
+
+---
+
+### Phase 6.3: Prometheus Monitoring (Week 2-3)
+
+**Goal**: Export metrics to Prometheus for monitoring
+
+**Tasks**:
+
+1. **Implement Prometheus metrics endpoint** (`src/monitoring/prometheus_exporter.cpp`) - 6 hours
+   - HTTP server on port 9090 (using simple HTTP library)
+   - Export existing metrics in Prometheus format:
+     - `hmas_messages_total{agent_id, priority}` - Counter
+     - `hmas_queue_depth{agent_id}` - Gauge
+     - `hmas_message_latency_seconds{agent_id}` - Histogram
+     - `hmas_steals_total{worker_id}` - Counter
+   - Add new metrics:
+     - `hmas_agent_state{agent_id, state}` - Gauge (0=idle, 1=active, 2=failed)
+     - `hmas_circuit_breaker_state{target_id, state}` - Gauge
+     - `hmas_retry_attempts_total{message_id}` - Counter
+
+2. **Prometheus configuration** (`monitoring/prometheus.yml`) - 2 hours
+   - Scrape config for HMAS metrics endpoint
+   - Retention period: 15 days
+   - Alerting rules (optional for Phase 6)
+
+3. **Deploy Prometheus to Kubernetes** - 3 hours
+   - Use Prometheus Operator or Helm chart
+   - ServiceMonitor for auto-discovery
+   - Persistent volume for metrics storage
+
+4. **Create Prometheus queries** - 2 hours
+   - Message throughput: `rate(hmas_messages_total[5m])`
+   - Queue depth trends: `avg(hmas_queue_depth)`
+   - P95 latency: `histogram_quantile(0.95, hmas_message_latency_seconds)`
+
+**Deliverables**:
+- ✅ Prometheus exporter integrated into HMAS
+- ✅ Prometheus deployed to Kubernetes
+- ✅ Metrics visible in Prometheus UI
+- ✅ Example queries documented
+
+**Estimated Time**: 13 hours
+
+---
+
+### Phase 6.4: Grafana Dashboards (Week 3)
+
+**Goal**: Visualize HMAS metrics with Grafana dashboards
+
+**Tasks**:
+
+1. **Deploy Grafana to Kubernetes** - 2 hours
+   - Helm chart for Grafana
+   - Connect to Prometheus data source
+   - Persistent volume for dashboard storage
+
+2. **Create HMAS Overview Dashboard** (`monitoring/grafana/hmas-overview.json`) - 4 hours
+   - Panels:
+     - Messages/sec (time series)
+     - Queue depth by agent (heatmap)
+     - P50/P95/P99 latency (graph)
+     - Active agents (gauge)
+     - Circuit breaker states (status panel)
+     - Work-stealing efficiency (pie chart)
+   - Time range selector (1h, 6h, 24h, 7d)
+   - Refresh interval: 30s
+
+3. **Create Agent Detail Dashboard** (`monitoring/grafana/agent-details.json`) - 3 hours
+   - Agent selector variable
+   - Panels:
+     - Message count by priority
+     - State transitions (state timeline)
+     - Retry attempts distribution
+     - Error rate
+     - Processing time histogram
+
+4. **Create System Health Dashboard** (`monitoring/grafana/system-health.json`) - 3 hours
+   - Panels:
+     - CPU/Memory usage (from Kubernetes metrics)
+     - Pod restarts
+     - Network traffic
+     - Disk I/O
+     - Failed agents count
+
+5. **Export dashboards as JSON** - 1 hour
+   - Save to `monitoring/grafana/*.json`
+   - Import via ConfigMap or Grafana provisioning
+
+**Deliverables**:
+- ✅ Grafana deployed to Kubernetes
+- ✅ 3 dashboards: Overview, Agent Details, System Health
+- ✅ Dashboards exported as JSON
+- ✅ Documentation: `docs/MONITORING.md`
+
+**Estimated Time**: 13 hours
+
+---
+
+### Phase 6.5: Centralized Logging (Week 3-4)
+
+**Goal**: Aggregate logs from all HMAS pods
+
+**Tasks**:
+
+1. **Choose logging stack** - 1 hour
+   - **Option A**: ELK stack (Elasticsearch + Logstash + Kibana)
+   - **Option B**: Loki + Promtail + Grafana (lighter weight)
+   - **Decision**: Use Loki for consistency with Prometheus/Grafana
+
+2. **Deploy Loki to Kubernetes** - 3 hours
+   - Helm chart for Loki
+   - Persistent volume for log storage
+   - Retention period: 7 days
+
+3. **Deploy Promtail as DaemonSet** - 2 hours
+   - Scrape logs from all pods in `projectkeystone` namespace
+   - Parse JSON log format from spdlog
+   - Add labels: `pod`, `container`, `namespace`
+
+4. **Configure Loki data source in Grafana** - 1 hour
+   - Add Loki as data source
+   - Test LogQL queries
+
+5. **Create Logs Dashboard** (`monitoring/grafana/logs-dashboard.json`) - 3 hours
+   - Panels:
+     - Log stream (live tail)
+     - Error rate (count by level)
+     - Top errors (aggregation)
+     - Search box for filtering
+
+6. **Enhance spdlog JSON output** - 3 hours
+   - Ensure structured logging (JSON format)
+   - Include context fields: `worker_id`, `agent_id`, `trace_id`
+   - Timestamp in ISO 8601 format
+
+**Deliverables**:
+- ✅ Loki deployed to Kubernetes
+- ✅ Promtail scraping HMAS logs
+- ✅ Logs visible in Grafana
+- ✅ Logs Dashboard created
+
+**Estimated Time**: 13 hours
+
+---
+
+### Phase 6.6: Production Readiness (Week 4)
+
+**Goal**: Finalize production deployment checklist
+
+**Tasks**:
+
+1. **Create production checklist** (`docs/PRODUCTION_READINESS.md`) - 3 hours
+   - [ ] All tests passing (329/329)
+   - [ ] Code coverage ≥ 95%
+   - [ ] Static analysis clean (clang-tidy, cppcheck)
+   - [ ] Fuzz testing (1 hour, no crashes)
+   - [ ] Performance benchmarks within targets
+   - [ ] Liveness/readiness probes configured
+   - [ ] Resource limits set
+   - [ ] Monitoring and alerting operational
+   - [ ] Logging centralized and queryable
+   - [ ] Rollback procedure documented
+   - [ ] Incident response runbook created
+
+2. **Document deployment procedures** (`docs/DEPLOYMENT.md`) - 4 hours
+   - Prerequisites (kubectl, Helm, access)
+   - Step-by-step deployment guide
+   - Configuration options
+   - Verification steps
+   - Troubleshooting guide
+
+3. **Document rollback procedures** (`docs/ROLLBACK.md`) - 2 hours
+   - `helm rollback` command
+   - Verification after rollback
+   - Common rollback scenarios
+
+4. **Create incident response runbook** (`docs/INCIDENT_RESPONSE.md`) - 3 hours
+   - Pod crash loop: Check logs, restart, scale down
+   - High latency: Check queue depths, scale up workers
+   - Memory leak: Analyze metrics, restart pods, rollback
+   - Circuit breaker open: Investigate target agent, reset if needed
+
+5. **Security hardening** - 3 hours
+   - Run as non-root user in container
+   - Read-only root filesystem
+   - Drop unnecessary capabilities
+   - Network policies (optional)
+   - Secrets management (if needed)
+
+6. **Performance testing in Kubernetes** - 4 hours
+   - Deploy to local cluster
+   - Run benchmarks
+   - Verify metrics collection
+   - Load test with 100+ agents
+
+**Deliverables**:
+- ✅ Production readiness checklist
+- ✅ Deployment, rollback, and incident response docs
+- ✅ Security hardening applied
+- ✅ Performance validated in Kubernetes
+
+**Estimated Time**: 19 hours
 
 ---
 
 ## Success Criteria
 
 ### Must Have ✅
-- [ ] Production Docker image < 50 MB
-- [ ] Security hardening (non-root, CVE-free)
-- [ ] Health check endpoint working
-- [ ] Graceful shutdown implemented
-- [ ] Kubernetes StatefulSet deployable
-- [ ] Prometheus metrics exported
-- [ ] Grafana dashboards functional
-- [ ] Helm chart installable
+
+- [ ] Kubernetes manifests deploy HMAS successfully
+- [ ] Helm chart enables templated deployments
+- [ ] Prometheus exports HMAS metrics
+- [ ] Grafana dashboards visualize key metrics
+- [ ] Loki aggregates logs from all pods
+- [ ] Health checks (liveness/readiness) working
+- [ ] Resource limits prevent runaway pods
+- [ ] Documentation complete (deployment, monitoring, incident response)
 
 ### Should Have 🎯
-- [ ] Multi-stage Dockerfile optimized
-- [ ] ConfigMap/Secret externalization
-- [ ] PersistentVolume for state
-- [ ] Readiness probe working
-- [ ] 4+ Grafana dashboards
-- [ ] Metrics coverage > 80%
+
+- [ ] Helm tests validate deployments
+- [ ] Alerting rules for critical issues (pod restarts, high latency)
+- [ ] Rolling updates with zero downtime
+- [ ] Horizontal Pod Autoscaler (HPA) based on CPU/memory
+- [ ] Production readiness checklist 100% complete
 
 ### Nice to Have 💡
-- [ ] Horizontal Pod Autoscaling (HPA)
-- [ ] Service mesh integration (Istio/Linkerd)
+
+- [ ] Multi-cluster deployment (dev, staging, prod)
+- [ ] GitOps with ArgoCD or Flux
+- [ ] Service mesh (Istio/Linkerd) for advanced networking
 - [ ] Distributed tracing (Jaeger/Zipkin)
-- [ ] Log aggregation (Loki/ELK)
-- [ ] ArgoCD GitOps deployment
+- [ ] Cost optimization (spot instances, resource right-sizing)
 
 ---
 
-## Test Plan
+## Implementation Checklist
 
-### E2E Tests (Phase 6)
+### Phase 6.1: Kubernetes Manifests ✅
+- [ ] Create `k8s/namespace.yaml`
+- [ ] Create `k8s/deployment.yaml`
+- [ ] Create `k8s/service.yaml`
+- [ ] Create `k8s/configmap.yaml`
+- [ ] Test local deployment (kind/minikube)
+- [ ] Document: `docs/KUBERNETES_DEPLOYMENT.md`
 
-1. **DockerBuildProduction** (Priority: CRITICAL)
-   - Build production Dockerfile
-   - Image size < 50 MB
-   - No vulnerabilities (Trivy scan)
+### Phase 6.2: Helm Chart ✅
+- [ ] Initialize Helm chart structure
+- [ ] Create `Chart.yaml`
+- [ ] Create `values.yaml`
+- [ ] Templatize manifests in `templates/`
+- [ ] Add Helm tests
+- [ ] Document: `helm/projectkeystone/README.md`
 
-2. **HealthCheckEndpoint** (Priority: HIGH)
-   - HTTP GET `/health` returns 200
-   - JSON response contains component status
-   - Works in Kubernetes liveness probe
+### Phase 6.3: Prometheus Monitoring ✅
+- [ ] Implement Prometheus exporter
+- [ ] Add metrics endpoint `:9090/metrics`
+- [ ] Deploy Prometheus to Kubernetes
+- [ ] Create ServiceMonitor
+- [ ] Verify metrics scraping
+- [ ] Document example queries
 
-3. **GracefulShutdown** (Priority: HIGH)
-   - Send SIGTERM to running agent
-   - Message queues drain within 30s
-   - No message loss
-   - Clean exit (code 0)
+### Phase 6.4: Grafana Dashboards ✅
+- [ ] Deploy Grafana to Kubernetes
+- [ ] Create HMAS Overview dashboard
+- [ ] Create Agent Details dashboard
+- [ ] Create System Health dashboard
+- [ ] Export dashboards as JSON
+- [ ] Document: `docs/MONITORING.md`
 
-4. **KubernetesDeployment** (Priority: CRITICAL)
-   - Deploy StatefulSet to minikube
-   - All pods reach Running state
-   - Services expose correct ports
-   - Metrics endpoint accessible
+### Phase 6.5: Centralized Logging ✅
+- [ ] Deploy Loki to Kubernetes
+- [ ] Deploy Promtail DaemonSet
+- [ ] Configure Loki data source in Grafana
+- [ ] Create Logs Dashboard
+- [ ] Enhance spdlog JSON output
+- [ ] Verify log aggregation
 
-5. **PrometheusMetrics** (Priority: HIGH)
-   - Prometheus scrapes metrics successfully
-   - Agent-level metrics present
-   - System-level metrics present
-   - No scrape errors
-
-6. **GrafanaDashboards** (Priority: MEDIUM)
-   - Import dashboard JSONs
-   - Graphs render with data
-   - Queries return results
-   - No errors in logs
-
----
-
-## Performance Expectations
-
-**Production Targets**:
-- Docker image size: < 50 MB (Alpine-based)
-- Startup time: < 10 seconds
-- Health check latency: < 50 ms
-- Graceful shutdown time: < 30 seconds
-- Metrics scrape duration: < 100 ms
-- Dashboard query latency: < 500 ms
-
-**Resource Limits** (per agent):
-- CPU: 500m (0.5 cores) baseline, 2000m (2 cores) limit
-- Memory: 512 Mi baseline, 2 Gi limit
-- Disk: 1 Gi persistent storage
+### Phase 6.6: Production Readiness ✅
+- [ ] Create production readiness checklist
+- [ ] Document deployment procedures
+- [ ] Document rollback procedures
+- [ ] Create incident response runbook
+- [ ] Apply security hardening
+- [ ] Performance test in Kubernetes
 
 ---
 
 ## Risk Mitigation
 
-### Risk 1: Docker Image Size Bloat
+### Risk 1: Kubernetes Complexity
 **Impact**: Medium
 **Likelihood**: Medium
-**Mitigation**: Use Alpine base, multi-stage build, strip symbols. Target < 50 MB.
+**Mitigation**: Start with simple manifests, use Helm for templating, test locally with kind/minikube before production.
 
-### Risk 2: Kubernetes Learning Curve
-**Impact**: Medium
-**Likelihood**: High
-**Mitigation**: Use minikube for local testing. Start with simple StatefulSet.
-
-### Risk 3: Prometheus Metrics Overhead
+### Risk 2: Monitoring Overhead
 **Impact**: Low
 **Likelihood**: Low
-**Mitigation**: prometheus-cpp is lightweight. Scrape interval 10s+ to reduce load.
+**Mitigation**: Prometheus metrics are pull-based (low overhead). Sample metrics at 30s interval.
 
-### Risk 4: Grafana Dashboard Complexity
-**Impact**: Low
+### Risk 3: Log Volume
+**Impact**: Medium
 **Likelihood**: Medium
-**Mitigation**: Start with simple dashboards. Iterate based on user feedback.
+**Mitigation**: Use Loki with retention policy (7 days). Tune log levels (INFO in prod, not DEBUG).
+
+### Risk 4: Resource Limits Too Restrictive
+**Impact**: High
+**Likelihood**: Medium
+**Mitigation**: Start with generous limits (2 CPU, 2 GB RAM), tune based on observed usage.
+
+### Risk 5: Deployment Failures
+**Impact**: High
+**Likelihood**: Low
+**Mitigation**: Test in local Kubernetes first. Use Helm for easy rollback. Document troubleshooting steps.
 
 ---
 
-## Implementation Notes
+## Performance Expectations
 
-### Health Check Endpoint (C++)
+**Resource Usage** (per HMAS pod):
+- **CPU**: 0.5-2 cores (depends on worker count and load)
+- **Memory**: 512 MB - 2 GB (depends on agent count)
+- **Network**: Low (<10 Mbps for metrics/logs)
 
-```cpp
-// include/core/health_check.hpp
-class HealthCheckServer {
-public:
-    HealthCheckServer(int port);
-    void start();
-    void stop();
+**Scalability**:
+- **Horizontal**: 2-5 replicas with load balancer
+- **Vertical**: Tune worker count via ConfigMap (4-16 workers)
 
-    struct ComponentHealth {
-        std::string name;
-        bool healthy;
-        std::string message;
-    };
-
-    void registerComponent(const std::string& name,
-                          std::function<bool()> health_check);
-
-private:
-    std::unique_ptr<httplib::Server> server_;
-    std::unordered_map<std::string, std::function<bool()>> checks_;
-};
-```
-
-### Graceful Shutdown Handler
-
-```cpp
-// Signal handler
-std::atomic<bool> shutdown_requested{false};
-
-void signalHandler(int signal) {
-    if (signal == SIGTERM || signal == SIGINT) {
-        shutdown_requested.store(true);
-    }
-}
-
-// In main()
-signal(SIGTERM, signalHandler);
-signal(SIGINT, signalHandler);
-
-while (!shutdown_requested.load()) {
-    // Process messages
-}
-
-// Drain queues
-messagebus->drainQueues(std::chrono::seconds(30));
-```
-
-### Prometheus Metrics Exporter
-
-```cpp
-// include/core/metrics_exporter.hpp
-class MetricsExporter {
-public:
-    MetricsExporter(int port);
-    void start();
-
-    // Counters
-    void incrementMessagesSent();
-    void incrementMessagesReceived();
-    void incrementTasksCompleted();
-
-    // Gauges
-    void setActiveAgents(int count);
-    void setQueueDepth(int depth);
-
-    // Histograms
-    void observeMessageLatency(double seconds);
-    void observeTaskDuration(double seconds);
-
-private:
-    prometheus::Exposer exposer_;
-    std::shared_ptr<prometheus::Registry> registry_;
-
-    prometheus::Counter* messages_sent_counter_;
-    prometheus::Histogram* message_latency_histogram_;
-};
-```
+**Monitoring Performance**:
+- **Metrics scrape interval**: 30s
+- **Dashboard refresh**: 30s
+- **Log retention**: 7 days
+- **Metrics retention**: 15 days
 
 ---
 
-## Dependencies
+## Testing Strategy
 
-### New Dependencies
+### Local Kubernetes Testing (kind/minikube)
+1. Deploy HMAS with Helm
+2. Verify pod startup and health checks
+3. Send test messages, verify processing
+4. Check Prometheus metrics endpoint
+5. View dashboards in Grafana
+6. Query logs in Loki
 
-1. **prometheus-cpp** - Prometheus C++ client library
-   - Repo: https://github.com/jupp0r/prometheus-cpp
-   - License: MIT
-   - Purpose: Metrics exporting
+### Integration Testing
+1. Deploy full stack (HMAS + Prometheus + Grafana + Loki)
+2. Run E2E tests inside Kubernetes
+3. Verify metrics collection
+4. Verify log aggregation
+5. Simulate pod failure (kill pod, verify restart)
+6. Test rolling update (change image tag)
 
-2. **cpp-httplib** - HTTP server library
-   - Repo: https://github.com/yhirose/cpp-httplib
-   - License: MIT
-   - Purpose: Health check endpoint
+### Load Testing
+1. Deploy with multiple replicas
+2. Send high message volume
+3. Monitor queue depths and latency
+4. Verify work-stealing across workers
+5. Check for resource saturation
 
-3. **Kubernetes** - Container orchestration
-   - Version: 1.27+
-   - Purpose: Production deployment
+---
 
-4. **Helm** - Kubernetes package manager
-   - Version: 3.0+
-   - Purpose: Simplified deployment
+## Documentation Plan
 
-5. **Prometheus** - Metrics collection
-   - Version: 2.40+
-   - Purpose: Monitoring
+### Required Documentation
+1. **KUBERNETES_DEPLOYMENT.md** - Kubernetes manifest guide
+2. **HELM_CHART.md** - Helm chart usage
+3. **MONITORING.md** - Prometheus + Grafana setup
+4. **LOGGING.md** - Loki + Promtail setup
+5. **DEPLOYMENT.md** - Step-by-step deployment guide
+6. **ROLLBACK.md** - Rollback procedures
+7. **INCIDENT_RESPONSE.md** - Runbook for common issues
+8. **PRODUCTION_READINESS.md** - Checklist before go-live
 
-6. **Grafana** - Metrics visualization
-   - Version: 9.0+
-   - Purpose: Dashboards
+### README Updates
+- Add "Production Deployment" section
+- Link to Helm chart
+- Link to monitoring dashboards
+- Link to operational docs
 
 ---
 
 ## Next Steps
 
-1. **Week 1**: Docker production optimization
-2. **Week 2**: Kubernetes manifests
-3. **Week 3**: Prometheus integration
-4. **Week 4**: Grafana dashboards
-5. **Week 5**: Helm chart packaging
+**Week 1**: Kubernetes manifests and local testing
+**Week 2**: Helm chart and Prometheus integration
+**Week 3**: Grafana dashboards and Loki logging
+**Week 4**: Production readiness and documentation
 
-**After Phase 6**: Move to **Phase 7: AI Integration** or **Phase 9: Enhanced Testing**
+**After Phase 6**: Move to **Phase 7: AI Integration**
+- LLM-based task agents
+- Natural language goal processing
+- Code generation integration
+- AI-powered debugging
 
 ---
 
-**Status**: 📝 Planning - Ready for Implementation
-**Total Estimated Time**: 88 hours (~5 weeks)
+**Status**: 📝 Planning Complete - Ready for Implementation
+**Total Estimated Time**: 82 hours (~3-4 weeks with buffer)
+**Dependencies**: Phases 1-5, D, 9.2-9.5 complete
 **Last Updated**: 2025-11-19

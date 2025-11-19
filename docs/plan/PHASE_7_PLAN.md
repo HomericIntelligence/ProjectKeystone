@@ -1,29 +1,30 @@
 # Phase 7: AI Integration Plan
 
 **Status**: 📝 Planning
-**Date Started**: TBD
-**Target Completion**: TBD
-**Branch**: TBD
+**Target Start**: 2025-12-10
+**Estimated Duration**: 4-5 weeks
+**Branch**: TBD (claude/phase-7-ai-integration-*)
 
 ## Overview
 
-Phase 7 transforms the ProjectKeystone HMAS into an **AI-powered development system** by integrating Large Language Models (LLMs) for natural language task execution, code generation, and intelligent decision-making. The system will accept natural language goals and autonomously decompose them into executable tasks.
+Phase 7 transforms ProjectKeystone from a traditional hierarchical multi-agent system into an **AI-powered autonomous development platform**. This phase integrates Large Language Models (LLMs) to enable natural language goal processing, intelligent code generation, automated debugging, and adaptive task decomposition.
 
-### Current Status (Post-Phase 5)
+### Current Status (Post-Phase 6)
 
 **What We Have**:
-- ✅ Full 4-layer async hierarchy (ChiefArchitect → ComponentLead → ModuleLead → TaskAgent)
-- ✅ `AsyncTaskAgent` base class for task execution
-- ✅ Message passing infrastructure (MessageBus, KeystoneMessage)
-- ✅ 329/329 tests passing
+- ✅ Production-ready HMAS deployment (Kubernetes + monitoring)
+- ✅ 4-layer agent hierarchy with work-stealing scheduler
+- ✅ Chaos engineering and resilience features
+- ✅ Comprehensive testing and quality gates
+- ✅ Current agents use hardcoded logic for task decomposition
 
 **What Phase 7 Adds**:
-- LLM-powered task agents (`LLMTaskAgent`)
-- Natural language goal parsing
-- Code generation and validation pipeline
-- Retrieval-Augmented Generation (RAG) for codebase context
-- Prompt engineering framework
-- AI-assisted task decomposition
+- LLM-powered TaskAgents that generate code from natural language
+- AI-driven goal decomposition at L2 (ModuleLead) and L1 (ComponentLead)
+- Natural language interface for ChiefArchitect
+- Code review and debugging agents using LLMs
+- Prompt engineering framework for agent interactions
+- AI safety guardrails and output validation
 
 ---
 
@@ -31,643 +32,670 @@ Phase 7 transforms the ProjectKeystone HMAS into an **AI-powered development sys
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│ User Input: "Implement a binary search tree in C++20"  │
-└──────────────────┬──────────────────────────────────────┘
-                   │
-                   ▼
+│                   User (Natural Language)               │
+│          "Build a REST API server with auth"            │
+└────────────────────────┬────────────────────────────────┘
+                         │
+                         ▼
 ┌─────────────────────────────────────────────────────────┐
-│ Level 0: ChiefArchitectAgent (AI-Enhanced)             │
-│  - Natural language parsing via LLM                     │
-│  - High-level task decomposition                        │
-│  - Component selection                                  │
-└──────────────────┬──────────────────────────────────────┘
-                   │
-                   ▼
-┌─────────────────────────────────────────────────────────┐
-│ Level 1: ComponentLeadAgent (AI-Enhanced)              │
-│  - Module-level planning via LLM                        │
-│  - Dependency identification                            │
-└──────────────────┬──────────────────────────────────────┘
-                   │
-                   ▼
-┌─────────────────────────────────────────────────────────┐
-│ Level 2: ModuleLeadAgent (AI-Enhanced)                 │
-│  - Task breakdown via LLM                               │
-│  - Subtask prioritization                               │
-└──────────────────┬──────────────────────────────────────┘
-                   │
-                   ▼
-┌─────────────────────────────────────────────────────────┐
-│ Level 3: LLMTaskAgent (NEW)                            │
-│  ┌──────────────────────────────────────────────┐     │
-│  │ LLM Integration Layer                        │     │
-│  │  - OpenAI API / Anthropic Claude / Llama.cpp│     │
-│  │  - Prompt engineering                        │     │
-│  │  - Response parsing                          │     │
-│  └──────────────────────────────────────────────┘     │
-│  ┌──────────────────────────────────────────────┐     │
-│  │ Code Generation Pipeline                     │     │
-│  │  1. LLM generates code                       │     │
-│  │  2. Static analysis (clang-tidy)             │     │
-│  │  3. Compilation test                         │     │
-│  │  4. Unit test generation                     │     │
-│  │  5. Validation feedback loop                 │     │
-│  └──────────────────────────────────────────────┘     │
-│  ┌──────────────────────────────────────────────┐     │
-│  │ RAG (Retrieval-Augmented Generation)         │     │
-│  │  - Vector database (Chroma/Pinecone)         │     │
-│  │  - Codebase embedding                        │     │
-│  │  - Semantic search for context               │     │
-│  └──────────────────────────────────────────────┘     │
-└─────────────────────────────────────────────────────────┘
+│      ChiefArchitectAgent (L0) + NLP Goal Parser         │
+│  - Parse natural language goals                         │
+│  - Extract requirements, constraints, dependencies      │
+│  - Generate execution plan using LLM                    │
+└────────────────────────┬────────────────────────────────┘
+                         │
+         ┌───────────────┼───────────────┐
+         │               │               │
+         ▼               ▼               ▼
+┌─────────────┐  ┌─────────────┐  ┌─────────────┐
+│ComponentLead│  │ComponentLead│  │ComponentLead│
+│ + AI Planner│  │ + AI Planner│  │ + AI Planner│
+│   (L1)      │  │   (L1)      │  │   (L1)      │
+└──────┬──────┘  └──────┬──────┘  └──────┬──────┘
+       │                │                │
+       ▼                ▼                ▼
+┌─────────────┐  ┌─────────────┐  ┌─────────────┐
+│ ModuleLead  │  │ ModuleLead  │  │ ModuleLead  │
+│ + AI        │  │ + AI        │  │ + AI        │
+│ Decomposer  │  │ Decomposer  │  │ Decomposer  │
+│   (L2)      │  │   (L2)      │  │   (L2)      │
+└──────┬──────┘  └──────┬──────┘  └──────┬──────┘
+       │                │                │
+       ▼                ▼                ▼
+┌─────────────┐  ┌─────────────┐  ┌─────────────┐
+│  TaskAgent  │  │  TaskAgent  │  │  TaskAgent  │
+│ + LLM Code  │  │ + LLM Debug │  │ + LLM Review│
+│  Generator  │  │  Assistant  │  │  Assistant  │
+│   (L3)      │  │   (L3)      │  │   (L3)      │
+└─────────────┘  └─────────────┘  └─────────────┘
 ```
 
 ---
 
-## Phase 7 Implementation Plan
+## LLM Integration Strategy
 
-### Phase 7.1: LLM Integration Foundation (Week 1-2)
+### Option A: OpenAI API (Recommended for Phase 7)
+**Pros**:
+- Production-ready, high quality (GPT-4, GPT-3.5-turbo)
+- Extensive code generation capabilities
+- Function calling for structured outputs
+- Stream support for real-time responses
 
-**Goal**: Integrate LLM APIs and create `LLMTaskAgent` class
+**Cons**:
+- Requires API key and costs money
+- Network dependency
+- Rate limits
 
-**Tasks**:
+**Models**:
+- **GPT-4**: Complex reasoning, architecture decisions (L0, L1)
+- **GPT-3.5-turbo**: Fast code generation, debugging (L2, L3)
+- **GPT-4-turbo**: Balance of quality and speed
 
-1. **LLM Client Abstraction** (8 hours)
-   ```cpp
-   // include/ai/llm_client.hpp
-   class LLMClient {
-   public:
-       virtual ~LLMClient() = default;
+### Option B: Local LLMs (Future Phase)
+**Pros**:
+- No external dependency
+- No API costs
+- Privacy and data control
 
-       struct CompletionRequest {
-           std::string prompt;
-           std::string system_prompt;
-           double temperature = 0.7;
-           int max_tokens = 2048;
-           std::vector<std::string> stop_sequences;
-       };
+**Cons**:
+- Requires GPU resources
+- Lower quality than GPT-4
+- Deployment complexity
 
-       struct CompletionResponse {
-           std::string content;
-           int tokens_used;
-           std::string finish_reason;  // "stop", "length", "error"
-       };
+**Models**:
+- **CodeLlama**: Specialized for code generation
+- **WizardCoder**: Strong coding performance
+- **DeepSeek-Coder**: Competitive quality
 
-       virtual Task<CompletionResponse> complete(const CompletionRequest& req) = 0;
-   };
-   ```
-
-2. **OpenAI API Client** (12 hours)
-   ```cpp
-   // include/ai/openai_client.hpp
-   class OpenAIClient : public LLMClient {
-   public:
-       OpenAIClient(const std::string& api_key, const std::string& model = "gpt-4");
-
-       Task<CompletionResponse> complete(const CompletionRequest& req) override;
-
-   private:
-       std::string api_key_;
-       std::string model_;
-       std::unique_ptr<httplib::Client> http_client_;
-
-       std::string buildRequestJson(const CompletionRequest& req);
-       CompletionResponse parseResponseJson(const std::string& json);
-   };
-   ```
-
-3. **Anthropic Claude Client** (12 hours)
-   ```cpp
-   // include/ai/anthropic_client.hpp
-   class AnthropicClient : public LLMClient {
-   public:
-       AnthropicClient(const std::string& api_key, const std::string& model = "claude-3-5-sonnet-20241022");
-
-       Task<CompletionResponse> complete(const CompletionRequest& req) override;
-
-   private:
-       std::string api_key_;
-       std::string model_;
-       std::unique_ptr<httplib::Client> http_client_;
-   };
-   ```
-
-4. **Local LLM Client (llama.cpp)** (16 hours)
-   ```cpp
-   // include/ai/llama_client.hpp
-   class LlamaCppClient : public LLMClient {
-   public:
-       LlamaCppClient(const std::string& model_path);
-
-       Task<CompletionResponse> complete(const CompletionRequest& req) override;
-
-   private:
-       std::string model_path_;
-       // llama.cpp integration
-   };
-   ```
-
-5. **LLMTaskAgent Class** (12 hours)
-   ```cpp
-   // include/agents/llm_task_agent.hpp
-   class LLMTaskAgent : public AsyncTaskAgent {
-   public:
-       LLMTaskAgent(const std::string& agent_id,
-                   std::unique_ptr<LLMClient> llm_client);
-
-       Task<Response> processMessageAsync(const KeystoneMessage& msg) override;
-
-   private:
-       std::unique_ptr<LLMClient> llm_client_;
-
-       Task<std::string> generateCode(const std::string& task_description);
-       Task<bool> validateCode(const std::string& code);
-       Task<std::string> fixCode(const std::string& code, const std::string& error);
-   };
-   ```
-
-**Deliverables**:
-- ✅ `LLMClient` interface
-- ✅ OpenAI API client
-- ✅ Anthropic Claude client
-- ✅ Local LLM client (llama.cpp)
-- ✅ `LLMTaskAgent` class
-- ✅ Unit tests for all clients
-
-**Estimated Time**: 60 hours
+**Decision**: Start with OpenAI API (Phase 7), add local LLM support in Phase 8 or later.
 
 ---
 
-### Phase 7.2: Natural Language Goal Processing (Week 3)
+## Phase 7 Sub-Phases
 
-**Goal**: Parse natural language goals into structured tasks
+### Phase 7.1: LLM Client Infrastructure (Week 1)
+
+**Goal**: Create reusable LLM client library with retry logic and rate limiting
 
 **Tasks**:
 
-1. **Goal Parser** (12 hours)
-   ```cpp
-   // include/ai/goal_parser.hpp
-   class GoalParser {
-   public:
-       GoalParser(std::unique_ptr<LLMClient> llm);
+1. **Implement OpenAI API client** (`src/ai/openai_client.cpp`) - 6 hours
+   - HTTP client using libcurl or cpp-httplib
+   - Support for chat completions API
+   - Streaming support for real-time responses
+   - Error handling and retries
+   - Authentication via API key (from environment variable)
 
-       struct ParsedGoal {
-           std::string objective;
-           std::vector<std::string> components;
-           std::vector<std::string> modules;
-           std::vector<std::string> tasks;
-           std::map<std::string, std::vector<std::string>> dependencies;
-       };
+2. **Create prompt template system** (`include/ai/prompt_template.hpp`) - 4 hours
+   - Template class with variable substitution
+   - Support for system/user/assistant messages
+   - Few-shot examples management
+   - Prompt validation and sanitization
 
-       Task<ParsedGoal> parse(const std::string& natural_language_goal);
+3. **Implement LLM response parser** (`src/ai/response_parser.cpp`) - 3 hours
+   - Parse JSON responses from OpenAI
+   - Extract code blocks from markdown
+   - Validate output format
+   - Handle partial/streaming responses
 
-   private:
-       std::unique_ptr<LLMClient> llm_;
-       std::string buildParsingPrompt(const std::string& goal);
-   };
-   ```
+4. **Add rate limiting and retry logic** - 3 hours
+   - Token bucket algorithm for rate limiting
+   - Exponential backoff for retries
+   - Circuit breaker for API failures
+   - Metrics for API usage (calls, tokens, latency)
 
-2. **Prompt Engineering Framework** (10 hours)
-   ```cpp
-   // include/ai/prompt_template.hpp
-   class PromptTemplate {
-   public:
-       static std::string goalDecomposition(const std::string& goal);
-       static std::string codeGeneration(const std::string& task, const std::string& context);
-       static std::string codeReview(const std::string& code);
-       static std::string testGeneration(const std::string& code);
-       static std::string errorFix(const std::string& code, const std::string& error);
-
-   private:
-       static std::string substituteVariables(const std::string& template_str,
-                                              const std::map<std::string, std::string>& vars);
-   };
-   ```
-
-3. **AI-Enhanced ChiefArchitectAgent** (8 hours)
-   ```cpp
-   // Enhance existing AsyncChiefArchitectAgent
-   class AsyncChiefArchitectAgent {
-   public:
-       void setGoalParser(std::unique_ptr<GoalParser> parser);
-
-       Task<Response> processNaturalLanguageGoal(const std::string& goal);
-
-   private:
-       std::unique_ptr<GoalParser> goal_parser_;
-   };
-   ```
+5. **Unit tests for LLM client** (`tests/unit/test_openai_client.cpp`) - 4 hours
+   - Mock API responses
+   - Test retry logic
+   - Test rate limiting
+   - Test error handling
 
 **Deliverables**:
-- ✅ `GoalParser` class
-- ✅ Prompt template library
-- ✅ AI-enhanced ChiefArchitectAgent
-- ✅ E2E test: Natural language → structured plan
+- ✅ OpenAI API client library
+- ✅ Prompt template system
+- ✅ Response parser with code extraction
+- ✅ Rate limiting and retry logic
+- ✅ Unit tests (20+ tests)
 
-**Estimated Time**: 30 hours
+**Estimated Time**: 20 hours
 
 ---
 
-### Phase 7.3: Code Generation Pipeline (Week 4-5)
+### Phase 7.2: NLP Goal Parser (Week 1-2)
 
-**Goal**: Generate, validate, and test code using LLMs
+**Goal**: Parse natural language goals into structured execution plans
 
 **Tasks**:
 
-1. **Code Generator** (16 hours)
-   ```cpp
-   // include/ai/code_generator.hpp
-   class CodeGenerator {
-   public:
-       CodeGenerator(std::unique_ptr<LLMClient> llm);
+1. **Implement NLPGoalParser** (`src/ai/nlp_goal_parser.cpp`) - 6 hours
+   - Use GPT-4 to parse user goals
+   - Extract requirements, constraints, dependencies
+   - Generate component-level breakdown
+   - Output structured JSON plan
 
-       struct GenerationContext {
-           std::string task_description;
-           std::string language = "C++20";
-           std::vector<std::string> similar_code_examples;  // From RAG
-           std::string style_guide;
-       };
+2. **Create goal parsing prompts** (`prompts/goal_parsing.txt`) - 3 hours
+   - System prompt for goal parser
+   - Few-shot examples:
+     - "Build a REST API" → {components: [Server, Auth, Database]}
+     - "Add logging" → {components: [Logging], modules: [Logger, Formatter]}
+   - Output schema definition (JSON)
 
-       Task<std::string> generateCode(const GenerationContext& ctx);
+3. **Integrate with ChiefArchitectAgent** - 4 hours
+   - Replace hardcoded goal parsing with LLM
+   - Call NLPGoalParser in `receiveMessage()` when goal received
+   - Convert parsed plan to component assignments
+   - Fallback to rule-based parsing if LLM fails
 
-   private:
-       std::unique_ptr<LLMClient> llm_;
-       std::string buildCodePrompt(const GenerationContext& ctx);
-   };
-   ```
+4. **E2E test: NLP goal to execution** (`tests/e2e/phase_7_nlp_goals.cpp`) - 4 hours
+   - Send natural language goal to ChiefArchitect
+   - Verify goal parsed correctly
+   - Verify components assigned correctly
+   - Mock LLM responses for deterministic tests
 
-2. **Static Analysis Validator** (12 hours)
-   ```cpp
-   // include/ai/code_validator.hpp
-   class CodeValidator {
-   public:
-       struct ValidationResult {
-           bool valid;
-           std::vector<std::string> errors;
-           std::vector<std::string> warnings;
-       };
-
-       ValidationResult validateSyntax(const std::string& code);
-       ValidationResult runClangTidy(const std::string& code);
-       ValidationResult compileCode(const std::string& code);
-   };
-   ```
-
-3. **Feedback Loop for Code Fixing** (12 hours)
-   ```cpp
-   // In LLMTaskAgent
-   Task<std::string> LLMTaskAgent::generateAndValidateCode(const std::string& task) {
-       int max_attempts = 3;
-
-       for (int attempt = 0; attempt < max_attempts; ++attempt) {
-           // Generate code
-           auto code = co_await code_generator_->generateCode({.task_description = task});
-
-           // Validate
-           auto validation = code_validator_->validateSyntax(code);
-           if (validation.valid) {
-               co_return code;
-           }
-
-           // Fix using LLM
-           code = co_await fixCode(code, validation.errors[0]);
-       }
-
-       throw std::runtime_error("Failed to generate valid code after max attempts");
-   }
-   ```
-
-4. **Unit Test Generation** (12 hours)
-   ```cpp
-   // include/ai/test_generator.hpp
-   class TestGenerator {
-   public:
-       TestGenerator(std::unique_ptr<LLMClient> llm);
-
-       Task<std::string> generateTests(const std::string& code,
-                                       const std::string& test_framework = "Catch2");
-
-   private:
-       std::unique_ptr<LLMClient> llm_;
-   };
-   ```
-
-5. **Integration with LLMTaskAgent** (8 hours)
-   - Wire up CodeGenerator, CodeValidator, TestGenerator
-   - Implement end-to-end code generation workflow
-   - Handle compilation errors and retry logic
+5. **Add goal validation** - 3 hours
+   - Check for ambiguous goals (ask for clarification)
+   - Validate constraints (time, resources)
+   - Detect conflicting requirements
+   - Safety checks (no malicious commands)
 
 **Deliverables**:
-- ✅ `CodeGenerator` class
-- ✅ `CodeValidator` class
-- ✅ `TestGenerator` class
-- ✅ Feedback loop for code fixing
-- ✅ E2E test: Task → Generated code → Validated → Tests
+- ✅ NLP goal parser using GPT-4
+- ✅ Structured plan extraction
+- ✅ ChiefArchitect integration
+- ✅ E2E tests for natural language goals
+- ✅ Goal validation and safety checks
 
-**Estimated Time**: 60 hours
+**Estimated Time**: 20 hours
 
 ---
 
-### Phase 7.4: Retrieval-Augmented Generation (RAG) (Week 6-7)
+### Phase 7.3: AI Code Generation (Week 2-3)
 
-**Goal**: Provide codebase context to LLMs via semantic search
+**Goal**: TaskAgents generate code using LLMs instead of bash commands
 
 **Tasks**:
 
-1. **Embedding Client** (12 hours)
-   ```cpp
-   // include/ai/embedding_client.hpp
-   class EmbeddingClient {
-   public:
-       virtual Task<std::vector<float>> embed(const std::string& text) = 0;
-   };
+1. **Implement AICodeGenerator** (`src/ai/code_generator.cpp`) - 8 hours
+   - Use GPT-3.5-turbo for code generation (speed)
+   - Prompt engineering for C++20 code
+   - Context injection (existing files, signatures)
+   - Multi-step generation (plan → code → tests)
 
-   class OpenAIEmbeddingClient : public EmbeddingClient {
-   public:
-       OpenAIEmbeddingClient(const std::string& api_key);
-       Task<std::vector<float>> embed(const std::string& text) override;
-   };
-   ```
+2. **Create code generation prompts** (`prompts/code_generation/`) - 5 hours
+   - System prompts for C++20, Python, Mojo
+   - Few-shot examples for common patterns
+   - Code review prompt (find bugs)
+   - Test generation prompt
 
-2. **Vector Database Integration** (16 hours)
-   ```cpp
-   // include/ai/vector_store.hpp
-   class VectorStore {
-   public:
-       virtual ~VectorStore() = default;
+3. **Integrate with TaskAgent** - 6 hours
+   - Create `AITaskAgent` subclass
+   - Override `executeTask()` to use LLM
+   - Input: task description, context (file contents)
+   - Output: generated code, tests, documentation
+   - Fallback to bash execution for non-code tasks
 
-       struct Document {
-           std::string id;
-           std::string content;
-           std::vector<float> embedding;
-           std::map<std::string, std::string> metadata;
-       };
+4. **Add code validation** - 4 hours
+   - Syntax check (compile or parse)
+   - Style check (clang-format)
+   - Security check (static analysis)
+   - Unit test generation and execution
 
-       virtual Task<void> addDocument(const Document& doc) = 0;
-       virtual Task<std::vector<Document>> search(const std::vector<float>& query_embedding,
-                                                  int top_k = 5) = 0;
-   };
-
-   class ChromaDBStore : public VectorStore {
-       // ChromaDB C++ client integration
-   };
-   ```
-
-3. **Codebase Indexer** (16 hours)
-   ```cpp
-   // include/ai/codebase_indexer.hpp
-   class CodebaseIndexer {
-   public:
-       CodebaseIndexer(std::unique_ptr<EmbeddingClient> embedding_client,
-                      std::unique_ptr<VectorStore> vector_store);
-
-       Task<void> indexDirectory(const std::string& path);
-       Task<void> indexFile(const std::string& file_path);
-
-   private:
-       std::vector<std::string> extractCodeChunks(const std::string& file_content);
-   };
-   ```
-
-4. **Context Retriever** (12 hours)
-   ```cpp
-   // include/ai/context_retriever.hpp
-   class ContextRetriever {
-   public:
-       ContextRetriever(std::unique_ptr<EmbeddingClient> embedding_client,
-                       std::unique_ptr<VectorStore> vector_store);
-
-       Task<std::string> retrieveRelevantContext(const std::string& task_description,
-                                                 int max_chunks = 5);
-
-   private:
-       std::unique_ptr<EmbeddingClient> embedding_client_;
-       std::unique_ptr<VectorStore> vector_store_;
-   };
-   ```
-
-5. **RAG Integration with CodeGenerator** (8 hours)
-   ```cpp
-   // Enhance CodeGenerator to use RAG
-   Task<std::string> CodeGenerator::generateCode(const GenerationContext& ctx) {
-       // Retrieve relevant code examples
-       auto context = co_await context_retriever_->retrieveRelevantContext(ctx.task_description);
-
-       // Build prompt with retrieved context
-       auto prompt = buildCodePromptWithRAG(ctx, context);
-
-       // Generate code
-       auto response = co_await llm_->complete({.prompt = prompt});
-       co_return response.content;
-   }
-   ```
+5. **E2E test: Code generation workflow** - 5 hours
+   - TaskAgent receives "Implement MessageQueue::push()"
+   - LLM generates C++ code
+   - Code compiled and tested
+   - Result returned to ModuleLead
+   - Mock LLM for deterministic testing
 
 **Deliverables**:
-- ✅ `EmbeddingClient` interface
-- ✅ OpenAI embedding client
-- ✅ Vector database integration (ChromaDB or Pinecone)
-- ✅ Codebase indexer
-- ✅ Context retriever
-- ✅ RAG-enhanced code generation
+- ✅ AI code generator for C++20
+- ✅ Prompt templates for code generation
+- ✅ AITaskAgent implementation
+- ✅ Code validation pipeline
+- ✅ E2E tests for code generation
 
-**Estimated Time**: 64 hours
+**Estimated Time**: 28 hours
 
 ---
 
-### Phase 7.5: E2E AI-Powered Workflow (Week 8)
+### Phase 7.4: AI Task Decomposition (Week 3-4)
 
-**Goal**: End-to-end test of AI-powered HMAS
+**Goal**: ModuleLead and ComponentLead use AI for intelligent task breakdown
 
 **Tasks**:
 
-1. **E2E Test: Natural Language Goal → Code** (12 hours)
-   ```cpp
-   TEST_CASE("AI-Powered HMAS: Binary Search Tree Implementation", "[e2e][ai]") {
-       // Setup
-       auto openai_client = std::make_unique<OpenAIClient>(api_key);
-       auto llm_task_agent = std::make_unique<LLMTaskAgent>("llm_task_1", std::move(openai_client));
+1. **Implement AITaskDecomposer** (`src/ai/task_decomposer.cpp`) - 6 hours
+   - Use GPT-4 for complex decomposition
+   - Input: module/component goal, constraints
+   - Output: list of subtasks with dependencies
+   - Adaptive decomposition based on complexity
 
-       auto goal_parser = std::make_unique<GoalParser>(std::make_unique<OpenAIClient>(api_key));
-       auto chief = std::make_unique<AsyncChiefArchitectAgent>("chief");
-       chief->setGoalParser(std::move(goal_parser));
+2. **Create decomposition prompts** (`prompts/task_decomposition.txt`) - 4 hours
+   - System prompt for task breakdown
+   - Few-shot examples:
+     - "Messaging module" → [push(), pop(), size(), tests]
+     - "REST API" → [routing, handlers, middleware, auth]
+   - Dependency extraction
 
-       // Natural language goal
-       std::string goal = "Implement a binary search tree in C++20 with insert, search, and delete methods";
+3. **Integrate with ModuleLead** - 5 hours
+   - Replace hardcoded task list with LLM decomposition
+   - Call AITaskDecomposer when planning tasks
+   - Handle variable task counts (3-10 tasks)
+   - Fallback to heuristic decomposition
 
-       // Process goal
-       auto response = co_await chief->processNaturalLanguageGoal(goal);
+4. **Integrate with ComponentLead** - 5 hours
+   - Use LLM to decompose component into modules
+   - Generate module dependencies
+   - Adaptive module count (2-5 modules)
 
-       // Verify code generated
-       REQUIRE(response.status == "completed");
-       REQUIRE(response.payload.contains("code"));
-
-       std::string generated_code = response.payload["code"];
-       REQUIRE(generated_code.find("class BinarySearchTree") != std::string::npos);
-       REQUIRE(generated_code.find("void insert") != std::string::npos);
-       REQUIRE(generated_code.find("bool search") != std::string::npos);
-   }
-   ```
-
-2. **E2E Test: RAG-Enhanced Code Generation** (8 hours)
-   - Index existing codebase (e.g., AsyncBaseAgent, MessageBus)
-   - Task: "Implement a new agent similar to AsyncTaskAgent"
-   - Verify RAG retrieves relevant context
-   - Verify generated code uses similar patterns
-
-3. **E2E Test: Code Validation and Fixing** (8 hours)
-   - Inject intentional syntax error in prompt
-   - Verify LLMTaskAgent detects error
-   - Verify LLMTaskAgent fixes error via feedback loop
-   - Verify final code compiles
-
-4. **Performance Benchmarking** (8 hours)
-   - Measure LLM API latency (p50, p95, p99)
-   - Measure code generation time
-   - Measure RAG retrieval time
-   - Identify optimization opportunities
+5. **E2E test: AI-driven decomposition** - 4 hours
+   - ComponentLead receives "Core component"
+   - LLM decomposes into modules
+   - ModuleLead decomposes module into tasks
+   - TaskAgent generates code
+   - Full 4-layer AI workflow
 
 **Deliverables**:
-- ✅ E2E test: Natural language → Code
-- ✅ E2E test: RAG-enhanced generation
-- ✅ E2E test: Validation and fixing
-- ✅ Performance benchmarks
+- ✅ AI task decomposer for intelligent breakdown
+- ✅ Decomposition prompts with examples
+- ✅ ModuleLead AI integration
+- ✅ ComponentLead AI integration
+- ✅ E2E test for full AI workflow
 
-**Estimated Time**: 36 hours
+**Estimated Time**: 24 hours
+
+---
+
+### Phase 7.5: AI Code Review & Debugging (Week 4-5)
+
+**Goal**: Automated code review and debugging using LLMs
+
+**Tasks**:
+
+1. **Implement AICodeReviewer** (`src/ai/code_reviewer.cpp`) - 6 hours
+   - Review generated code for bugs
+   - Suggest improvements (performance, style)
+   - Check for security vulnerabilities
+   - Generate review comments
+
+2. **Create code review prompts** (`prompts/code_review.txt`) - 3 hours
+   - System prompt for code review
+   - Checklist: bugs, performance, security, style
+   - Output format: structured feedback
+
+3. **Implement AIDebugger** (`src/ai/debugger.cpp`) - 6 hours
+   - Analyze error messages and stack traces
+   - Suggest fixes using LLM
+   - Generate test cases to reproduce bugs
+   - Root cause analysis
+
+4. **Create debugging prompts** (`prompts/debugging.txt`) - 3 hours
+   - System prompt for debugging
+   - Few-shot examples of error → fix
+   - Include context (code, error, stack trace)
+
+5. **Integrate review/debug into workflow** - 5 hours
+   - After code generation, run AICodeReviewer
+   - If bugs found, run AIDebugger
+   - Iterate: generate → review → fix (max 3 iterations)
+   - Track iteration count and success rate
+
+6. **E2E test: Review and debug loop** - 4 hours
+   - Generate code with intentional bug
+   - AICodeReviewer detects bug
+   - AIDebugger suggests fix
+   - Code regenerated and passes
+
+**Deliverables**:
+- ✅ AI code reviewer
+- ✅ AI debugger assistant
+- ✅ Review/debug prompts
+- ✅ Iterative fix workflow
+- ✅ E2E tests for review/debug
+
+**Estimated Time**: 27 hours
+
+---
+
+### Phase 7.6: Prompt Engineering & Safety (Week 5)
+
+**Goal**: Production-ready prompt engineering and AI safety
+
+**Tasks**:
+
+1. **Create prompt library** (`prompts/`) - 4 hours
+   - Organize prompts by agent type (L0, L1, L2, L3)
+   - Version control for prompts (v1, v2, etc.)
+   - A/B testing infrastructure
+   - Prompt templates with variables
+
+2. **Implement prompt optimization** - 5 hours
+   - Track prompt performance (success rate, quality)
+   - Iterate on prompts based on failures
+   - Few-shot example selection
+   - Context length optimization (token limits)
+
+3. **Add AI safety guardrails** - 6 hours
+   - Content filtering (no malicious code)
+   - Output validation (check for hallucinations)
+   - Sandbox execution for generated code
+   - Rate limiting to prevent abuse
+   - Logging all LLM interactions for audit
+
+4. **Implement fallback strategies** - 4 hours
+   - If LLM fails, fall back to rule-based logic
+   - Retry with different prompts
+   - Escalate to human review if needed
+   - Metrics for fallback usage
+
+5. **Cost monitoring and optimization** - 3 hours
+   - Track token usage and API costs
+   - Optimize prompts to reduce tokens
+   - Cache responses for repeated queries
+   - Use cheaper models where possible
+
+6. **Documentation** (`docs/AI_INTEGRATION.md`) - 4 hours
+   - Prompt engineering guide
+   - AI safety best practices
+   - Cost optimization tips
+   - Troubleshooting guide
+
+**Deliverables**:
+- ✅ Prompt library with versioning
+- ✅ Prompt optimization framework
+- ✅ AI safety guardrails
+- ✅ Fallback strategies
+- ✅ Cost monitoring
+- ✅ Documentation: AI_INTEGRATION.md
+
+**Estimated Time**: 26 hours
 
 ---
 
 ## Success Criteria
 
 ### Must Have ✅
-- [ ] LLM client abstraction working (OpenAI + Anthropic)
-- [ ] `LLMTaskAgent` class implemented
-- [ ] Natural language goal parsing working
-- [ ] Code generation pipeline functional
-- [ ] Code validation and feedback loop working
-- [ ] RAG integration complete
-- [ ] E2E test: Natural language → Generated code
+
+- [ ] ChiefArchitect parses natural language goals using LLM
+- [ ] TaskAgents generate C++20 code using LLM
+- [ ] ModuleLead decomposes modules into tasks using AI
+- [ ] ComponentLead decomposes components into modules using AI
+- [ ] Code review and debugging integrated
+- [ ] AI safety guardrails prevent malicious outputs
+- [ ] All existing tests still pass (329+ tests)
+- [ ] New E2E tests for AI workflows (10+ tests)
 
 ### Should Have 🎯
-- [ ] Local LLM support (llama.cpp)
-- [ ] Unit test generation via LLM
-- [ ] Multi-turn code fixing (3+ attempts)
-- [ ] Codebase indexing and semantic search
-- [ ] RAG-enhanced code generation
-- [ ] Performance benchmarks (LLM latency, generation time)
+
+- [ ] Prompt templates well-documented and versioned
+- [ ] Fallback to rule-based logic when LLM fails
+- [ ] Cost monitoring for API usage
+- [ ] Iterative code improvement (generate → review → fix)
+- [ ] AI-generated code passes compilation and tests >80% of time
 
 ### Nice to Have 💡
-- [ ] Multi-LLM routing (use GPT-4 for planning, GPT-3.5 for simple tasks)
-- [ ] Cost optimization (token usage tracking, caching)
-- [ ] Fine-tuned models for C++20 code generation
-- [ ] Code review agent (LLM critiques generated code)
-- [ ] Conversational debugging (LLM helps debug errors)
 
----
-
-## Test Plan
-
-### E2E Tests (Phase 7)
-
-1. **NaturalLanguageGoalProcessing** (Priority: CRITICAL)
-   - Input: "Implement a stack data structure"
-   - Verify goal parsed into components/modules/tasks
-   - Verify structured plan returned
-
-2. **CodeGenerationPipeline** (Priority: CRITICAL)
-   - Input: "Implement stack::push() method"
-   - Verify code generated by LLM
-   - Verify code compiles
-   - Verify code passes basic tests
-
-3. **CodeValidationAndFixing** (Priority: HIGH)
-   - Inject syntax error in generated code
-   - Verify validator detects error
-   - Verify LLM fixes error
-   - Verify fixed code compiles
-
-4. **RAGEnhancedGeneration** (Priority: HIGH)
-   - Index sample codebase
-   - Task: "Implement agent similar to TaskAgent"
-   - Verify RAG retrieves relevant code
-   - Verify generated code uses similar patterns
-
-5. **MultiTurnCodeGeneration** (Priority: MEDIUM)
-   - Task with intentional ambiguity
-   - Verify LLM asks clarifying questions
-   - Verify multi-turn conversation works
-   - Verify final code meets requirements
-
----
-
-## Performance Expectations
-
-**LLM API Latency**:
-- OpenAI GPT-4: ~5-10 seconds (p95)
-- Anthropic Claude: ~3-7 seconds (p95)
-- Local LLM (llama.cpp): ~1-3 seconds (p95, on GPU)
-
-**Code Generation Time** (end-to-end):
-- Simple task (< 50 lines): ~10-20 seconds
-- Medium task (50-200 lines): ~30-60 seconds
-- Complex task (200+ lines): ~60-120 seconds
-
-**RAG Retrieval Time**:
-- Embedding generation: ~100-500 ms
-- Vector search (top 5): ~50-200 ms
-- Total RAG overhead: ~500 ms
+- [ ] Local LLM support (CodeLlama, WizardCoder)
+- [ ] Fine-tuned models for specific domains
+- [ ] Multi-turn dialogue for clarification
+- [ ] AI-generated documentation and READMEs
+- [ ] Auto-detection of programming language
 
 ---
 
 ## Risk Mitigation
 
-### Risk 1: LLM API Costs
+### Risk 1: LLM Hallucinations (Generated code doesn't work)
 **Impact**: High
 **Likelihood**: High
-**Mitigation**: Token usage tracking, caching, use cheaper models for simple tasks.
+**Mitigation**:
+- Validate generated code (compile, test, static analysis)
+- Iterative improvement loop (review → fix)
+- Fallback to rule-based logic
+- Track success rate metrics
 
-### Risk 2: LLM Hallucinations (Invalid Code)
+### Risk 2: API Costs
+**Impact**: Medium
+**Likelihood**: Medium
+**Mitigation**:
+- Use GPT-3.5-turbo for most tasks (cheaper)
+- Cache responses for repeated queries
+- Optimize prompts to reduce token usage
+- Set monthly budget limits
+
+### Risk 3: API Availability/Rate Limits
 **Impact**: High
 **Likelihood**: Medium
-**Mitigation**: Validation pipeline with static analysis, compilation, tests. Feedback loop for fixing.
+**Mitigation**:
+- Implement retry logic with exponential backoff
+- Circuit breaker for API failures
+- Fallback to local LLM or rule-based logic
+- Queue requests to stay under rate limits
 
-### Risk 3: LLM API Latency
-**Impact**: Medium
-**Likelihood**: Medium
-**Mitigation**: Async execution, caching, local LLM option.
+### Risk 4: Security (Malicious code generation)
+**Impact**: Critical
+**Likelihood**: Low
+**Mitigation**:
+- Sandbox execution of generated code
+- Static analysis for security vulnerabilities
+- Content filtering on inputs/outputs
+- Audit log of all LLM interactions
 
-### Risk 4: RAG Retrieval Quality
+### Risk 5: Prompt Engineering Complexity
 **Impact**: Medium
-**Likelihood**: Medium
-**Mitigation**: Experiment with chunking strategies, embedding models, top-k selection.
+**Likelihood**: High
+**Mitigation**:
+- Start with simple prompts, iterate
+- Version control for prompts
+- A/B testing for prompt improvements
+- Document best practices
 
 ---
 
-## Dependencies
+## Performance Expectations
 
-### New Dependencies
+**LLM Latency**:
+- **GPT-4**: 5-15 seconds per request (complex reasoning)
+- **GPT-3.5-turbo**: 2-5 seconds per request (fast code gen)
+- **Streaming**: 100-500 tokens/sec real-time
 
-1. **cpp-httplib** - HTTP client for API calls
-2. **nlohmann/json** - JSON parsing
-3. **OpenAI C++ SDK** (or custom HTTP client)
-4. **Anthropic C++ SDK** (or custom HTTP client)
-5. **llama.cpp** - Local LLM inference (optional)
-6. **ChromaDB C++ client** - Vector database
-7. **Pinecone C++ client** - Alternative vector database
+**Token Usage** (estimated per request):
+- **Goal parsing**: 500-1000 tokens
+- **Task decomposition**: 800-1500 tokens
+- **Code generation**: 1500-3000 tokens
+- **Code review**: 2000-4000 tokens
+
+**Cost Estimation** (OpenAI pricing):
+- **GPT-4-turbo**: $10/1M input tokens, $30/1M output tokens
+- **GPT-3.5-turbo**: $0.50/1M input tokens, $1.50/1M output tokens
+- **Monthly estimate** (100 goals/day): ~$50-200/month
+
+**Throughput**:
+- Limited by LLM API rate limits (e.g., 500 requests/min for GPT-4)
+- Parallel requests possible (up to rate limit)
+
+---
+
+## Testing Strategy
+
+### Unit Tests
+1. **OpenAI Client**: Mock API responses, test retry logic
+2. **Prompt Templates**: Variable substitution, validation
+3. **Response Parser**: Code extraction, error handling
+4. **Code Validator**: Syntax check, security check
+
+### Integration Tests
+1. **NLP Goal Parser**: Real LLM calls with sample goals
+2. **Code Generator**: Generate simple functions, verify compilation
+3. **Task Decomposer**: Decompose sample modules
+4. **Code Reviewer**: Review code with bugs, verify detection
+
+### E2E Tests
+1. **Full AI Workflow**: Natural language → code generation → review
+2. **Multi-layer AI**: ChiefArchitect → ComponentLead → ModuleLead → TaskAgent (all using AI)
+3. **Error Handling**: LLM failure → fallback to rules
+4. **Iterative Improvement**: Generate → review → fix → pass
+
+### Manual Testing
+1. Real-world goals: "Build a web server", "Add authentication"
+2. Complex decomposition: Multi-component systems
+3. Code quality: Generated code readability, maintainability
+4. Safety: Try to generate malicious code, verify blocked
+
+---
+
+## Documentation Plan
+
+### Required Documentation
+1. **AI_INTEGRATION.md** - Overview of LLM integration
+2. **PROMPT_ENGINEERING.md** - Guide to writing effective prompts
+3. **AI_SAFETY.md** - Safety guardrails and best practices
+4. **LLM_CLIENT.md** - API client usage and configuration
+5. **COST_OPTIMIZATION.md** - Tips for reducing API costs
+
+### Prompt Documentation
+- Document all prompts in `prompts/` directory
+- Include few-shot examples
+- Version control with changelog
+- Performance metrics per prompt
+
+### README Updates
+- Add "AI Integration" section
+- Describe natural language interface
+- Link to prompt library
+- Cost estimates
+
+---
+
+## Example Workflow
+
+### Input (User)
+```
+"Build a message queue component with thread-safe push/pop operations"
+```
+
+### Step 1: ChiefArchitect (NLP Goal Parser)
+**LLM Input**:
+```
+User goal: Build a message queue component with thread-safe push/pop operations
+
+Parse this into a structured plan with components and modules.
+```
+
+**LLM Output**:
+```json
+{
+  "components": [
+    {
+      "name": "Core",
+      "modules": ["MessageQueue", "Tests"]
+    }
+  ],
+  "requirements": ["thread-safe", "push operation", "pop operation"],
+  "language": "C++20"
+}
+```
+
+### Step 2: ComponentLead (Task Decomposition)
+**LLM Input**:
+```
+Component: Core
+Module: MessageQueue
+
+Decompose this module into implementation tasks.
+```
+
+**LLM Output**:
+```json
+{
+  "tasks": [
+    "Implement MessageQueue class with std::queue and std::mutex",
+    "Implement push() method with lock_guard",
+    "Implement try_pop() method with lock_guard and optional",
+    "Write unit tests for thread safety"
+  ]
+}
+```
+
+### Step 3: TaskAgent (Code Generation)
+**LLM Input**:
+```
+Task: Implement MessageQueue class with std::queue and std::mutex
+Language: C++20
+
+Generate code.
+```
+
+**LLM Output**:
+```cpp
+#pragma once
+#include <queue>
+#include <mutex>
+#include <optional>
+
+template<typename T>
+class MessageQueue {
+public:
+    void push(T value) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        queue_.push(std::move(value));
+    }
+
+    std::optional<T> try_pop() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (queue_.empty()) {
+            return std::nullopt;
+        }
+        T value = std::move(queue_.front());
+        queue_.pop();
+        return value;
+    }
+
+private:
+    std::queue<T> queue_;
+    std::mutex mutex_;
+};
+```
+
+### Step 4: AICodeReviewer
+**LLM Input**:
+```
+Review this code for bugs, performance, and style issues:
+[code from Step 3]
+```
+
+**LLM Output**:
+```
+✅ Thread-safe: Correct use of mutex and lock_guard
+✅ Move semantics: Uses std::move for efficiency
+✅ Modern C++: Uses std::optional for nullable return
+⚠️ Missing: size() method, empty() method
+⚠️ Missing: noexcept specification where appropriate
+```
+
+### Step 5: Result Aggregation
+ModuleLead aggregates all task results, ComponentLead aggregates module results, ChiefArchitect returns final output to user.
 
 ---
 
 ## Next Steps
 
-1. **Week 1-2**: LLM integration foundation
-2. **Week 3**: Natural language goal processing
-3. **Week 4-5**: Code generation pipeline
-4. **Week 6-7**: RAG integration
-5. **Week 8**: E2E AI-powered workflow
+**Week 1**: LLM client infrastructure + NLP goal parsing
+**Week 2**: AI code generation for TaskAgents
+**Week 3**: AI task decomposition for ModuleLead/ComponentLead
+**Week 4**: Code review and debugging agents
+**Week 5**: Prompt engineering, safety, and cost optimization
 
-**After Phase 7**: Move to **Phase 8: Real Distributed System** or **Phase 10: Advanced Features**
+**After Phase 7**: Move to **Phase 8: Distributed System**
+- Real network communication (gRPC)
+- Multi-node HMAS deployment
+- Distributed work-stealing across nodes
+- Consensus algorithms for fault tolerance
 
 ---
 
-**Status**: 📝 Planning - Ready for Implementation
-**Total Estimated Time**: 250 hours (~8 weeks)
+**Status**: 📝 Planning Complete - Ready for Implementation
+**Total Estimated Time**: 145 hours (~4-5 weeks)
+**Dependencies**: Phase 6 complete (Production deployment)
+**Prerequisites**: OpenAI API key, budget for API usage (~$50-200/month)
 **Last Updated**: 2025-11-19

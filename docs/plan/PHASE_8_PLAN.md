@@ -1,700 +1,626 @@
-# Phase 8: Real Distributed System Plan
+# Phase 8: Distributed System Plan
 
 **Status**: 📝 Planning
-**Date Started**: TBD
-**Target Completion**: TBD
-**Branch**: TBD
+**Target Start**: 2026-01-15
+**Estimated Duration**: 6-8 weeks
+**Branch**: TBD (claude/phase-8-distributed-*)
 
 ## Overview
 
-Phase 8 transforms the ProjectKeystone HMAS from a simulated distributed system to a **real multi-node distributed system** using gRPC for network communication, etcd for service discovery, and Raft consensus for leader election and fault tolerance. The system will run across multiple physical or virtual machines with real network partitions and failures.
+Phase 8 transforms ProjectKeystone from a **single-node multi-threaded system** into a **distributed multi-node cluster** with real network communication, distributed work-stealing, fault tolerance, and consensus algorithms. This enables horizontal scalability beyond a single machine's limits.
 
-### Current Status (Post-Phase D.3)
+### Current Status (Post-Phase 7)
 
 **What We Have**:
-- ✅ `SimulatedNetwork` for network simulation
-- ✅ `SimulatedCluster` for multi-node testing
-- ✅ `SimulatedNUMANode` for NUMA awareness
-- ✅ Network partition simulation
-- ✅ Packet loss and latency simulation
-- ✅ 329/329 tests passing (including distributed tests)
+- ✅ Production deployment on Kubernetes (Phase 6)
+- ✅ AI-powered agents with LLM integration (Phase 7)
+- ✅ Simulated distributed work-stealing (Phase D.3)
+- ✅ Simulated network with latency injection (Phase D.3)
+- ✅ Single-node work-stealing scheduler
+- ✅ Message serialization with Cista (ready for network transport)
 
 **What Phase 8 Adds**:
-- Real gRPC-based network communication
-- Service discovery (etcd or Consul)
-- Raft consensus for leader election
-- Multi-node deployment across machines
-- Real network partition handling (split-brain)
-- Distributed state management
+- Real network communication using gRPC/Protobuf
+- Multi-node HMAS cluster (3-5 nodes)
+- Distributed work-stealing across network
+- Raft consensus for fault tolerance
+- Agent migration between nodes
+- Network partition handling
+- Cross-node message routing
 
 ---
 
 ## Phase 8 Architecture
 
 ```
-┌─────────────────────────────────────────────────────┐
-│ Node 1 (datacenter-1)                               │
-│  ┌────────────────────────────────────────────┐    │
-│  │ ChiefArchitectAgent (Leader via Raft)      │    │
-│  │  - gRPC server: 0.0.0.0:50051              │    │
-│  │  - etcd client: service registration       │    │
-│  └────────────────────────────────────────────┘    │
-│  ┌────────────────────────────────────────────┐    │
-│  │ gRPC MessageBus Endpoint                   │    │
-│  │  - Receives messages from remote nodes     │    │
-│  │  - Routes to local agents                  │    │
-│  └────────────────────────────────────────────┘    │
-└──────────────────┬──────────────────────────────────┘
-                   │
-                   │ gRPC (TLS)
-                   ▼
-┌─────────────────────────────────────────────────────┐
-│ Node 2 (datacenter-1)                               │
-│  ┌────────────────────────────────────────────┐    │
-│  │ ComponentLeadAgent (×2)                    │    │
-│  │  - gRPC server: 0.0.0.0:50052              │    │
-│  └────────────────────────────────────────────┘    │
-└──────────────────┬──────────────────────────────────┘
-                   │
-                   │ gRPC (TLS)
-                   ▼
-┌─────────────────────────────────────────────────────┐
-│ Node 3 (datacenter-2)                               │
-│  ┌────────────────────────────────────────────┐    │
-│  │ ModuleLeadAgent (×4)                       │    │
-│  │  - gRPC server: 0.0.0.0:50053              │    │
-│  └────────────────────────────────────────────┘    │
-└──────────────────┬──────────────────────────────────┘
-                   │
-                   │ gRPC (TLS)
-                   ▼
-┌─────────────────────────────────────────────────────┐
-│ Node 4 (datacenter-2)                               │
-│  ┌────────────────────────────────────────────┐    │
-│  │ TaskAgent (×20)                            │    │
-│  │  - gRPC server: 0.0.0.0:50054              │    │
-│  └────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────┐
-│ etcd Cluster (Service Discovery)                    │
-│  - Node 1: etcd-1 (leader)                          │
-│  - Node 2: etcd-2 (follower)                        │
-│  - Node 3: etcd-3 (follower)                        │
-│  - Stores: agent registry, cluster state            │
-└─────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────┐
-│ Raft Consensus (Leader Election)                    │
-│  - Leader: ChiefArchitectAgent (Node 1)             │
-│  - Followers: ComponentLeads, ModuleLeads           │
-│  - Log replication for fault tolerance              │
-└─────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────┐
+│                   Load Balancer / Ingress                  │
+└──────────────┬─────────────────────┬─────────────────┬─────┘
+               │                     │                 │
+       ┌───────┴───────┐     ┌───────┴───────┐ ┌──────┴──────┐
+       │   Node 1      │     │   Node 2      │ │   Node 3    │
+       │               │     │               │ │             │
+       │  ┌─────────┐  │     │  ┌─────────┐  │ │  ┌────────┐ │
+       │  │ Chief   │  │     │  │Comp Lead│  │ │  │Module  │ │
+       │  │Architect│  │     │  │  Agents │  │ │  │Leads   │ │
+       │  └─────────┘  │     │  └─────────┘  │ │  └────────┘ │
+       │  ┌─────────┐  │     │  ┌─────────┐  │ │  ┌────────┐ │
+       │  │Work Steal│◄─┼─────┼─►│Work Steal│◄─┼─►│  Work  │ │
+       │  │Scheduler │  │     │  │Scheduler │  │ │  Steal │ │
+       │  └─────────┘  │     │  └─────────┘  │ │  └────────┘ │
+       │  ┌─────────┐  │     │  ┌─────────┐  │ │  ┌────────┐ │
+       │  │ Raft    │◄─┼─────┼─►│ Raft    │◄─┼─►│  Raft  │ │
+       │  │Consensus│  │     │  │Consensus│  │ │  │Consens.│ │
+       │  └─────────┘  │     │  └─────────┘  │ │  └────────┘ │
+       └───────────────┘     └───────────────┘ └─────────────┘
+               │                     │                 │
+               └──────────┬──────────┴─────────────────┘
+                          │
+                  ┌───────┴────────┐
+                  │  Shared State  │
+                  │  (Raft Log)    │
+                  └────────────────┘
 ```
 
----
-
-## Phase 8 Implementation Plan
-
-### Phase 8.1: gRPC Message Protocol (Week 1-2)
-
-**Goal**: Define `.proto` files and implement gRPC client/server
-
-**Tasks**:
-
-1. **Protobuf Message Definition** (8 hours)
-   ```protobuf
-   // protos/keystone_message.proto
-   syntax = "proto3";
-
-   package keystone;
-
-   message KeystoneMessage {
-       string msg_id = 1;
-       string sender_id = 2;
-       string receiver_id = 3;
-       string command = 4;
-       string payload = 5;  // JSON-encoded
-       int64 timestamp_ms = 6;
-       int32 priority = 7;
-       int64 deadline_ms = 8;
-   }
-
-   message SendMessageRequest {
-       KeystoneMessage message = 1;
-   }
-
-   message SendMessageResponse {
-       bool success = 1;
-       string error = 2;
-   }
-
-   message RegisterAgentRequest {
-       string agent_id = 1;
-       string node_address = 2;  // "192.168.1.100:50051"
-       string agent_type = 3;    // "ChiefArchitect", "ComponentLead", etc.
-   }
-
-   message RegisterAgentResponse {
-       bool success = 1;
-   }
-
-   service MessageBusService {
-       rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
-       rpc RegisterAgent(RegisterAgentRequest) returns (RegisterAgentResponse);
-       rpc UnregisterAgent(google.protobuf.StringValue) returns (SendMessageResponse);
-       rpc ListAgents(google.protobuf.Empty) returns (stream RegisterAgentRequest);
-   }
-   ```
-
-2. **gRPC Server Implementation** (12 hours)
-   ```cpp
-   // include/distributed/grpc_message_bus_server.hpp
-   class GrpcMessageBusServer final : public keystone::MessageBusService::Service {
-   public:
-       GrpcMessageBusServer(MessageBus* local_bus);
-
-       grpc::Status SendMessage(grpc::ServerContext* context,
-                               const keystone::SendMessageRequest* request,
-                               keystone::SendMessageResponse* response) override;
-
-       grpc::Status RegisterAgent(grpc::ServerContext* context,
-                                  const keystone::RegisterAgentRequest* request,
-                                  keystone::RegisterAgentResponse* response) override;
-
-       void start(const std::string& server_address);
-       void shutdown();
-
-   private:
-       MessageBus* local_bus_;
-       std::unique_ptr<grpc::Server> server_;
-   };
-   ```
-
-3. **gRPC Client Implementation** (12 hours)
-   ```cpp
-   // include/distributed/grpc_message_bus_client.hpp
-   class GrpcMessageBusClient {
-   public:
-       GrpcMessageBusClient(const std::string& server_address);
-
-       Task<bool> sendMessage(const KeystoneMessage& msg);
-       Task<bool> registerAgent(const std::string& agent_id,
-                               const std::string& node_address,
-                               const std::string& agent_type);
-
-   private:
-       std::unique_ptr<keystone::MessageBusService::Stub> stub_;
-       std::string server_address_;
-   };
-   ```
-
-4. **Distributed MessageBus** (16 hours)
-   ```cpp
-   // include/distributed/distributed_message_bus.hpp
-   class DistributedMessageBus : public MessageBus {
-   public:
-       DistributedMessageBus(const std::string& local_node_address);
-
-       void registerRemoteNode(const std::string& node_address);
-       bool routeMessage(const KeystoneMessage& msg) override;
-
-   private:
-       std::string local_node_address_;
-       std::unordered_map<std::string, std::unique_ptr<GrpcMessageBusClient>> remote_clients_;
-
-       bool isLocalAgent(const std::string& agent_id);
-       std::string findAgentNode(const std::string& agent_id);
-   };
-   ```
-
-**Deliverables**:
-- ✅ Protobuf message definitions
-- ✅ gRPC server implementation
-- ✅ gRPC client implementation
-- ✅ DistributedMessageBus class
-- ✅ Unit tests for gRPC messaging
-
-**Estimated Time**: 48 hours
+**Key Features**:
+- **gRPC communication**: Inter-node message passing
+- **Raft consensus**: Leader election, log replication
+- **Distributed work-stealing**: Cross-node task migration
+- **Agent registry**: Distributed agent location tracking
+- **Fault tolerance**: Node failures handled gracefully
 
 ---
 
-### Phase 8.2: Service Discovery (Week 3)
+## Phase 8 Sub-Phases
 
-**Goal**: Integrate etcd for dynamic agent registration and discovery
+### Phase 8.1: gRPC Network Layer (Week 1-2)
 
-**Tasks**:
-
-1. **etcd Client Integration** (12 hours)
-   ```cpp
-   // include/distributed/etcd_client.hpp
-   class EtcdClient {
-   public:
-       EtcdClient(const std::string& etcd_endpoints);
-
-       Task<void> put(const std::string& key, const std::string& value, int64_t ttl_seconds = 0);
-       Task<std::string> get(const std::string& key);
-       Task<std::vector<std::pair<std::string, std::string>>> getPrefix(const std::string& prefix);
-       Task<void> del(const std::string& key);
-
-       // Lease management for TTL
-       Task<int64_t> createLease(int64_t ttl_seconds);
-       Task<void> keepAlive(int64_t lease_id);
-
-   private:
-       std::string etcd_endpoints_;
-       // etcd C++ client library
-   };
-   ```
-
-2. **Service Registry** (12 hours)
-   ```cpp
-   // include/distributed/service_registry.hpp
-   class ServiceRegistry {
-   public:
-       ServiceRegistry(std::unique_ptr<EtcdClient> etcd_client);
-
-       struct AgentInfo {
-           std::string agent_id;
-           std::string node_address;
-           std::string agent_type;
-           int64_t last_heartbeat_ms;
-       };
-
-       Task<void> registerAgent(const AgentInfo& info);
-       Task<void> unregisterAgent(const std::string& agent_id);
-       Task<std::optional<AgentInfo>> findAgent(const std::string& agent_id);
-       Task<std::vector<AgentInfo>> findAgentsByType(const std::string& agent_type);
-       Task<std::vector<AgentInfo>> getAllAgents();
-
-   private:
-       std::unique_ptr<EtcdClient> etcd_client_;
-       int64_t lease_id_;
-
-       std::string agentKey(const std::string& agent_id);
-   };
-   ```
-
-3. **Heartbeat Manager** (8 hours)
-   ```cpp
-   // include/distributed/heartbeat_manager.hpp
-   class DistributedHeartbeatManager {
-   public:
-       DistributedHeartbeatManager(std::unique_ptr<ServiceRegistry> registry);
-
-       void start();
-       void stop();
-
-       Task<void> sendHeartbeat(const std::string& agent_id);
-       Task<std::vector<std::string>> getAliveAgents();
-
-   private:
-       std::unique_ptr<ServiceRegistry> registry_;
-       std::atomic<bool> running_{false};
-       std::thread heartbeat_thread_;
-
-       void heartbeatLoop();
-   };
-   ```
-
-4. **Integration with DistributedMessageBus** (8 hours)
-   - Use ServiceRegistry to find agent nodes
-   - Cache agent→node mapping for performance
-   - Invalidate cache on heartbeat timeout
-
-**Deliverables**:
-- ✅ etcd client integration
-- ✅ ServiceRegistry class
-- ✅ DistributedHeartbeatManager
-- ✅ Integration with DistributedMessageBus
-
-**Estimated Time**: 40 hours
-
----
-
-### Phase 8.3: Raft Consensus (Week 4-5)
-
-**Goal**: Implement Raft consensus for leader election and log replication
+**Goal**: Replace simulated network with real gRPC communication
 
 **Tasks**:
 
-1. **Raft Library Integration** (16 hours)
-   - Evaluate: `willemt/raft` or `braft` (Baidu Raft)
-   - Integrate with CMake
-   - Create C++ wrapper if needed
+1. **Define Protobuf schema** (`proto/keystone.proto`) - 6 hours
+   - Message definition (equivalent to KeystoneMessage)
+   - Agent metadata (id, type, state)
+   - Work-stealing RPC (StealWork, SubmitWork)
+   - Heartbeat and health check RPCs
+   - Compile to C++ with protoc
 
-2. **Raft State Machine** (20 hours)
-   ```cpp
-   // include/distributed/raft_state_machine.hpp
-   class RaftStateMachine {
-   public:
-       enum class Role { FOLLOWER, CANDIDATE, LEADER };
+2. **Implement gRPC server** (`src/network/grpc_server.cpp`) - 8 hours
+   - Start gRPC server on configurable port (default: 50051)
+   - Implement service methods:
+     - `SendMessage(MessageRequest) → MessageResponse`
+     - `StealWork(StealRequest) → WorkItem`
+     - `Heartbeat(HeartbeatRequest) → HeartbeatResponse`
+   - Thread-safe message routing to local MessageBus
+   - Health check endpoint
 
-       RaftStateMachine(const std::string& node_id,
-                       const std::vector<std::string>& cluster_nodes);
+3. **Implement gRPC client** (`src/network/grpc_client.cpp`) - 6 hours
+   - Connection pooling to multiple nodes
+   - Async RPC calls with futures
+   - Retry logic with exponential backoff
+   - Timeout handling (5s default)
+   - Circuit breaker per remote node
 
-       void start();
-       void stop();
+4. **Create NetworkTransport abstraction** (`include/network/network_transport.hpp`) - 5 hours
+   - Interface: `send(node_id, message)`, `receive()`, `broadcast(message)`
+   - Implementations: gRPCTransport, SimulatedTransport (for testing)
+   - Fallback to local delivery if same node
+   - Metrics: messages sent, received, latency
 
-       Role getCurrentRole() const;
-       std::string getLeaderId() const;
+5. **Integration with MessageBus** - 5 hours
+   - MessageBus checks if agent is local or remote
+   - If remote, use gRPCTransport to send message
+   - Receive messages from gRPC server, route to local agents
+   - Handle network failures (retry, circuit breaker)
 
-       // Raft RPCs
-       Task<void> requestVote(const std::string& candidate_id, int term);
-       Task<void> appendEntries(const std::string& leader_id,
-                               const std::vector<LogEntry>& entries);
-
-   private:
-       std::string node_id_;
-       std::vector<std::string> cluster_nodes_;
-       Role current_role_{Role::FOLLOWER};
-       std::string current_leader_;
-   };
-   ```
-
-3. **Log Replication** (16 hours)
-   ```cpp
-   // include/distributed/replicated_log.hpp
-   class ReplicatedLog {
-   public:
-       struct LogEntry {
-           int64_t index;
-           int term;
-           std::string command;
-           std::string data;
-       };
-
-       Task<void> append(const LogEntry& entry);
-       Task<std::optional<LogEntry>> get(int64_t index);
-       Task<void> commit(int64_t index);
-
-   private:
-       std::vector<LogEntry> entries_;
-       int64_t commit_index_{0};
-   };
-   ```
-
-4. **Leader Election** (12 hours)
-   - Implement Raft election algorithm
-   - Timeout-based candidate promotion
-   - Vote request and response handling
-   - Majority quorum for leader election
-
-5. **Integration with ChiefArchitectAgent** (8 hours)
-   ```cpp
-   // Enhance AsyncChiefArchitectAgent
-   class AsyncChiefArchitectAgent {
-   public:
-       void setRaftStateMachine(std::unique_ptr<RaftStateMachine> raft);
-
-       bool isLeader() const;
-       Task<void> waitForLeadership();
-
-   private:
-       std::unique_ptr<RaftStateMachine> raft_;
-   };
-   ```
+6. **Unit tests** (`tests/unit/test_grpc_transport.cpp`) - 6 hours
+   - Test gRPC client/server communication
+   - Test message serialization (Protobuf ↔ KeystoneMessage)
+   - Test retry logic and timeouts
+   - Test connection pooling
 
 **Deliverables**:
-- ✅ Raft library integration
-- ✅ RaftStateMachine implementation
-- ✅ Log replication
-- ✅ Leader election
-- ✅ Integration with ChiefArchitect
-
-**Estimated Time**: 72 hours
-
----
-
-### Phase 8.4: Multi-Node Deployment (Week 6)
-
-**Goal**: Deploy HMAS across multiple physical/virtual machines
-
-**Tasks**:
-
-1. **Node Configuration** (8 hours)
-   ```yaml
-   # config/node1.yaml
-   node:
-     id: "node-1"
-     address: "192.168.1.100:50051"
-     datacenter: "dc-1"
-     rack: "rack-1"
-
-   etcd:
-     endpoints: ["192.168.1.101:2379", "192.168.1.102:2379", "192.168.1.103:2379"]
-
-   raft:
-     cluster_nodes:
-       - "node-1"
-       - "node-2"
-       - "node-3"
-
-   agents:
-     - type: "ChiefArchitect"
-       id: "chief-1"
-   ```
-
-2. **Deployment Scripts** (12 hours)
-   ```bash
-   #!/bin/bash
-   # scripts/deploy_node.sh
-
-   NODE_ID=$1
-   CONFIG_FILE=$2
-
-   # Start etcd
-   etcd --name $NODE_ID --listen-client-urls http://0.0.0.0:2379
-
-   # Start HMAS node
-   ./projectkeystone_node --config $CONFIG_FILE
-   ```
-
-3. **Docker Compose for Multi-Node** (8 hours)
-   ```yaml
-   # docker-compose-distributed.yml
-   version: '3.8'
-
-   services:
-     etcd-1:
-       image: quay.io/coreos/etcd:v3.5
-       command: etcd --name etcd-1 --advertise-client-urls http://etcd-1:2379
-
-     node-1:
-       build: .
-       depends_on: [etcd-1]
-       environment:
-         - NODE_ID=node-1
-       volumes:
-         - ./config/node1.yaml:/config/node.yaml
-
-     node-2:
-       build: .
-       depends_on: [etcd-1]
-       environment:
-         - NODE_ID=node-2
-       volumes:
-         - ./config/node2.yaml:/config/node.yaml
-   ```
-
-4. **Cross-Datacenter Testing** (8 hours)
-   - Deploy to 2+ cloud regions (AWS us-east-1, us-west-2)
-   - Measure cross-datacenter latency
-   - Test network partition scenarios
-
-**Deliverables**:
-- ✅ Node configuration files
-- ✅ Deployment scripts
-- ✅ Docker Compose for multi-node
-- ✅ Cross-datacenter deployment guide
+- ✅ Protobuf schema for all messages
+- ✅ gRPC server and client
+- ✅ NetworkTransport abstraction
+- ✅ MessageBus integration
+- ✅ Unit tests (15+ tests)
 
 **Estimated Time**: 36 hours
 
 ---
 
-### Phase 8.5: Real Network Partitions (Week 7)
+### Phase 8.2: Distributed Agent Registry (Week 2-3)
 
-**Goal**: Handle real network partitions and split-brain scenarios
+**Goal**: Track which agents are on which nodes
 
 **Tasks**:
 
-1. **Network Partition Detection** (12 hours)
-   ```cpp
-   // include/distributed/partition_detector.hpp
-   class PartitionDetector {
-   public:
-       PartitionDetector(std::unique_ptr<ServiceRegistry> registry);
+1. **Implement DistributedAgentRegistry** (`src/network/distributed_agent_registry.cpp`) - 8 hours
+   - Map: agent_id → node_id
+   - Register agent on node
+   - Unregister agent (on failure or migration)
+   - Lookup agent location (local or remote)
+   - Replicate registry across nodes (eventually consistent)
 
-       struct PartitionInfo {
-           std::vector<std::string> partition_a;
-           std::vector<std::string> partition_b;
-           std::chrono::system_clock::time_point detected_at;
-       };
+2. **Use Raft for registry replication** - 10 hours
+   - Integrate Raft library (e.g., braft or logcabin)
+   - Raft log entry types: RegisterAgent, UnregisterAgent
+   - Leader receives writes, replicates to followers
+   - Followers serve reads (may be slightly stale)
+   - Handle leader election (automatic)
 
-       Task<std::optional<PartitionInfo>> detectPartition();
+3. **Agent registration on startup** - 4 hours
+   - Each agent registers with local node
+   - Local node sends RegisterAgent to Raft leader
+   - Leader replicates to all nodes
+   - Registry update propagates to all nodes
 
-   private:
-       std::unique_ptr<ServiceRegistry> registry_;
-   };
-   ```
+4. **Agent discovery API** - 4 hours
+   - `getAgentLocation(agent_id) → node_id`
+   - `listAgentsOnNode(node_id) → [agent_ids]`
+   - `listAllAgents() → [agent_ids]`
+   - Cache locally for fast lookup
 
-2. **Split-Brain Resolution** (16 hours)
-   - Use Raft quorum for consistency
-   - Minority partition stops accepting writes
-   - Majority partition continues operating
-   - Automatic healing when partition resolves
+5. **Handle node failures** - 5 hours
+   - If node fails, mark all its agents as unavailable
+   - Raft detects missing node via heartbeat timeout
+   - Failover: migrate agents to other nodes (Phase 8.4)
 
-3. **Partition Testing with iptables** (8 hours)
-   ```bash
-   # scripts/create_partition.sh
-   # Block traffic from node-1 to node-2
-   iptables -A OUTPUT -d 192.168.1.102 -j DROP
-   iptables -A INPUT -s 192.168.1.102 -j DROP
-
-   # Heal partition
-   iptables -D OUTPUT -d 192.168.1.102 -j DROP
-   iptables -D INPUT -s 192.168.1.102 -j DROP
-   ```
-
-4. **E2E Test: Split-Brain Scenario** (12 hours)
-   - Create 3-node cluster
-   - Partition into 2-node + 1-node
-   - Verify 2-node partition continues (majority)
-   - Verify 1-node partition stops (minority)
-   - Heal partition and verify convergence
+6. **Integration tests** (`tests/integration/test_distributed_registry.cpp`) - 5 hours
+   - Deploy 3-node cluster
+   - Register agents on different nodes
+   - Query registry from each node
+   - Simulate node failure, verify registry update
 
 **Deliverables**:
-- ✅ Partition detection
-- ✅ Split-brain resolution via Raft
-- ✅ iptables testing scripts
-- ✅ E2E test for split-brain
+- ✅ Distributed agent registry
+- ✅ Raft-based replication
+- ✅ Agent lookup API
+- ✅ Node failure handling
+- ✅ Integration tests (3-node cluster)
 
-**Estimated Time**: 48 hours
+**Estimated Time**: 36 hours
+
+---
+
+### Phase 8.3: Distributed Work-Stealing (Week 3-4)
+
+**Goal**: Work-stealing across network boundaries
+
+**Tasks**:
+
+1. **Implement RemoteWorkStealingScheduler** (`src/concurrency/remote_work_stealing_scheduler.cpp`) - 10 hours
+   - Extends WorkStealingScheduler
+   - Local work-stealing (same as before)
+   - Remote work-stealing (via gRPC)
+   - Steal threshold: only steal remotely if local queues empty
+   - Network-aware stealing policy (prefer local)
+
+2. **gRPC StealWork RPC** - 6 hours
+   - RPC definition: `StealWork(node_id, worker_id) → WorkItem`
+   - Server: check local queues, return work if available
+   - Client: call remote nodes round-robin
+   - Serialize WorkItem (std::function → cannot serialize!)
+   - **Solution**: Only steal agent IDs, not work items
+
+3. **Agent-level work-stealing** - 8 hours
+   - Instead of stealing work items, steal entire agents
+   - RPC: `StealAgent(node_id) → agent_id`
+   - Migrate agent to requesting node
+   - Update distributed registry
+   - Resume agent processing on new node
+
+4. **Load balancing across nodes** - 6 hours
+   - Periodically check load (queue depth) on all nodes
+   - If imbalanced (max > 2x avg), migrate agents
+   - Use Raft to coordinate migrations (avoid conflicts)
+   - Metrics: agents per node, queue depth per node
+
+5. **Network-aware scheduling** - 5 hours
+   - Track network latency between nodes
+   - Prefer stealing from low-latency nodes
+   - Avoid cross-datacenter steals if possible
+   - Adaptive threshold based on network conditions
+
+6. **E2E test: Cross-node work-stealing** (`tests/e2e/phase_8_distributed_stealing.cpp`) - 6 hours
+   - Deploy 3-node cluster
+   - Submit 100 tasks to Node 1
+   - Verify tasks distributed to Node 2 and Node 3
+   - Measure load balancing (each node processes ~33 tasks)
+
+**Deliverables**:
+- ✅ Distributed work-stealing scheduler
+- ✅ Agent-level migration
+- ✅ Load balancing algorithm
+- ✅ Network-aware scheduling
+- ✅ E2E test for cross-node stealing
+
+**Estimated Time**: 41 hours
+
+---
+
+### Phase 8.4: Fault Tolerance & Recovery (Week 4-5)
+
+**Goal**: Handle node failures gracefully
+
+**Tasks**:
+
+1. **Implement heartbeat monitoring across nodes** - 5 hours
+   - Each node sends heartbeat to all other nodes
+   - Heartbeat interval: 1 second
+   - Timeout: 5 seconds (3 missed heartbeats)
+   - Raft also provides node failure detection
+
+2. **Detect node failures** - 4 hours
+   - Heartbeat timeout triggers failure detection
+   - Mark node as failed in registry
+   - Mark all agents on failed node as unavailable
+   - Notify dependent agents (send error response)
+
+3. **Agent replication for fault tolerance** - 8 hours
+   - Critical agents (ChiefArchitect) replicated on 2-3 nodes
+   - Standby agents wait for heartbeat timeout
+   - On failure, standby takes over
+   - State replication via Raft (agent state machine)
+
+4. **Work redistribution on failure** - 6 hours
+   - When node fails, redistribute its pending work
+   - Reassign agents to healthy nodes
+   - Replay messages from Raft log (at-least-once delivery)
+   - Idempotency required for message processing
+
+5. **Raft leader election** - 5 hours
+   - If leader fails, Raft elects new leader
+   - Leader handles all writes (agent registration, migrations)
+   - Followers forward writes to leader
+   - Split-brain prevention via quorum (N/2 + 1)
+
+6. **Network partition handling** - 7 hours
+   - Raft uses quorum for writes (partition tolerance)
+   - Minority partition cannot make progress
+   - Majority partition continues operating
+   - Partitions heal: rejoin Raft cluster, sync state
+
+7. **E2E test: Node failure recovery** (`tests/e2e/phase_8_fault_tolerance.cpp`) - 6 hours
+   - Deploy 3-node cluster
+   - Submit work to all nodes
+   - Kill Node 2 (simulate failure)
+   - Verify agents on Node 2 reassigned to Node 1 or 3
+   - Verify work continues processing
+   - Restart Node 2, verify rejoin
+
+**Deliverables**:
+- ✅ Heartbeat-based failure detection
+- ✅ Agent replication (standby agents)
+- ✅ Work redistribution on failure
+- ✅ Raft leader election
+- ✅ Network partition handling
+- ✅ E2E fault tolerance tests
+
+**Estimated Time**: 41 hours
+
+---
+
+### Phase 8.5: Distributed Tracing & Monitoring (Week 5-6)
+
+**Goal**: Observability for distributed system
+
+**Tasks**:
+
+1. **Implement distributed tracing with Jaeger** - 8 hours
+   - OpenTelemetry SDK integration
+   - Create spans for:
+     - Message send (start span on sender)
+     - Network RPC (span across nodes)
+     - Message receive (end span on receiver)
+   - Propagate trace context in gRPC metadata
+   - Export traces to Jaeger collector
+
+2. **Add cross-node metrics** - 5 hours
+   - Prometheus metrics:
+     - `hmas_grpc_calls_total{node, method}` - RPC count
+     - `hmas_grpc_latency_seconds{node, method}` - RPC latency
+     - `hmas_agents_per_node{node}` - Agent distribution
+     - `hmas_work_steals_remote_total{from_node, to_node}` - Cross-node steals
+   - Aggregate metrics across all nodes
+
+3. **Create distributed dashboard** (`monitoring/grafana/distributed-cluster.json`) - 5 hours
+   - Panels:
+     - Cluster topology (nodes, agents per node)
+     - Cross-node message flow (heatmap)
+     - Network latency between nodes
+     - Raft leader election events
+     - Node health status
+
+4. **Distributed log aggregation** - 4 hours
+   - Loki already deployed (Phase 6)
+   - Add node_id label to all logs
+   - Cross-node log correlation via trace_id
+   - Search logs across all nodes
+
+5. **Alerting for distributed issues** - 4 hours
+   - Prometheus alerting rules:
+     - Node down (heartbeat timeout)
+     - Raft leader election in progress
+     - Network partition detected
+     - High cross-node latency (>100ms)
+   - Send alerts to Slack/email
+
+6. **Documentation** (`docs/DISTRIBUTED_SYSTEM.md`) - 5 hours
+   - Architecture overview
+   - Deployment guide (multi-node cluster)
+   - Troubleshooting distributed issues
+   - Performance tuning tips
+
+**Deliverables**:
+- ✅ Distributed tracing with Jaeger
+- ✅ Cross-node Prometheus metrics
+- ✅ Distributed Grafana dashboard
+- ✅ Alerting for distributed issues
+- ✅ Documentation: DISTRIBUTED_SYSTEM.md
+
+**Estimated Time**: 31 hours
+
+---
+
+### Phase 8.6: Performance Optimization (Week 6-8)
+
+**Goal**: Optimize performance for distributed deployment
+
+**Tasks**:
+
+1. **Connection pooling** - 4 hours
+   - Pool of gRPC channels per remote node
+   - Reuse connections to avoid handshake overhead
+   - Health check idle connections
+
+2. **Async RPC with futures** - 5 hours
+   - Non-blocking RPC calls
+   - Use C++ coroutines for async I/O
+   - Parallel RPCs to multiple nodes
+
+3. **Batching messages** - 6 hours
+   - Batch multiple messages into single RPC
+   - Reduces network overhead
+   - Flush batch after 10ms or 100 messages
+   - Trade-off: latency vs throughput
+
+4. **Compression** - 4 hours
+   - gRPC compression (gzip or snappy)
+   - Compress large messages (>1KB)
+   - Benchmark compression overhead
+
+5. **Zero-copy serialization** - 6 hours
+   - Use Cista for zero-copy deserialization
+   - Protobuf → Cista bridge
+   - Avoid extra copies in network stack
+
+6. **Benchmark distributed performance** - 6 hours
+   - Throughput: messages/sec across cluster
+   - Latency: P50/P95/P99 for cross-node messages
+   - Scalability: 1 node vs 3 nodes vs 5 nodes
+   - Identify bottlenecks (network, serialization, Raft)
+
+7. **Tune Raft parameters** - 4 hours
+   - Election timeout (100-500ms)
+   - Heartbeat interval (50ms)
+   - Log compaction threshold
+   - Benchmark impact on throughput
+
+**Deliverables**:
+- ✅ Connection pooling
+- ✅ Async RPC with futures
+- ✅ Message batching
+- ✅ Compression enabled
+- ✅ Zero-copy serialization
+- ✅ Performance benchmarks
+- ✅ Tuned Raft parameters
+
+**Estimated Time**: 35 hours
 
 ---
 
 ## Success Criteria
 
 ### Must Have ✅
-- [ ] gRPC message protocol working
-- [ ] Multi-node communication (3+ nodes)
-- [ ] Service discovery (etcd integration)
-- [ ] Raft consensus for leader election
-- [ ] Leader election working (3-node cluster)
-- [ ] Real network partition handling
-- [ ] E2E test: Multi-node system
+
+- [ ] 3-node cluster communicates via gRPC
+- [ ] Distributed agent registry with Raft replication
+- [ ] Work-stealing across network boundaries
+- [ ] Node failure detection and recovery
+- [ ] Leader election working (Raft)
+- [ ] Network partition handling
+- [ ] Distributed tracing with Jaeger
+- [ ] All existing tests pass (329+ tests)
+- [ ] New E2E tests for distributed scenarios (15+ tests)
 
 ### Should Have 🎯
-- [ ] Log replication via Raft
-- [ ] Heartbeat-based health checking
-- [ ] Split-brain resolution via quorum
-- [ ] TLS encryption for gRPC
-- [ ] Cross-datacenter deployment
-- [ ] Performance benchmarks (gRPC latency)
+
+- [ ] Agent replication for fault tolerance (standby agents)
+- [ ] Load balancing across nodes (agents evenly distributed)
+- [ ] Cross-node latency <50ms (within same datacenter)
+- [ ] Throughput scales linearly to 3 nodes (3x single node)
+- [ ] Horizontal Pod Autoscaler (HPA) for dynamic scaling
 
 ### Nice to Have 💡
-- [ ] Dynamic cluster membership (add/remove nodes)
-- [ ] Load balancing across nodes
-- [ ] Geo-replication (multi-region)
-- [ ] Conflict-free replicated data types (CRDTs)
-- [ ] Automatic failover and recovery
+
+- [ ] 5-node cluster tested
+- [ ] Multi-datacenter deployment (with higher latency tolerance)
+- [ ] Dynamic cluster membership (add/remove nodes without restart)
+- [ ] Multi-region deployment (geographic distribution)
+- [ ] Edge deployment (edge nodes closer to users)
 
 ---
 
-## Test Plan
+## Technology Stack
 
-### E2E Tests (Phase 8)
+### Network Communication
+- **gRPC**: Fast, efficient RPC framework
+- **Protobuf**: Binary serialization
+- **C++ gRPC**: Official C++ implementation
+- **HTTP/2**: Underlying protocol for gRPC
 
-1. **MultiNodeCommunication** (Priority: CRITICAL)
-   - Deploy 3 nodes (Chief, Component, Module)
-   - Send message from Chief to Module (crosses nodes)
-   - Verify message delivered via gRPC
+### Consensus Algorithm
+- **Raft**: Understandable consensus algorithm
+- **Library**: braft (Baidu's C++ Raft implementation) or logcabin
+- **Features**: Leader election, log replication, snapshots
 
-2. **ServiceDiscovery** (Priority: CRITICAL)
-   - Register 10 agents across 3 nodes
-   - Query ServiceRegistry for agent locations
-   - Verify all agents found
+### Serialization
+- **Protobuf**: For gRPC messages
+- **Cista**: Zero-copy deserialization for large payloads
+- **JSON**: For configuration and monitoring
 
-3. **LeaderElection** (Priority: HIGH)
-   - Start 3-node Raft cluster
-   - Verify leader elected
-   - Kill leader, verify new leader elected
-   - Restore old leader, verify it becomes follower
+### Distributed Tracing
+- **OpenTelemetry**: Standard tracing SDK
+- **Jaeger**: Distributed tracing backend
+- **Zipkin**: Alternative to Jaeger
 
-4. **NetworkPartition** (Priority: HIGH)
-   - 3-node cluster
-   - Create partition: 2 nodes vs 1 node
-   - Verify 2-node partition continues (majority)
-   - Verify 1-node partition stops (minority)
-   - Heal partition, verify convergence
-
-5. **CrossDatacenterLatency** (Priority: MEDIUM)
-   - Deploy nodes in 2 cloud regions
-   - Measure gRPC message latency
-   - Verify latency < 500ms (cross-region)
-
----
-
-## Performance Expectations
-
-**gRPC Latency**:
-- Same datacenter: < 10 ms (p99)
-- Cross-datacenter: < 200 ms (p99)
-- Cross-region: < 500 ms (p99)
-
-**Service Discovery**:
-- Agent lookup: < 50 ms (etcd query)
-- Heartbeat interval: 1 second
-- Timeout threshold: 5 seconds
-
-**Raft Performance**:
-- Leader election time: < 1 second
-- Log replication latency: < 50 ms
-- Quorum agreement: < 100 ms
+### Deployment
+- **Kubernetes**: Multi-node orchestration
+- **Helm**: Templated deployments
+- **StatefulSet**: For Raft nodes (persistent identity)
 
 ---
 
 ## Risk Mitigation
 
-### Risk 1: Network Unreliability
-**Impact**: High
-**Likelihood**: High
-**Mitigation**: Retry logic, exponential backoff, Raft consensus for consistency.
-
-### Risk 2: Split-Brain Scenarios
-**Impact**: Critical
+### Risk 1: Network Latency
+**Impact**: High (affects performance)
 **Likelihood**: Medium
-**Mitigation**: Raft quorum ensures only majority partition accepts writes.
+**Mitigation**:
+- Network-aware scheduling (prefer local)
+- Batch messages to reduce round-trips
+- Compression for large payloads
+- Deploy nodes in same datacenter initially
 
-### Risk 3: Service Discovery Failures (etcd down)
-**Impact**: High
+### Risk 2: Raft Complexity
+**Impact**: High (correctness critical)
+**Likelihood**: Medium
+**Mitigation**:
+- Use battle-tested Raft library (braft)
+- Extensive testing (Jepsen-style chaos tests)
+- Start with simple use case (agent registry only)
+- Read Raft paper thoroughly
+
+### Risk 3: Network Partitions
+**Impact**: Critical (split-brain risk)
 **Likelihood**: Low
-**Mitigation**: etcd cluster (3 nodes), fallback to cached agent registry.
+**Mitigation**:
+- Raft quorum prevents split-brain
+- Minority partition cannot make progress
+- Monitor partition events, alert operators
 
-### Risk 4: gRPC Complexity
+### Risk 4: Message Loss
+**Impact**: High (correctness)
+**Likelihood**: Low (gRPC is reliable)
+**Mitigation**:
+- Retry logic with exponential backoff
+- At-least-once delivery guarantee
+- Idempotent message processing
+- Message deduplication via msg_id
+
+### Risk 5: Performance Overhead
 **Impact**: Medium
-**Likelihood**: Medium
-**Mitigation**: Start with simple RPC calls, use existing protobuf definitions.
+**Likelihood**: High
+**Mitigation**:
+- Benchmark early and often
+- Optimize hot paths (serialization, RPC)
+- Use profiling to identify bottlenecks
+- Accept some overhead for distributed benefits
 
 ---
 
-## Dependencies
+## Performance Expectations
 
-### New Dependencies
+**Latency**:
+- **Local message**: <100ns (in-memory)
+- **Cross-node message (same datacenter)**: 1-10ms (network + serialization)
+- **Cross-node message (different datacenter)**: 50-200ms
 
-1. **gRPC** - RPC framework
-   - Version: 1.50+
-   - Purpose: Inter-node communication
+**Throughput**:
+- **Single node**: 20k messages/sec (Phase D baseline)
+- **3-node cluster**: 50-60k messages/sec (parallel processing, network overhead)
+- **5-node cluster**: 80-100k messages/sec
 
-2. **protobuf** - Serialization
-   - Version: 3.20+
-   - Purpose: Message serialization
+**Scalability**:
+- **Linear scaling**: Up to network bandwidth limits
+- **Bottleneck**: Raft leader (all writes go through leader)
+- **Mitigation**: Shard agents across multiple Raft groups
 
-3. **etcd C++ client** - Service discovery
-   - Repo: https://github.com/etcd-cpp-apiv3/etcd-cpp-apiv3
-   - Purpose: Agent registry
+**Resource Usage** (per node):
+- **CPU**: 1-2 cores (same as single node)
+- **Memory**: 1-2 GB (same as single node)
+- **Network**: 10-50 Mbps (depends on message volume)
 
-4. **Raft library** - Consensus
-   - Option 1: willemt/raft
-   - Option 2: braft (Baidu Raft)
-   - Purpose: Leader election, log replication
+---
 
-5. **iptables** (for testing) - Network partition simulation
+## Testing Strategy
+
+### Unit Tests
+1. **gRPC Transport**: Mock server/client, test RPCs
+2. **Protobuf Serialization**: Round-trip tests
+3. **Distributed Registry**: CRUD operations
+4. **Raft Integration**: Log append, leader election (using Raft test harness)
+
+### Integration Tests
+1. **3-Node Cluster**: Deploy locally, test communication
+2. **Agent Migration**: Move agent from Node 1 to Node 2
+3. **Cross-Node Work-Stealing**: Verify load balancing
+4. **Heartbeat Monitoring**: Detect node failure
+
+### E2E Tests
+1. **Full Distributed Workflow**: User goal → 3 nodes → result
+2. **Node Failure Recovery**: Kill node, verify recovery
+3. **Network Partition**: Partition cluster, verify majority continues
+4. **Raft Leader Election**: Kill leader, verify new leader elected
+
+### Chaos Tests (Jepsen-style)
+1. **Random node failures**: Kill random nodes during execution
+2. **Network partitions**: Split cluster randomly
+3. **Clock skew**: Simulate time drift between nodes
+4. **Packet loss**: Drop random network packets
+
+---
+
+## Documentation Plan
+
+### Required Documentation
+1. **DISTRIBUTED_SYSTEM.md** - Architecture overview
+2. **GRPC_NETWORK.md** - gRPC setup and usage
+3. **RAFT_CONSENSUS.md** - Raft integration guide
+4. **DISTRIBUTED_DEPLOYMENT.md** - Multi-node deployment
+5. **FAULT_TOLERANCE.md** - Failure handling and recovery
+6. **DISTRIBUTED_MONITORING.md** - Observability for distributed system
+
+### README Updates
+- Add "Distributed System" section
+- Describe multi-node architecture
+- Link to deployment guide
+- Performance characteristics
 
 ---
 
 ## Next Steps
 
-1. **Week 1-2**: gRPC message protocol
-2. **Week 3**: Service discovery (etcd)
-3. **Week 4-5**: Raft consensus
-4. **Week 6**: Multi-node deployment
-5. **Week 7**: Real network partitions
+**Week 1-2**: gRPC network layer
+**Week 2-3**: Distributed agent registry (Raft)
+**Week 3-4**: Distributed work-stealing
+**Week 4-5**: Fault tolerance and recovery
+**Week 5-6**: Distributed tracing and monitoring
+**Week 6-8**: Performance optimization
 
-**After Phase 8**: Move to **Phase 10: Advanced Features** or integrate with **Phase 7: AI Integration**
+**After Phase 8**: Move to **Phase 10: Production Hardening**
+- Security hardening (TLS, authentication, authorization)
+- Performance tuning at scale (1000+ agents)
+- Operational runbooks
+- Incident response procedures
 
 ---
 
-**Status**: 📝 Planning - Ready for Implementation
-**Total Estimated Time**: 244 hours (~7 weeks)
+**Status**: 📝 Planning Complete - Ready for Implementation
+**Total Estimated Time**: 220 hours (~6-8 weeks)
+**Dependencies**: Phase 6 (Kubernetes deployment) and Phase 7 (AI integration) complete
+**Prerequisites**: 3+ Kubernetes nodes, network connectivity between nodes
 **Last Updated**: 2025-11-19
