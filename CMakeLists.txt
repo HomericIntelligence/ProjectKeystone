@@ -76,6 +76,7 @@ add_library(keystone_core
     src/core/metrics.cpp
     src/core/profiling.cpp  # Phase D.1: Performance profiling
     src/core/message_pool.cpp  # Phase D.2: Message pooling
+    src/core/failure_injector.cpp  # Phase 5: Chaos engineering
 )
 
 target_include_directories(keystone_core PUBLIC
@@ -252,6 +253,7 @@ add_executable(unit_tests
     tests/unit/test_deadline_scheduling.cpp
     tests/unit/test_profiling.cpp  # Phase D: Profiling tests
     tests/unit/test_message_pool.cpp  # Phase D.2: Message pool tests
+    tests/unit/test_failure_injector.cpp  # Phase 5: Chaos engineering tests
 )
 
 target_link_libraries(unit_tests
