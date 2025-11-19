@@ -132,6 +132,7 @@ target_link_libraries(keystone_agents PUBLIC
 add_library(keystone_simulation
     src/simulation/simulated_numa_node.cpp
     src/simulation/simulated_network.cpp
+    src/simulation/simulated_cluster.cpp
 )
 
 target_include_directories(keystone_simulation PUBLIC
