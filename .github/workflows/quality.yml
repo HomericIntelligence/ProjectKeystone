@@ -1,0 +1,373 @@
+name: Quality Gates
+
+on:
+  push:
+    branches: [ main, develop, 'claude/**' ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:  # Allow manual triggers
+
+# Prevent multiple workflows from running simultaneously
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUILD_TYPE: Release
+  COVERAGE_THRESHOLD: 95
+  REGRESSION_THRESHOLD: 10  # 10% performance regression threshold
+
+jobs:
+  # Job 1: Code Coverage
+  coverage:
+    name: Code Coverage (≥95%)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            ninja-build \
+            g++-13 \
+            gcc-13 \
+            lcov \
+            bc
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 100
+          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 100
+
+      - name: Run coverage script
+        id: coverage
+        run: |
+          chmod +x scripts/generate_coverage.sh
+          ./scripts/generate_coverage.sh || true  # Continue even if below threshold
+
+          # Extract coverage percentage
+          COVERAGE=$(lcov --summary build/coverage/coverage_filtered.info 2>&1 | grep -oP 'lines......: \K[0-9.]+' || echo "0")
+          echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
+          echo "::notice::Code coverage: $COVERAGE%"
+
+      - name: Check coverage threshold
+        run: |
+          COVERAGE=${{ steps.coverage.outputs.coverage }}
+          THRESHOLD=${{ env.COVERAGE_THRESHOLD }}
+
+          if (( $(echo "$COVERAGE >= $THRESHOLD" | bc -l) )); then
+            echo "✓ Coverage meets threshold: $COVERAGE% >= $THRESHOLD%"
+            exit 0
+          else
+            echo "✗ Coverage below threshold: $COVERAGE% < $THRESHOLD%"
+            echo "::error::Code coverage $COVERAGE% is below required $THRESHOLD%"
+            exit 1
+          fi
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: build/coverage/html/
+          retention-days: 30
+
+      - name: Comment coverage on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const coverage = '${{ steps.coverage.outputs.coverage }}';
+            const threshold = '${{ env.COVERAGE_THRESHOLD }}';
+            const passed = parseFloat(coverage) >= parseFloat(threshold);
+
+            const body = `## Code Coverage Report
+
+| Metric | Value | Status |
+|--------|-------|--------|
+| **Line Coverage** | ${coverage}% | ${passed ? '✅ PASS' : '❌ FAIL'} |
+| **Threshold** | ${threshold}% | - |
+
+${passed ? '✅ Coverage meets quality gate' : '❌ Coverage below quality gate - please add more tests'}
+
+[View detailed report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+  # Job 2: Static Analysis
+  static-analysis:
+    name: Static Analysis (clang-tidy + cppcheck)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            ninja-build \
+            g++-13 \
+            clang-tidy \
+            cppcheck
+
+      - name: Configure with static analysis
+        run: |
+          mkdir -p build
+          cd build
+          cmake -DENABLE_CLANG_TIDY=ON -DCMAKE_BUILD_TYPE=Debug -G Ninja ..
+
+      - name: Run static analysis
+        id: analysis
+        run: |
+          chmod +x scripts/run_static_analysis.sh
+          ./scripts/run_static_analysis.sh || true  # Continue even with warnings
+
+          # Extract error/warning counts
+          CLANG_TIDY_ERRORS=$(grep -c "error:" build/static_analysis/clang-tidy-report.txt || echo "0")
+          CPPCHECK_ERRORS=$(grep -c "error" build/static_analysis/cppcheck-report.txt || echo "0")
+
+          echo "clang_tidy_errors=$CLANG_TIDY_ERRORS" >> $GITHUB_OUTPUT
+          echo "cppcheck_errors=$CPPCHECK_ERRORS" >> $GITHUB_OUTPUT
+
+          echo "::notice::clang-tidy errors: $CLANG_TIDY_ERRORS"
+          echo "::notice::cppcheck errors: $CPPCHECK_ERRORS"
+
+      - name: Check for critical errors
+        run: |
+          CLANG_TIDY_ERRORS=${{ steps.analysis.outputs.clang_tidy_errors }}
+          CPPCHECK_ERRORS=${{ steps.analysis.outputs.cppcheck_errors }}
+          TOTAL_ERRORS=$((CLANG_TIDY_ERRORS + CPPCHECK_ERRORS))
+
+          if [ $TOTAL_ERRORS -gt 0 ]; then
+            echo "::error::Static analysis found $TOTAL_ERRORS critical errors"
+            exit 1
+          else
+            echo "✓ No critical static analysis errors found"
+          fi
+
+      - name: Upload analysis reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: static-analysis-reports
+          path: build/static_analysis/
+          retention-days: 30
+
+  # Job 3: Fuzz Testing (1 hour)
+  fuzz-testing:
+    name: Fuzz Testing (1 hour)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75  # 1 hour + buffer
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            ninja-build \
+            clang-15
+
+      - name: Build with fuzzing
+        run: |
+          mkdir -p build
+          cd build
+          cmake -DENABLE_FUZZING=ON -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Debug -G Ninja ..
+          ninja
+
+      - name: Run fuzz tests
+        run: |
+          cd build
+
+          # Run each fuzz target for 15 minutes (total 1 hour)
+          FUZZ_TIME=900  # 15 minutes per target
+
+          echo "Running fuzz_message_serialization..."
+          timeout ${FUZZ_TIME}s ./fuzz_message_serialization -max_len=4096 -rss_limit_mb=2048 || true
+
+          echo "Running fuzz_message_bus_routing..."
+          timeout ${FUZZ_TIME}s ./fuzz_message_bus_routing -max_len=4096 -rss_limit_mb=2048 || true
+
+          echo "Running fuzz_work_stealing..."
+          timeout ${FUZZ_TIME}s ./fuzz_work_stealing -max_len=2048 -rss_limit_mb=2048 || true
+
+          echo "Running fuzz_retry_policy..."
+          timeout ${FUZZ_TIME}s ./fuzz_retry_policy -max_len=512 -rss_limit_mb=2048 || true
+
+          echo "✓ Fuzz testing completed (1 hour total)"
+
+      - name: Check for crash artifacts
+        run: |
+          if ls build/crash-* 1> /dev/null 2>&1; then
+            echo "::error::Fuzz testing found crashes!"
+            ls -la build/crash-*
+            exit 1
+          else
+            echo "✓ No crashes found during fuzz testing"
+          fi
+
+      - name: Upload crash artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-crash-artifacts
+          path: build/crash-*
+          retention-days: 90
+
+  # Job 4: Performance Benchmarks
+  benchmarks:
+    name: Performance Benchmarks (Regression Check)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            ninja-build \
+            g++-13 \
+            gcc-13 \
+            python3 \
+            python3-pip \
+            jq
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 100
+          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 100
+
+      - name: Build benchmarks
+        run: |
+          mkdir -p build
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=Release -G Ninja ..
+          ninja
+
+      - name: Download baseline (if exists)
+        id: download-baseline
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: benchmark-baseline
+          path: benchmarks/results/
+
+      - name: Run benchmarks
+        id: benchmarks
+        run: |
+          chmod +x scripts/run_benchmarks.sh
+
+          # If baseline exists, compare against it
+          if [ -f benchmarks/results/baseline.json ]; then
+            ./scripts/run_benchmarks.sh --compare benchmarks/results/baseline.json || echo "REGRESSIONS_FOUND=true" >> $GITHUB_OUTPUT
+          else
+            # No baseline, just run benchmarks
+            ./scripts/run_benchmarks.sh
+            ./scripts/run_benchmarks.sh --baseline
+            echo "BASELINE_CREATED=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload baseline (if created)
+        if: steps.benchmarks.outputs.BASELINE_CREATED == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-baseline
+          path: benchmarks/results/baseline.json
+          retention-days: 365
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: benchmarks/results/
+          retention-days: 90
+
+      - name: Fail on regressions
+        if: steps.benchmarks.outputs.REGRESSIONS_FOUND == 'true'
+        run: |
+          echo "::error::Performance regressions detected (>10% slowdown)"
+          exit 1
+
+  # Job 5: Unit and E2E Tests
+  tests:
+    name: Unit & E2E Tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            ninja-build \
+            g++-13 \
+            gcc-13
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 100
+          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 100
+
+      - name: Build and test
+        run: |
+          mkdir -p build
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=Debug -G Ninja ..
+          ninja
+          ctest --output-on-failure
+
+  # Summary job - only runs if all quality gates pass
+  quality-summary:
+    name: Quality Gates Summary
+    runs-on: ubuntu-24.04
+    needs: [coverage, static-analysis, fuzz-testing, benchmarks, tests]
+    if: always()
+
+    steps:
+      - name: Check all jobs passed
+        run: |
+          if [ "${{ needs.coverage.result }}" != "success" ]; then
+            echo "::error::Coverage quality gate failed"
+            exit 1
+          fi
+          if [ "${{ needs.static-analysis.result }}" != "success" ]; then
+            echo "::error::Static analysis quality gate failed"
+            exit 1
+          fi
+          if [ "${{ needs.fuzz-testing.result }}" != "success" ]; then
+            echo "::error::Fuzz testing quality gate failed"
+            exit 1
+          fi
+          if [ "${{ needs.benchmarks.result }}" != "success" ]; then
+            echo "::error::Benchmark quality gate failed"
+            exit 1
+          fi
+          if [ "${{ needs.tests.result }}" != "success" ]; then
+            echo "::error::Unit/E2E tests quality gate failed"
+            exit 1
+          fi
+
+          echo "✅ All quality gates passed!"
