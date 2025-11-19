@@ -1,0 +1,59 @@
+---
+# ProjectKeystone clang-tidy configuration
+# Phase 9.3: Static Analysis
+
+Checks: >
+  *,
+  -fuchsia-*,
+  -llvm-header-guard,
+  -google-readability-todo,
+  -readability-magic-numbers,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -modernize-use-trailing-return-type,
+  -altera-*,
+  -llvmlibc-*,
+  -readability-identifier-length,
+  -misc-non-private-member-variables-in-classes,
+  -cppcoreguidelines-non-private-member-variables-in-classes
+
+WarningsAsErrors: ''
+
+HeaderFilterRegex: '.*'
+
+AnalyzeTemporaryDtors: false
+
+FormatStyle: none
+
+CheckOptions:
+  - key: readability-identifier-naming.ClassCase
+    value: CamelCase
+  - key: readability-identifier-naming.StructCase
+    value: CamelCase
+  - key: readability-identifier-naming.FunctionCase
+    value: camelBack
+  - key: readability-identifier-naming.VariableCase
+    value: lower_case
+  - key: readability-identifier-naming.MemberCase
+    value: lower_case
+  - key: readability-identifier-naming.ParameterCase
+    value: lower_case
+  - key: readability-identifier-naming.ConstantCase
+    value: UPPER_CASE
+  - key: readability-identifier-naming.EnumCase
+    value: CamelCase
+  - key: readability-identifier-naming.EnumConstantCase
+    value: UPPER_CASE
+  - key: readability-identifier-naming.NamespaceCase
+    value: lower_case
+  - key: readability-function-size.LineThreshold
+    value: 150
+  - key: readability-function-size.StatementThreshold
+    value: 150
+  - key: readability-function-cognitive-complexity.Threshold
+    value: 50
+  - key: modernize-use-nullptr.NullMacros
+    value: 'NULL'
+  - key: cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor
+    value: true
+  - key: cppcoreguidelines-special-member-functions.AllowMissingMoveFunctions
+    value: true

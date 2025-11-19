@@ -24,6 +24,20 @@ if(ENABLE_COVERAGE)
     endif()
 endif()
 
+# Static analysis (Phase 9.3)
+option(ENABLE_CLANG_TIDY "Enable clang-tidy static analysis" OFF)
+
+if(ENABLE_CLANG_TIDY)
+    find_program(CLANG_TIDY_EXE NAMES "clang-tidy")
+    if(CLANG_TIDY_EXE)
+        message(STATUS "clang-tidy found: ${CLANG_TIDY_EXE}")
+        set(CMAKE_CXX_CLANG_TIDY
+            "${CLANG_TIDY_EXE};-checks=*,-fuchsia-*,-llvm-header-guard,-google-readability-todo,-readability-magic-numbers,-cppcoreguidelines-avoid-magic-numbers,-modernize-use-trailing-return-type")
+    else()
+        message(WARNING "clang-tidy not found")
+    endif()
+endif()
+
 # Include directories
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
