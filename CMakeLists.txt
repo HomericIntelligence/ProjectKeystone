@@ -11,6 +11,19 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
+# Code coverage (Phase 9.1)
+option(ENABLE_COVERAGE "Enable code coverage" OFF)
+
+if(ENABLE_COVERAGE)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        message(STATUS "Code coverage enabled")
+        add_compile_options(--coverage -fprofile-arcs -ftest-coverage -fno-inline -O0)
+        add_link_options(--coverage)
+    else()
+        message(WARNING "Code coverage only supported with GCC or Clang")
+    endif()
+endif()
+
 # Include directories
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
