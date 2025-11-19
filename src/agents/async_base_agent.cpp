@@ -10,6 +10,30 @@ AsyncBaseAgent::AsyncBaseAgent(const std::string& agent_id)
 }
 
 void AsyncBaseAgent::receiveMessage(const core::KeystoneMessage& msg) {
+    // Phase 5: Check if agent is failed
+    if (is_failed_.load()) {
+        // Reject message with error response
+        std::string error_msg;
+        {
+            std::lock_guard<std::mutex> lock(failure_mutex_);
+            error_msg = failure_reason_.empty() ? "agent failed" : failure_reason_;
+        }
+
+        auto error_response = core::Response::createError(msg, agent_id_, error_msg);
+
+        // Send error response back if MessageBus is available
+        if (message_bus_) {
+            auto response_msg = core::KeystoneMessage::create(
+                agent_id_,
+                msg.sender_id,
+                "response",
+                error_response.result
+            );
+            sendMessage(response_msg);
+        }
+        return;  // Don't process message
+    }
+
     // Call base class to add to inbox
     AgentBase::receiveMessage(msg);
 
@@ -57,6 +81,42 @@ void AsyncBaseAgent::processPendingMessages() {
             }
         });
     }
+}
+
+// ============================================================================
+// PHASE 5: Failure Modes (Chaos Engineering)
+// ============================================================================
+
+void AsyncBaseAgent::markAsFailed(const std::string& reason) {
+    std::lock_guard<std::mutex> lock(failure_mutex_);
+    is_failed_.store(true);
+    failure_reason_ = reason;
+}
+
+void AsyncBaseAgent::recover() {
+    std::lock_guard<std::mutex> lock(failure_mutex_);
+    is_failed_.store(false);
+    failure_reason_.clear();
+}
+
+bool AsyncBaseAgent::isFailed() const {
+    return is_failed_.load();
+}
+
+std::string AsyncBaseAgent::getFailureReason() const {
+    std::lock_guard<std::mutex> lock(failure_mutex_);
+    return failure_reason_;
+}
+
+void AsyncBaseAgent::setFailureInjector(core::FailureInjector* injector) {
+    failure_injector_ = injector;
+}
+
+bool AsyncBaseAgent::shouldFail() const {
+    if (!failure_injector_) {
+        return false;
+    }
+    return failure_injector_->shouldAgentFail(agent_id_);
 }
 
 } // namespace agents
