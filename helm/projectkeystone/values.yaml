@@ -1,0 +1,222 @@
+# Default values for projectkeystone
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Namespace configuration
+namespace:
+  create: true
+  name: projectkeystone
+  resourceQuota:
+    enabled: true
+    hard:
+      requests.cpu: "8"
+      requests.memory: 16Gi
+      limits.cpu: "16"
+      limits.memory: 32Gi
+      persistentvolumeclaims: "10"
+      pods: "50"
+
+# Deployment configuration
+replicaCount: 2
+
+image:
+  repository: projectkeystone
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# Service account
+serviceAccount:
+  create: false
+  annotations: {}
+  name: ""
+
+# Pod annotations
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "9090"
+  prometheus.io/path: "/metrics"
+
+# Pod security context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+# Container security context
+securityContext: {}
+
+# Service configuration
+service:
+  type: ClusterIP
+  ports:
+    health:
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+    metrics:
+      port: 9090
+      targetPort: 9090
+      protocol: TCP
+    grpc:
+      port: 50051
+      targetPort: 50051
+      protocol: TCP
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9090"
+
+# Headless service for direct pod access
+headlessService:
+  enabled: true
+
+# Resource limits
+resources:
+  requests:
+    cpu: 500m
+    memory: 512Mi
+  limits:
+    cpu: 2000m
+    memory: 2Gi
+
+# Probes configuration
+livenessProbe:
+  enabled: true
+  httpGet:
+    path: /healthz
+    port: health
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  successThreshold: 1
+  failureThreshold: 3
+
+readinessProbe:
+  enabled: true
+  httpGet:
+    path: /ready
+    port: health
+  initialDelaySeconds: 10
+  periodSeconds: 5
+  timeoutSeconds: 3
+  successThreshold: 1
+  failureThreshold: 3
+
+startupProbe:
+  enabled: true
+  httpGet:
+    path: /healthz
+    port: health
+  initialDelaySeconds: 0
+  periodSeconds: 5
+  timeoutSeconds: 3
+  successThreshold: 1
+  failureThreshold: 30  # 30 * 5s = 150s max startup time
+
+# Autoscaling configuration (disabled by default)
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+# Node selection
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity rules
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 100
+      podAffinityTerm:
+        labelSelector:
+          matchExpressions:
+          - key: app.kubernetes.io/name
+            operator: In
+            values:
+            - projectkeystone
+        topologyKey: kubernetes.io/hostname
+
+# Termination grace period
+terminationGracePeriodSeconds: 30
+
+# Update strategy
+updateStrategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0
+
+# HMAS Configuration (injected via ConfigMap)
+config:
+  # Worker configuration
+  workerCount: "4"
+  workStealingEnabled: "true"
+
+  # Logging configuration
+  logLevel: "info"
+  logFormat: "json"
+
+  # Agent configuration
+  heartbeatIntervalMs: "1000"
+  heartbeatTimeoutMs: "5000"
+
+  # Circuit breaker configuration
+  circuitBreakerFailureThreshold: "5"
+  circuitBreakerTimeoutMs: "10000"
+  circuitBreakerSuccessThreshold: "3"
+
+  # Retry policy configuration
+  retryMaxAttempts: "3"
+  retryInitialDelayMs: "100"
+  retryBackoffMultiplier: "2.0"
+  retryMaxDelayMs: "5000"
+
+  # Message configuration
+  messageLossRate: "0.0"
+  messageMinLatencyUs: "0"
+  messageMaxLatencyUs: "0"
+
+  # Metrics configuration
+  metricsEnabled: "true"
+  metricsPort: "9090"
+
+  # Health check configuration
+  healthCheckPort: "8080"
+
+  # Feature flags
+  enableChaosEngineering: "false"
+  enableDistributedTracing: "false"
+  enableAiAgents: "false"
+
+# Additional environment variables (merged with config)
+extraEnv: []
+  # - name: CUSTOM_VAR
+  #   value: "custom_value"
+
+# Additional volumes
+extraVolumes: []
+  # - name: custom-volume
+  #   emptyDir: {}
+
+# Additional volume mounts
+extraVolumeMounts: []
+  # - name: custom-volume
+  #   mountPath: /custom
+
+# Pod labels
+podLabels: {}
+
+# Service monitor for Prometheus Operator (disabled by default)
+serviceMonitor:
+  enabled: false
+  interval: 30s
+  scrapeTimeout: 10s
+  additionalLabels: {}

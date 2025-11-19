@@ -1,0 +1,50 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "projectkeystone.fullname" . }}
+  namespace: {{ include "projectkeystone.namespace" . }}
+  labels:
+    {{- include "projectkeystone.labels" . | nindent 4 }}
+  {{- with .Values.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    {{- include "projectkeystone.selectorLabels" . | nindent 4 }}
+  ports:
+  - name: health
+    port: {{ .Values.service.ports.health.port }}
+    targetPort: {{ .Values.service.ports.health.targetPort }}
+    protocol: {{ .Values.service.ports.health.protocol }}
+  - name: metrics
+    port: {{ .Values.service.ports.metrics.port }}
+    targetPort: {{ .Values.service.ports.metrics.targetPort }}
+    protocol: {{ .Values.service.ports.metrics.protocol }}
+  - name: grpc
+    port: {{ .Values.service.ports.grpc.port }}
+    targetPort: {{ .Values.service.ports.grpc.targetPort }}
+    protocol: {{ .Values.service.ports.grpc.protocol }}
+  sessionAffinity: None
+---
+{{- if .Values.headlessService.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "projectkeystone.fullname" . }}-headless
+  namespace: {{ include "projectkeystone.namespace" . }}
+  labels:
+    {{- include "projectkeystone.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  clusterIP: None  # Headless service for direct pod access
+  selector:
+    {{- include "projectkeystone.selectorLabels" . | nindent 4 }}
+  ports:
+  - name: grpc
+    port: 50051
+    targetPort: grpc
+    protocol: TCP
+  publishNotReadyAddresses: false
+{{- end }}
