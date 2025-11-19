@@ -227,6 +227,20 @@ target_link_libraries(phase_d3_e2e_tests
 
 gtest_discover_tests(phase_d3_e2e_tests)
 
+# E2E Tests - Phase 4 (Multi-Component Hierarchy)
+add_executable(phase_4_e2e_tests
+    tests/e2e/phase_4_multi_component.cpp
+)
+
+target_link_libraries(phase_4_e2e_tests
+    keystone_agents
+    keystone_core
+    keystone_concurrency
+    GTest::gtest_main
+)
+
+gtest_discover_tests(phase_4_e2e_tests)
+
 # Unit Tests
 add_executable(unit_tests
     tests/unit/test_message_bus.cpp
@@ -288,7 +302,7 @@ gtest_discover_tests(simulation_unit_tests)
 # Add test target
 add_custom_target(run_tests
     COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
-    DEPENDS phase1_e2e_tests phase2_e2e_tests phase3_e2e_tests phase_d3_e2e_tests unit_tests concurrency_unit_tests simulation_unit_tests
+    DEPENDS phase1_e2e_tests phase2_e2e_tests phase3_e2e_tests phase_d3_e2e_tests phase_4_e2e_tests unit_tests concurrency_unit_tests simulation_unit_tests
 )
 
 # Benchmarks
