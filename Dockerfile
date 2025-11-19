@@ -54,7 +54,52 @@ WORKDIR /app
 # Default command: run tests
 CMD ["phase1_e2e_tests"]
 
-# Stage 3: Development environment (for iterative development)
+# Stage 3: Production environment (Kubernetes deployment)
+FROM ubuntu:24.04 as production
+
+# Install runtime dependencies + Python3 for health checks
+RUN apt-get update && apt-get install -y \
+    libstdc++6 \
+    python3 \
+    python3-minimal \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user for security
+RUN groupadd -g 1000 hmas && \
+    useradd -r -u 1000 -g hmas hmas && \
+    mkdir -p /app && \
+    chown -R hmas:hmas /app
+
+# Copy built executables from builder
+COPY --from=builder /workspace/build/phase1_e2e_tests /usr/local/bin/
+COPY --from=builder /workspace/build/phase2_e2e_tests /usr/local/bin/
+COPY --from=builder /workspace/build/phase3_e2e_tests /usr/local/bin/
+COPY --from=builder /workspace/build/phase_a_e2e_tests /usr/local/bin/
+COPY --from=builder /workspace/build/phase_4_e2e_tests /usr/local/bin/
+COPY --from=builder /workspace/build/phase_5_e2e_tests /usr/local/bin/
+COPY --from=builder /workspace/build/phase_d3_e2e_tests /usr/local/bin/
+
+# Copy server wrapper script
+COPY scripts/hmas-server.sh /usr/local/bin/hmas-server.sh
+RUN chmod +x /usr/local/bin/hmas-server.sh
+
+# Set working directory
+WORKDIR /app
+
+# Switch to non-root user
+USER hmas
+
+# Expose ports
+EXPOSE 8080 9090 50051
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:8080/healthz')" || exit 1
+
+# Default command: run HMAS server
+CMD ["/usr/local/bin/hmas-server.sh"]
+
+# Stage 4: Development environment (for iterative development)
 FROM builder as development
 
 # Install additional development tools
