@@ -1,0 +1,332 @@
+# Network Policies for ProjectKeystone HMAS
+# Implement network segmentation and zero-trust networking
+
+---
+# Default: Deny all ingress traffic (whitelist approach)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: projectkeystone
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+
+---
+# Default: Deny all egress traffic (whitelist approach)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-egress
+  namespace: projectkeystone
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+
+---
+# HMAS: Allow ingress from within namespace
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: hmas-ingress
+  namespace: projectkeystone
+  labels:
+    app: hmas
+spec:
+  podSelector:
+    matchLabels:
+      app: hmas
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow traffic from other HMAS pods (inter-pod communication)
+    - from:
+        - podSelector:
+            matchLabels:
+              app: hmas
+      ports:
+        - protocol: TCP
+          port: 8080  # HMAS application port
+        - protocol: TCP
+          port: 50051  # gRPC port
+
+    # Allow Prometheus to scrape metrics
+    - from:
+        - podSelector:
+            matchLabels:
+              app: prometheus
+      ports:
+        - protocol: TCP
+          port: 9090  # Prometheus metrics port
+
+    # Allow Promtail to read logs (for log collection)
+    - from:
+        - podSelector:
+            matchLabels:
+              app: promtail
+      ports:
+        - protocol: TCP
+          port: 8080  # Health check port
+
+---
+# HMAS: Allow egress to DNS and Kubernetes API
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: hmas-egress
+  namespace: projectkeystone
+  labels:
+    app: hmas
+spec:
+  podSelector:
+    matchLabels:
+      app: hmas
+  policyTypes:
+    - Egress
+  egress:
+    # Allow DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+        - podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+
+    # Allow access to Kubernetes API
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443
+
+    # Allow traffic to other HMAS pods
+    - to:
+        - podSelector:
+            matchLabels:
+              app: hmas
+      ports:
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 50051
+
+---
+# Prometheus: Allow ingress from Grafana
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: prometheus-ingress
+  namespace: projectkeystone
+  labels:
+    app: prometheus
+spec:
+  podSelector:
+    matchLabels:
+      app: prometheus
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow Grafana to query Prometheus
+    - from:
+        - podSelector:
+            matchLabels:
+              app: grafana
+      ports:
+        - protocol: TCP
+          port: 9090
+
+    # Allow access from within namespace (for debugging)
+    - from:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 9090
+
+---
+# Prometheus: Allow egress to scrape targets
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: prometheus-egress
+  namespace: projectkeystone
+  labels:
+    app: prometheus
+spec:
+  podSelector:
+    matchLabels:
+      app: prometheus
+  policyTypes:
+    - Egress
+  egress:
+    # Allow DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+
+    # Allow scraping HMAS metrics
+    - to:
+        - podSelector:
+            matchLabels:
+              app: hmas
+      ports:
+        - protocol: TCP
+          port: 9090
+
+    # Allow scraping Kubernetes API
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443
+
+---
+# Grafana: Allow ingress from users (port-forward or ingress controller)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grafana-ingress
+  namespace: projectkeystone
+  labels:
+    app: grafana
+spec:
+  podSelector:
+    matchLabels:
+      app: grafana
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow all ingress (users accessing Grafana UI)
+    # In production, restrict to ingress controller namespace
+    - from:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 3000
+
+---
+# Grafana: Allow egress to Prometheus and Loki
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grafana-egress
+  namespace: projectkeystone
+  labels:
+    app: grafana
+spec:
+  podSelector:
+    matchLabels:
+      app: grafana
+  policyTypes:
+    - Egress
+  egress:
+    # Allow DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+
+    # Allow querying Prometheus
+    - to:
+        - podSelector:
+            matchLabels:
+              app: prometheus
+      ports:
+        - protocol: TCP
+          port: 9090
+
+    # Allow querying Loki
+    - to:
+        - podSelector:
+            matchLabels:
+              app: loki
+      ports:
+        - protocol: TCP
+          port: 3100
+
+---
+# Loki: Allow ingress from Promtail and Grafana
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: loki-ingress
+  namespace: projectkeystone
+  labels:
+    app: loki
+spec:
+  podSelector:
+    matchLabels:
+      app: loki
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow Promtail to push logs
+    - from:
+        - podSelector:
+            matchLabels:
+              app: promtail
+      ports:
+        - protocol: TCP
+          port: 3100
+
+    # Allow Grafana to query logs
+    - from:
+        - podSelector:
+            matchLabels:
+              app: grafana
+      ports:
+        - protocol: TCP
+          port: 3100
+
+---
+# Promtail: Allow egress to Loki and host filesystem
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: promtail-egress
+  namespace: projectkeystone
+  labels:
+    app: promtail
+spec:
+  podSelector:
+    matchLabels:
+      app: promtail
+  policyTypes:
+    - Egress
+  egress:
+    # Allow DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+
+    # Allow pushing logs to Loki
+    - to:
+        - podSelector:
+            matchLabels:
+              app: loki
+      ports:
+        - protocol: TCP
+          port: 3100
+
+    # Allow access to Kubernetes API (for service discovery)
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443

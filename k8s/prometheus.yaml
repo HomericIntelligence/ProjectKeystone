@@ -15,6 +15,18 @@ data:
         cluster: 'projectkeystone'
         environment: 'production'
 
+    # Alerting configuration
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets:
+              # Uncomment when Alertmanager is deployed
+              # - alertmanager:9093
+
+    # Alert rule files
+    rule_files:
+      - '/etc/prometheus/alerts/*.yml'
+
     scrape_configs:
       # ProjectKeystone HMAS metrics
       - job_name: 'projectkeystone-hmas'
@@ -147,6 +159,8 @@ spec:
         volumeMounts:
         - name: config
           mountPath: /etc/prometheus
+        - name: alerts
+          mountPath: /etc/prometheus/alerts
         - name: storage
           mountPath: /prometheus
         livenessProbe:
@@ -165,6 +179,9 @@ spec:
       - name: config
         configMap:
           name: prometheus-config
+      - name: alerts
+        configMap:
+          name: prometheus-alerts
       - name: storage
         emptyDir: {}  # Use PersistentVolume for production
 ---
