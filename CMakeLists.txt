@@ -128,6 +128,20 @@ target_link_libraries(keystone_agents PUBLIC
     keystone_concurrency
 )
 
+# Simulation library (Phase D.3)
+add_library(keystone_simulation
+    src/simulation/simulated_numa_node.cpp
+)
+
+target_include_directories(keystone_simulation PUBLIC
+    ${PROJECT_SOURCE_DIR}/include
+)
+
+target_link_libraries(keystone_simulation PUBLIC
+    keystone_concurrency
+    keystone_core
+)
+
 # E2E Tests - Phase 1
 add_executable(phase1_e2e_tests
     tests/e2e/phase1_basic_delegation.cpp
