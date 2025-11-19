@@ -18,6 +18,7 @@
 #include "core/message_bus.hpp"
 #include "core/failure_injector.hpp"
 #include "concurrency/work_stealing_scheduler.hpp"
+#include "simulation/simulated_network.hpp"
 
 #include <chrono>
 #include <thread>
@@ -28,6 +29,7 @@ using namespace keystone;
 using namespace keystone::agents;
 using namespace keystone::core;
 using namespace keystone::concurrency;
+using namespace keystone::simulation;
 
 /**
  * Phase 5.1: Agent Failure Testing
@@ -390,4 +392,272 @@ TEST_F(Phase5FailureInjectorStatsTest, TracksAgentTimeouts) {
 
     // agent2 should still have timeout
     EXPECT_EQ(injector.getAgentTimeout("agent2"), std::chrono::milliseconds(500));
+}
+
+/**
+ * Phase 5.2: Network Partition Testing
+ *
+ * Tests for network partition (split-brain) scenarios
+ */
+class Phase5NetworkPartitionTest : public ::testing::Test {
+protected:
+    // No setup needed for partition tests
+};
+
+/**
+ * @brief Test basic network partition creation and healing
+ *
+ * Verify that partitions can be created and healed correctly.
+ */
+TEST_F(Phase5NetworkPartitionTest, CreateAndHealPartition) {
+    SimulatedNetwork network;
+
+    // Initially no partition
+    EXPECT_FALSE(network.isPartitioned());
+
+    // Create partition: [0, 1] vs [2, 3]
+    network.createPartition({0, 1}, {2, 3});
+
+    EXPECT_TRUE(network.isPartitioned());
+
+    // Nodes in same partition can communicate
+    EXPECT_TRUE(network.canCommunicate(0, 1));
+    EXPECT_TRUE(network.canCommunicate(1, 0));
+    EXPECT_TRUE(network.canCommunicate(2, 3));
+    EXPECT_TRUE(network.canCommunicate(3, 2));
+
+    // Nodes in different partitions cannot communicate
+    EXPECT_FALSE(network.canCommunicate(0, 2));
+    EXPECT_FALSE(network.canCommunicate(0, 3));
+    EXPECT_FALSE(network.canCommunicate(1, 2));
+    EXPECT_FALSE(network.canCommunicate(1, 3));
+    EXPECT_FALSE(network.canCommunicate(2, 0));
+    EXPECT_FALSE(network.canCommunicate(2, 1));
+    EXPECT_FALSE(network.canCommunicate(3, 0));
+    EXPECT_FALSE(network.canCommunicate(3, 1));
+
+    // Heal partition
+    network.healPartition();
+
+    EXPECT_FALSE(network.isPartitioned());
+
+    // All nodes can communicate again
+    EXPECT_TRUE(network.canCommunicate(0, 2));
+    EXPECT_TRUE(network.canCommunicate(1, 3));
+    EXPECT_TRUE(network.canCommunicate(2, 0));
+    EXPECT_TRUE(network.canCommunicate(3, 1));
+}
+
+/**
+ * @brief Test messages are dropped across partitions
+ *
+ * Verify that messages sent across partition boundaries are dropped.
+ */
+TEST_F(Phase5NetworkPartitionTest, MessagesDroppedAcrossPartition) {
+    SimulatedNetwork::Config config{
+        .min_latency = std::chrono::microseconds(10),
+        .max_latency = std::chrono::microseconds(50),
+        .bandwidth_mbps = 1000,
+        .packet_loss_rate = 0.0  // No random packet loss
+    };
+    SimulatedNetwork network(config);
+
+    // Create partition: [0, 1] vs [2, 3]
+    network.createPartition({0, 1}, {2, 3});
+
+    EXPECT_EQ(network.getPartitionDroppedMessages(), 0);
+
+    // Send message across partition (should be dropped)
+    int executed = 0;
+    network.send(0, 2, [&executed]() { executed++; });
+
+    EXPECT_EQ(network.getPartitionDroppedMessages(), 1);
+
+    // Wait for potential delivery
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    // Message should not be delivered
+    auto work = network.receive(2);
+    EXPECT_FALSE(work.has_value());
+    EXPECT_EQ(executed, 0);  // Work not executed
+
+    // Send message within partition (should be delivered)
+    network.send(0, 1, [&executed]() { executed++; });
+
+    EXPECT_EQ(network.getPartitionDroppedMessages(), 1);  // Still 1
+
+    // Wait for delivery
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    // Message should be delivered
+    work = network.receive(1);
+    EXPECT_TRUE(work.has_value());
+    if (work) {
+        (*work)();
+    }
+    EXPECT_EQ(executed, 1);  // Work executed
+}
+
+/**
+ * @brief Test partition statistics tracking
+ *
+ * Verify that partition-dropped messages are tracked correctly.
+ */
+TEST_F(Phase5NetworkPartitionTest, PartitionStatisticsTracking) {
+    SimulatedNetwork::Config config{
+        .min_latency = std::chrono::microseconds(10),
+        .max_latency = std::chrono::microseconds(50),
+        .bandwidth_mbps = 1000,
+        .packet_loss_rate = 0.0
+    };
+    SimulatedNetwork network(config);
+
+    // Create partition: [0, 1] vs [2, 3]
+    network.createPartition({0, 1}, {2, 3});
+
+    EXPECT_EQ(network.getPartitionDroppedMessages(), 0);
+    EXPECT_EQ(network.getTotalMessages(), 0);
+
+    // Send 10 messages across partition
+    for (int i = 0; i < 10; ++i) {
+        network.send(0, 2, []() {});
+    }
+
+    EXPECT_EQ(network.getPartitionDroppedMessages(), 10);
+    EXPECT_EQ(network.getTotalMessages(), 10);
+
+    // Send 5 messages within partition
+    for (int i = 0; i < 5; ++i) {
+        network.send(0, 1, []() {});
+    }
+
+    EXPECT_EQ(network.getPartitionDroppedMessages(), 10);  // Still 10
+    EXPECT_EQ(network.getTotalMessages(), 15);  // Total increased
+
+    // Heal partition and send more messages
+    network.healPartition();
+
+    for (int i = 0; i < 3; ++i) {
+        network.send(0, 2, []() {});
+    }
+
+    EXPECT_EQ(network.getPartitionDroppedMessages(), 10);  // Still 10 (no new drops)
+    EXPECT_EQ(network.getTotalMessages(), 18);
+
+    // Reset stats
+    network.resetStats();
+
+    EXPECT_EQ(network.getPartitionDroppedMessages(), 0);
+    EXPECT_EQ(network.getTotalMessages(), 0);
+}
+
+/**
+ * @brief Test split-brain scenario with work distribution
+ *
+ * Simulates a real-world split-brain where work cannot cross partition.
+ */
+TEST_F(Phase5NetworkPartitionTest, SplitBrainWorkDistribution) {
+    SimulatedNetwork::Config config{
+        .min_latency = std::chrono::microseconds(10),
+        .max_latency = std::chrono::microseconds(50),
+        .bandwidth_mbps = 1000,
+        .packet_loss_rate = 0.0
+    };
+    SimulatedNetwork network(config);
+
+    // Simulate 4 nodes with work
+    std::atomic<int> node0_work{0};
+    std::atomic<int> node1_work{0};
+    std::atomic<int> node2_work{0};
+    std::atomic<int> node3_work{0};
+
+    // Create partition: [0, 1] vs [2, 3]
+    network.createPartition({0, 1}, {2, 3});
+
+    // Send work within partition A (0→1)
+    for (int i = 0; i < 5; ++i) {
+        network.send(0, 1, [&node1_work]() { node1_work++; });
+    }
+
+    // Send work within partition B (2→3)
+    for (int i = 0; i < 3; ++i) {
+        network.send(2, 3, [&node3_work]() { node3_work++; });
+    }
+
+    // Send work across partition (should be dropped)
+    for (int i = 0; i < 10; ++i) {
+        network.send(0, 2, [&node2_work]() { node2_work++; });
+        network.send(1, 3, [&node3_work]() { node3_work++; });
+    }
+
+    EXPECT_EQ(network.getPartitionDroppedMessages(), 20);  // All cross-partition dropped
+
+    // Process work
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    // Execute work items
+    while (auto work = network.receive(1)) {
+        (*work)();
+    }
+    while (auto work = network.receive(3)) {
+        (*work)();
+    }
+    while (auto work = network.receive(2)) {
+        (*work)();
+    }
+
+    // Verify: Only within-partition work was executed
+    EXPECT_EQ(node1_work.load(), 5);   // Received from node 0
+    EXPECT_EQ(node3_work.load(), 3);   // Received from node 2 (NOT from node 1)
+    EXPECT_EQ(node2_work.load(), 0);   // Nothing received (all dropped)
+
+    // Heal partition and send more work
+    network.healPartition();
+
+    for (int i = 0; i < 2; ++i) {
+        network.send(0, 2, [&node2_work]() { node2_work++; });
+    }
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    while (auto work = network.receive(2)) {
+        (*work)();
+    }
+
+    // After healing, cross-partition work succeeds
+    EXPECT_EQ(node2_work.load(), 2);
+}
+
+/**
+ * @brief Test asymmetric partition (more complex topology)
+ *
+ * Test partition with different sizes: [0] vs [1, 2, 3]
+ */
+TEST_F(Phase5NetworkPartitionTest, AsymmetricPartition) {
+    SimulatedNetwork network;
+
+    // Create asymmetric partition: [0] vs [1, 2, 3]
+    network.createPartition({0}, {1, 2, 3});
+
+    EXPECT_TRUE(network.isPartitioned());
+
+    // Node 0 is isolated
+    EXPECT_FALSE(network.canCommunicate(0, 1));
+    EXPECT_FALSE(network.canCommunicate(0, 2));
+    EXPECT_FALSE(network.canCommunicate(0, 3));
+
+    // Nodes 1, 2, 3 can communicate with each other
+    EXPECT_TRUE(network.canCommunicate(1, 2));
+    EXPECT_TRUE(network.canCommunicate(1, 3));
+    EXPECT_TRUE(network.canCommunicate(2, 3));
+    EXPECT_TRUE(network.canCommunicate(2, 1));
+    EXPECT_TRUE(network.canCommunicate(3, 1));
+    EXPECT_TRUE(network.canCommunicate(3, 2));
+
+    // Heal and verify
+    network.healPartition();
+
+    EXPECT_TRUE(network.canCommunicate(0, 1));
+    EXPECT_TRUE(network.canCommunicate(0, 2));
+    EXPECT_TRUE(network.canCommunicate(0, 3));
 }
