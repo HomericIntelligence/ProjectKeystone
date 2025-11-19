@@ -1,0 +1,193 @@
+# RBAC policies for ProjectKeystone HMAS
+# Fine-grained access control for service accounts and users
+
+---
+# ServiceAccount for HMAS application pods
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: hmas
+  namespace: projectkeystone
+  labels:
+    app: hmas
+automountServiceAccountToken: true
+
+---
+# Role: HMAS pod permissions (minimal required permissions)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: hmas-pod
+  namespace: projectkeystone
+  labels:
+    app: hmas
+rules:
+  # Allow reading ConfigMaps (for configuration)
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch"]
+
+  # Allow reading Secrets (for credentials)
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["hmas-credentials", "hmas-tls"]
+    verbs: ["get"]
+
+  # Allow listing pods (for service discovery)
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["list"]
+
+---
+# RoleBinding: Bind hmas ServiceAccount to hmas-pod Role
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: hmas-pod
+  namespace: projectkeystone
+  labels:
+    app: hmas
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: hmas-pod
+subjects:
+  - kind: ServiceAccount
+    name: hmas
+    namespace: projectkeystone
+
+---
+# Role: Monitoring read-only access (for Prometheus/Grafana)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: monitoring-reader
+  namespace: projectkeystone
+  labels:
+    component: monitoring
+rules:
+  # Read-only access to pods, services, endpoints
+  - apiGroups: [""]
+    resources: ["pods", "services", "endpoints"]
+    verbs: ["get", "list", "watch"]
+
+  # Read-only access to deployments, replicasets
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets", "daemonsets", "statefulsets"]
+    verbs: ["get", "list", "watch"]
+
+---
+# RoleBinding: Prometheus service discovery
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: prometheus-monitoring
+  namespace: projectkeystone
+  labels:
+    app: prometheus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: monitoring-reader
+subjects:
+  - kind: ServiceAccount
+    name: prometheus
+    namespace: projectkeystone
+
+---
+# ClusterRole: Read-only cluster metrics (for Prometheus node exporter)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: projectkeystone-metrics-reader
+  labels:
+    app: prometheus
+rules:
+  # Allow reading nodes and node metrics
+  - apiGroups: [""]
+    resources: ["nodes", "nodes/metrics"]
+    verbs: ["get", "list"]
+
+  # Allow reading pods across all namespaces (for federation)
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+
+---
+# ClusterRoleBinding: Prometheus cluster metrics
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: projectkeystone-prometheus-metrics
+  labels:
+    app: prometheus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: projectkeystone-metrics-reader
+subjects:
+  - kind: ServiceAccount
+    name: prometheus
+    namespace: projectkeystone
+
+---
+# Role: Grafana read-only access
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: grafana-reader
+  namespace: projectkeystone
+  labels:
+    app: grafana
+rules:
+  # Read-only access to resources for dashboard templating
+  - apiGroups: [""]
+    resources: ["pods", "services", "endpoints", "namespaces"]
+    verbs: ["get", "list", "watch"]
+
+---
+# RoleBinding: Grafana read access
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: grafana-reader
+  namespace: projectkeystone
+  labels:
+    app: grafana
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: grafana-reader
+subjects:
+  - kind: ServiceAccount
+    name: grafana
+    namespace: projectkeystone
+
+---
+# Production: User RBAC (example for operations team)
+# Uncomment and customize for production user access
+# apiVersion: rbac.authorization.k8s.io/v1
+# kind: Role
+# metadata:
+#   name: hmas-operator
+#   namespace: projectkeystone
+# rules:
+#   # Full access to HMAS resources
+#   - apiGroups: ["", "apps", "batch"]
+#     resources: ["*"]
+#     verbs: ["*"]
+#
+# ---
+# apiVersion: rbac.authorization.k8s.io/v1
+# kind: RoleBinding
+# metadata:
+#   name: ops-team-hmas
+#   namespace: projectkeystone
+# roleRef:
+#   apiGroup: rbac.authorization.k8s.io
+#   kind: Role
+#   name: hmas-operator
+# subjects:
+#   - kind: Group
+#     name: ops-team@example.com
+#     apiGroup: rbac.authorization.k8s.io
