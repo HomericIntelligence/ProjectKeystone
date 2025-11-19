@@ -124,12 +124,74 @@ bool AsyncChiefArchitectAgent::topologicalSortUtil(std::unordered_set<std::strin
     return true;
 }
 
+std::vector<std::vector<std::string>>
+AsyncChiefArchitectAgent::getComponentDependencyLevels() const {
+    std::lock_guard<std::mutex> lock(component_mutex_);
+
+    // Build in-degree map for Kahn's algorithm
+    std::unordered_map<std::string, int> in_degree;
+    for (const auto& [component_name, _] : component_registry_) {
+        in_degree[component_name] = 0;
+    }
+
+    // Calculate in-degrees
+    for (const auto& [component, dependencies] : component_dependencies_) {
+        in_degree[component] += dependencies.size();
+    }
+
+    std::vector<std::vector<std::string>> levels;
+    std::unordered_set<std::string> processed;
+
+    // Process components level by level
+    while (processed.size() < component_registry_.size()) {
+        std::vector<std::string> current_level;
+
+        // Find all components with in-degree 0 (no unprocessed dependencies)
+        for (const auto& [component_name, _] : component_registry_) {
+            if (processed.find(component_name) != processed.end()) {
+                continue;  // Already processed
+            }
+
+            // Check if all dependencies are processed
+            bool all_deps_processed = true;
+            auto dep_it = component_dependencies_.find(component_name);
+            if (dep_it != component_dependencies_.end()) {
+                for (const auto& dep : dep_it->second) {
+                    if (processed.find(dep) == processed.end()) {
+                        all_deps_processed = false;
+                        break;
+                    }
+                }
+            }
+
+            if (all_deps_processed) {
+                current_level.push_back(component_name);
+            }
+        }
+
+        if (current_level.empty() && processed.size() < component_registry_.size()) {
+            // Circular dependency detected
+            throw std::runtime_error("Circular dependency detected in component dependencies");
+        }
+
+        // Add current level
+        levels.push_back(current_level);
+
+        // Mark as processed
+        for (const auto& component : current_level) {
+            processed.insert(component);
+        }
+    }
+
+    return levels;
+}
+
 concurrency::Task<std::vector<ComponentResult>>
 AsyncChiefArchitectAgent::executeAllComponents(const std::string& goal) {
-    // Get execution order (respects dependencies)
-    std::vector<std::string> execution_order;
+    // Get dependency levels for parallel execution
+    std::vector<std::vector<std::string>> levels;
     try {
-        execution_order = getComponentExecutionOrder();
+        levels = getComponentDependencyLevels();
     } catch (const std::runtime_error& e) {
         // Circular dependency detected - return error
         ComponentResult error_result;
@@ -141,39 +203,58 @@ AsyncChiefArchitectAgent::executeAllComponents(const std::string& goal) {
 
     std::vector<ComponentResult> results;
 
-    // Execute components in dependency order
-    // NOTE: For now, we execute sequentially to respect dependencies
-    // In future, can parallelize independent components at same dependency level
-    for (const auto& component_name : execution_order) {
-        ComponentResult comp_result;
-        comp_result.component_name = component_name;
+    // Execute each level in parallel
+    for (const auto& level : levels) {
+        std::vector<concurrency::Task<ComponentResult>> level_tasks;
 
-        // Find component in registry
-        AsyncComponentLeadAgent* component_lead = nullptr;
-        {
-            std::lock_guard<std::mutex> lock(component_mutex_);
-            auto it = component_registry_.find(component_name);
-            if (it != component_registry_.end()) {
-                component_lead = it->second;
+        // Submit all components in this level in parallel
+        for (const auto& component_name : level) {
+            // Find component in registry
+            AsyncComponentLeadAgent* component_lead = nullptr;
+            {
+                std::lock_guard<std::mutex> lock(component_mutex_);
+                auto it = component_registry_.find(component_name);
+                if (it != component_registry_.end()) {
+                    component_lead = it->second;
+                }
             }
+
+            if (!component_lead) {
+                ComponentResult error_result;
+                error_result.component_name = component_name;
+                error_result.success = false;
+                error_result.error_message = "Component not found in registry";
+                results.push_back(error_result);
+                continue;
+            }
+
+            // Create task for this component
+            auto task = [](AsyncChiefArchitectAgent* chief,
+                          const std::string& comp_name,
+                          AsyncComponentLeadAgent* lead,
+                          const std::string& goal_str) -> concurrency::Task<ComponentResult> {
+                ComponentResult comp_result;
+                comp_result.component_name = comp_name;
+
+                // Send command to component
+                chief->sendCommandAsync(goal_str, lead->getAgentId());
+
+                // Mark as success (simplified - in real impl, would await response)
+                comp_result.success = true;
+                comp_result.modules_completed = 0;
+                comp_result.tasks_completed = 0;
+
+                co_return comp_result;
+            }(this, component_name, component_lead, goal);
+
+            level_tasks.push_back(std::move(task));
         }
 
-        if (!component_lead) {
-            comp_result.success = false;
-            comp_result.error_message = "Component not found in registry";
-            results.push_back(comp_result);
-            continue;
+        // Await all tasks in this level to complete
+        for (auto& task : level_tasks) {
+            auto result = co_await task;
+            results.push_back(result);
         }
-
-        // Send command to component (simplified for now)
-        // In real implementation, would await response and parse results
-        sendCommandAsync(goal, component_lead->getAgentId());
-
-        // Mark as success (simplified)
-        comp_result.success = true;
-        comp_result.modules_completed = 0;  // Would be filled from response
-        comp_result.tasks_completed = 0;
-        results.push_back(comp_result);
     }
 
     co_return results;

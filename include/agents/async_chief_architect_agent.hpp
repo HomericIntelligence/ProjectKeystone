@@ -135,6 +135,17 @@ private:
                             const std::string& component,
                             std::vector<std::string>& result) const;
 
+    /**
+     * @brief Group components by dependency level for parallel execution
+     *
+     * Returns components grouped by dependency level. All components in the same
+     * level have no dependencies on each other and can execute in parallel.
+     *
+     * @return std::vector<std::vector<std::string>> Levels of components
+     * @throws std::runtime_error if circular dependency detected
+     */
+    std::vector<std::vector<std::string>> getComponentDependencyLevels() const;
+
     // Track pending commands for response correlation
     std::map<std::string, std::string> pending_commands_;  // msg_id → command
     std::mutex pending_mutex_;
