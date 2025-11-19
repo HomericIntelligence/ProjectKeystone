@@ -255,3 +255,13 @@ target_link_libraries(hierarchy_benchmarks
     keystone_concurrency
     benchmark::benchmark
 )
+
+# Phase D.2: Message pool performance benchmarks
+add_executable(message_pool_benchmarks
+    benchmarks/message_pool_performance.cpp
+)
+
+target_link_libraries(message_pool_benchmarks
+    keystone_core
+    benchmark::benchmark
+)
