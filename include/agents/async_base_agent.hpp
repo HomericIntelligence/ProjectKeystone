@@ -2,8 +2,11 @@
 
 #include "agent_base.hpp"
 #include "core/message.hpp"
+#include "core/failure_injector.hpp"
 #include "concurrency/task.hpp"
 #include <string>
+#include <atomic>
+#include <chrono>
 
 namespace keystone {
 
@@ -68,8 +71,65 @@ public:
      */
     void processPendingMessages();
 
+    // ========================================================================
+    // PHASE 5: Failure Modes (Chaos Engineering)
+    // ========================================================================
+
+    /**
+     * @brief Mark this agent as failed
+     *
+     * When failed, agent will reject all incoming messages with error responses.
+     * Used for chaos engineering and robustness testing.
+     *
+     * @param reason Reason for failure (e.g., "simulated crash")
+     */
+    void markAsFailed(const std::string& reason = "agent failed");
+
+    /**
+     * @brief Recover this agent from failed state
+     *
+     * Restores normal operation after failure.
+     */
+    void recover();
+
+    /**
+     * @brief Check if this agent is in failed state
+     *
+     * @return true if agent is failed
+     */
+    bool isFailed() const;
+
+    /**
+     * @brief Get failure reason
+     *
+     * @return std::string Failure reason (empty if not failed)
+     */
+    std::string getFailureReason() const;
+
+    /**
+     * @brief Set failure injector for chaos testing
+     *
+     * The failure injector can probabilistically fail agents or inject timeouts.
+     *
+     * @param injector Pointer to failure injector (must outlive agent)
+     */
+    void setFailureInjector(core::FailureInjector* injector);
+
+    /**
+     * @brief Check if agent should fail based on failure injector
+     *
+     * @return true if agent should fail (according to injector)
+     */
+    bool shouldFail() const;
+
 protected:
     concurrency::WorkStealingScheduler* scheduler_{nullptr};
+
+    // Phase 5: Failure state
+    std::atomic<bool> is_failed_{false};
+    std::string failure_reason_;
+    mutable std::mutex failure_mutex_;
+    core::FailureInjector* failure_injector_{nullptr};
 };
 
 } // namespace agents
