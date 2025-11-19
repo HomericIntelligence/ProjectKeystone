@@ -254,10 +254,26 @@ target_link_libraries(concurrency_unit_tests
 
 gtest_discover_tests(concurrency_unit_tests)
 
+# Unit Tests - Simulation (Phase D.3)
+add_executable(simulation_unit_tests
+    tests/unit/test_simulated_numa_node.cpp
+    tests/unit/test_simulated_network.cpp
+    tests/unit/test_simulated_cluster.cpp
+)
+
+target_link_libraries(simulation_unit_tests
+    keystone_simulation
+    keystone_concurrency
+    keystone_core
+    GTest::gtest_main
+)
+
+gtest_discover_tests(simulation_unit_tests)
+
 # Add test target
 add_custom_target(run_tests
     COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
-    DEPENDS phase1_e2e_tests phase2_e2e_tests phase3_e2e_tests unit_tests concurrency_unit_tests
+    DEPENDS phase1_e2e_tests phase2_e2e_tests phase3_e2e_tests unit_tests concurrency_unit_tests simulation_unit_tests
 )
 
 # Benchmarks
@@ -278,6 +294,18 @@ add_executable(message_pool_benchmarks
 )
 
 target_link_libraries(message_pool_benchmarks
+    keystone_core
+    benchmark::benchmark
+)
+
+# Phase D.3: Distributed work-stealing benchmarks
+add_executable(distributed_benchmarks
+    benchmarks/distributed_work_stealing.cpp
+)
+
+target_link_libraries(distributed_benchmarks
+    keystone_simulation
+    keystone_concurrency
     keystone_core
     benchmark::benchmark
 )
