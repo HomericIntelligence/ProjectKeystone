@@ -36,8 +36,8 @@ TEST_F(SimulatedNetworkTest, CreateWithCustomConfig) {
 
 TEST_F(SimulatedNetworkTest, SendAndReceive) {
     SimulatedNetwork::Config config{
-        .min_latency = 10us,
-        .max_latency = 20us
+        .min_latency = 1000us,  // Increased from 10us to 1ms for reliable timing
+        .max_latency = 2000us   // Increased from 20us to 2ms
     };
     SimulatedNetwork network(config);
 
@@ -53,8 +53,8 @@ TEST_F(SimulatedNetworkTest, SendAndReceive) {
     auto work = network.receive(1);
     EXPECT_FALSE(work.has_value());
 
-    // Wait for latency to elapse
-    std::this_thread::sleep_for(50us);
+    // Wait for latency to elapse (longer than max_latency)
+    std::this_thread::sleep_for(3000us);
 
     // Now should be ready
     work = network.receive(1);

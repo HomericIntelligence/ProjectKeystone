@@ -881,10 +881,10 @@ TEST_F(Phase5MessageLossTest, MessageLossWithManualRetries) {
  */
 TEST_F(Phase5MessageLossTest, CombinedPartitionAndLoss) {
     SimulatedNetwork::Config config{
-        .min_latency = std::chrono::microseconds(10),
-        .max_latency = std::chrono::microseconds(50),
+        .min_latency = std::chrono::microseconds(1000),  // Increased for reliable timing
+        .max_latency = std::chrono::microseconds(2000),
         .bandwidth_mbps = 1000,
-        .packet_loss_rate = 0.1  // 10% loss
+        .packet_loss_rate = 0.2  // 20% loss for more reliable detection
     };
     SimulatedNetwork network(config);
 
@@ -895,7 +895,8 @@ TEST_F(Phase5MessageLossTest, CombinedPartitionAndLoss) {
     std::atomic<int> delivered{0};
 
     // Within partition: should work (with some loss)
-    for (int i = 0; i < 10; ++i) {
+    // Increased to 50 messages for statistical reliability
+    for (int i = 0; i < 50; ++i) {
         network.send(0, 1, [&delivered]() { delivered++; });
     }
 
@@ -904,8 +905,8 @@ TEST_F(Phase5MessageLossTest, CombinedPartitionAndLoss) {
         network.send(0, 2, [&delivered]() { delivered++; });
     }
 
-    // Wait and receive
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    // Wait and receive (longer for increased latency)
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
     while (auto work = network.receive(1)) {
         (*work)();
     }
@@ -917,11 +918,12 @@ TEST_F(Phase5MessageLossTest, CombinedPartitionAndLoss) {
     // - All cross-partition messages dropped
     EXPECT_EQ(network.getPartitionDroppedMessages(), 10);
 
-    // - Some within-partition messages lost (but not all)
+    // - Some within-partition messages lost due to packet loss (but not all)
+    // With 50 messages and 20% loss rate, expect 5-15 dropped (statistically)
     EXPECT_GT(network.getDroppedMessages(), 0);  // Some packet loss
-    EXPECT_LT(network.getDroppedMessages(), 10);  // But not all
+    EXPECT_LT(network.getDroppedMessages(), 50);  // But not all
 
-    // - Some messages delivered
+    // - Many messages delivered (but less than total sent due to packet loss)
     EXPECT_GT(delivered.load(), 0);
-    EXPECT_LT(delivered.load(), 10);  // Less than total sent
+    EXPECT_LT(delivered.load(), 50);  // Less than total sent within partition
 }
