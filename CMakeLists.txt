@@ -251,6 +251,7 @@ target_link_libraries(phase_5_e2e_tests
     keystone_agents
     keystone_core
     keystone_concurrency
+    keystone_simulation
     GTest::gtest_main
 )
 

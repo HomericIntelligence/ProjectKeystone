@@ -8,6 +8,7 @@
 #include <random>
 #include <atomic>
 #include <functional>
+#include <vector>
 
 namespace keystone {
 namespace simulation {
@@ -119,6 +120,60 @@ public:
      */
     void resetStats();
 
+    // ========================================================================
+    // PHASE 5.2: Network Partition Simulation
+    // ========================================================================
+
+    /**
+     * @brief Create a network partition (split-brain scenario)
+     *
+     * Splits the cluster into two partitions. Messages between partitions
+     * are dropped, simulating network partition. Messages within a partition
+     * work normally.
+     *
+     * Example:
+     * @code
+     * network.createPartition({0, 1}, {2, 3});  // [0,1] vs [2,3]
+     * network.send(0, 2, work);  // Dropped (cross-partition)
+     * network.send(0, 1, work);  // Delivered (same partition)
+     * @endcode
+     *
+     * @param partition_a Nodes in partition A
+     * @param partition_b Nodes in partition B
+     */
+    void createPartition(const std::vector<size_t>& partition_a,
+                        const std::vector<size_t>& partition_b);
+
+    /**
+     * @brief Heal the network partition
+     *
+     * Restores full connectivity between all nodes.
+     */
+    void healPartition();
+
+    /**
+     * @brief Check if there is an active partition
+     * @return true if network is partitioned
+     */
+    bool isPartitioned() const;
+
+    /**
+     * @brief Check if two nodes can communicate
+     *
+     * Returns false if nodes are in different partitions.
+     *
+     * @param from_node Source node
+     * @param to_node Destination node
+     * @return true if nodes can communicate
+     */
+    bool canCommunicate(size_t from_node, size_t to_node) const;
+
+    /**
+     * @brief Get messages dropped due to partition
+     * @return Partition-dropped message count
+     */
+    size_t getPartitionDroppedMessages() const { return partition_dropped_messages_.load(); }
+
 private:
     Config config_;  ///< Network configuration
 
@@ -131,6 +186,13 @@ private:
     std::atomic<size_t> delivered_messages_{0};
     std::atomic<size_t> dropped_messages_{0};
     std::atomic<uint64_t> total_latency_us_{0};  // Sum of all latencies
+
+    // Phase 5.2: Partition state
+    std::atomic<bool> is_partitioned_{false};
+    std::vector<size_t> partition_a_;  // Nodes in partition A
+    std::vector<size_t> partition_b_;  // Nodes in partition B
+    mutable std::mutex partition_mutex_;
+    std::atomic<size_t> partition_dropped_messages_{0};
 
     // Random number generator for latency and packet loss
     std::mt19937 rng_;

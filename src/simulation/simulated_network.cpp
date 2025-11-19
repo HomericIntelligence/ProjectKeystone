@@ -26,6 +26,14 @@ SimulatedNetwork::SimulatedNetwork(Config config)
 void SimulatedNetwork::send(size_t from_node, size_t to_node, std::function<void()> work) {
     total_messages_++;
 
+    // Phase 5.2: Check for network partition
+    if (!canCommunicate(from_node, to_node)) {
+        partition_dropped_messages_++;
+        Logger::debug("SimulatedNetwork: Message dropped due to partition ({}→{})",
+                     from_node, to_node);
+        return;
+    }
+
     // Check for packet loss
     if (shouldDropPacket()) {
         dropped_messages_++;
@@ -115,6 +123,7 @@ void SimulatedNetwork::resetStats() {
     delivered_messages_.store(0);
     dropped_messages_.store(0);
     total_latency_us_.store(0);
+    partition_dropped_messages_.store(0);  // Phase 5.2
 
     Logger::debug("SimulatedNetwork: Stats reset");
 }
@@ -129,6 +138,65 @@ bool SimulatedNetwork::shouldDropPacket() {
         return false;
     }
     return loss_dist_(rng_) < config_.packet_loss_rate;
+}
+
+// ============================================================================
+// PHASE 5.2: Network Partition Implementation
+// ============================================================================
+
+void SimulatedNetwork::createPartition(const std::vector<size_t>& partition_a,
+                                       const std::vector<size_t>& partition_b) {
+    std::lock_guard<std::mutex> lock(partition_mutex_);
+
+    partition_a_ = partition_a;
+    partition_b_ = partition_b;
+    is_partitioned_.store(true);
+
+    Logger::info("SimulatedNetwork: Partition created - A={} nodes, B={} nodes",
+                 partition_a.size(), partition_b.size());
+}
+
+void SimulatedNetwork::healPartition() {
+    std::lock_guard<std::mutex> lock(partition_mutex_);
+
+    partition_a_.clear();
+    partition_b_.clear();
+    is_partitioned_.store(false);
+
+    Logger::info("SimulatedNetwork: Partition healed - full connectivity restored");
+}
+
+bool SimulatedNetwork::isPartitioned() const {
+    return is_partitioned_.load();
+}
+
+bool SimulatedNetwork::canCommunicate(size_t from_node, size_t to_node) const {
+    // If no partition, all nodes can communicate
+    if (!is_partitioned_.load()) {
+        return true;
+    }
+
+    // Check partition membership
+    std::lock_guard<std::mutex> lock(partition_mutex_);
+
+    // Check if both nodes are in partition A
+    bool from_in_a = std::find(partition_a_.begin(), partition_a_.end(), from_node) != partition_a_.end();
+    bool to_in_a = std::find(partition_a_.begin(), partition_a_.end(), to_node) != partition_a_.end();
+
+    if (from_in_a && to_in_a) {
+        return true;  // Both in partition A
+    }
+
+    // Check if both nodes are in partition B
+    bool from_in_b = std::find(partition_b_.begin(), partition_b_.end(), from_node) != partition_b_.end();
+    bool to_in_b = std::find(partition_b_.begin(), partition_b_.end(), to_node) != partition_b_.end();
+
+    if (from_in_b && to_in_b) {
+        return true;  // Both in partition B
+    }
+
+    // Nodes are in different partitions - cannot communicate
+    return false;
 }
 
 } // namespace simulation
