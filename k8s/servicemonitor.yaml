@@ -1,0 +1,27 @@
+# ServiceMonitor for Prometheus Operator
+# This resource is only needed if using Prometheus Operator
+# For plain Prometheus deployment, use k8s/prometheus.yaml instead
+
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: hmas
+  namespace: projectkeystone
+  labels:
+    app: hmas
+    component: agent-system
+    release: prometheus-operator  # Match your Prometheus Operator release
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: projectkeystone
+      app.kubernetes.io/component: agent-system
+  endpoints:
+  - port: metrics
+    interval: 30s
+    scrapeTimeout: 10s
+    path: /metrics
+    scheme: http
+  namespaceSelector:
+    matchNames:
+      - projectkeystone

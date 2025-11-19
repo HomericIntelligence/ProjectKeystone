@@ -121,6 +121,7 @@ add_library(keystone_core
     src/core/retry_policy.cpp  # Phase 5.3: Chaos engineering - message retries
     src/core/heartbeat_monitor.cpp  # Phase 5.4: Chaos engineering - heartbeat monitoring
     src/core/circuit_breaker.cpp  # Phase 5.4: Chaos engineering - circuit breaker
+    src/monitoring/prometheus_exporter.cpp  # Phase 6.3: Prometheus metrics exporter
 )
 
 target_include_directories(keystone_core PUBLIC

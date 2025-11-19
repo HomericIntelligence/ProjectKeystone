@@ -1,0 +1,85 @@
+# Prometheus configuration for ProjectKeystone HMAS
+# Place this in /etc/prometheus/prometheus.yml or use via ConfigMap in Kubernetes
+
+global:
+  scrape_interval: 30s     # Default scrape interval
+  evaluation_interval: 30s # How often to evaluate rules
+  scrape_timeout: 10s      # Scrape timeout
+
+  # Labels to add to all metrics
+  external_labels:
+    cluster: 'projectkeystone'
+    environment: 'production'
+
+# Alertmanager configuration (optional)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets: ['alertmanager:9093']
+
+# Rule files (for alerting and recording rules)
+# rule_files:
+#   - '/etc/prometheus/rules/*.yml'
+
+# Scrape configurations
+scrape_configs:
+  # ProjectKeystone HMAS metrics
+  - job_name: 'projectkeystone-hmas'
+    static_configs:
+      - targets: ['hmas:9090']  # Kubernetes service name and port
+        labels:
+          app: 'hmas'
+          component: 'agent-system'
+
+  # Kubernetes service discovery (if using Prometheus Operator)
+  - job_name: 'kubernetes-pods'
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+            - projectkeystone
+
+    # Relabel configs to scrape only pods with prometheus annotations
+    relabel_configs:
+      # Only scrape pods with prometheus.io/scrape annotation
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+        action: keep
+        regex: true
+
+      # Get metrics path from prometheus.io/path annotation
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        action: replace
+        target_label: __metrics_path__
+        regex: (.+)
+
+      # Get metrics port from prometheus.io/port annotation
+      - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+        action: replace
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        target_label: __address__
+
+      # Add pod name as label
+      - source_labels: [__meta_kubernetes_pod_name]
+        action: replace
+        target_label: pod
+
+      # Add namespace as label
+      - source_labels: [__meta_kubernetes_namespace]
+        action: replace
+        target_label: namespace
+
+      # Add app label
+      - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name]
+        action: replace
+        target_label: app
+
+      # Add instance label
+      - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_instance]
+        action: replace
+        target_label: instance
+
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
