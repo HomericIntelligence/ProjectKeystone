@@ -1,0 +1,18 @@
+# ProjectKeystone cppcheck suppressions
+# Phase 9.3: Static Analysis
+
+# Suppress missing include system headers (we don't control these)
+missingIncludeSystem
+
+# Suppress unmatched suppressions (can occur with version differences)
+unmatchedSuppression
+
+# Suppress unused function warnings (many functions are part of API)
+unusedFunction
+
+# Suppress style issues in third-party code
+*:third_party/*
+*:_deps/*
+
+# Suppress warnings in test files (different coding standards)
+useStlAlgorithm:tests/*
