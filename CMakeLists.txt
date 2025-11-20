@@ -199,109 +199,109 @@ target_link_libraries(keystone_simulation PUBLIC
     keystone_core
 )
 
-# E2E Tests - Phase 1
-add_executable(phase1_e2e_tests
-    tests/e2e/phase1_basic_delegation.cpp
+# E2E Tests - Basic Delegation
+add_executable(basic_delegation_tests
+    tests/e2e/basic_delegation_test.cpp
 )
 
-target_link_libraries(phase1_e2e_tests
+target_link_libraries(basic_delegation_tests
     keystone_agents
     keystone_core
     GTest::gtest_main
 )
 
-gtest_discover_tests(phase1_e2e_tests)
+gtest_discover_tests(basic_delegation_tests)
 
-# E2E Tests - Phase 2
-add_executable(phase2_e2e_tests
-    tests/e2e/phase2_module_coordination.cpp
+# E2E Tests - Module Coordination
+add_executable(module_coordination_tests
+    tests/e2e/module_coordination_test.cpp
 )
 
-target_link_libraries(phase2_e2e_tests
+target_link_libraries(module_coordination_tests
     keystone_agents
     keystone_core
     GTest::gtest_main
 )
 
 include(GoogleTest)
-gtest_discover_tests(phase2_e2e_tests)
+gtest_discover_tests(module_coordination_tests)
 
-# E2E Tests - Phase 3
-add_executable(phase3_e2e_tests
-    tests/e2e/phase3_component_coordination.cpp
+# E2E Tests - Component Coordination
+add_executable(component_coordination_tests
+    tests/e2e/component_coordination_test.cpp
 )
 
-target_link_libraries(phase3_e2e_tests
+target_link_libraries(component_coordination_tests
     keystone_agents
     keystone_core
     GTest::gtest_main
 )
 
-gtest_discover_tests(phase3_e2e_tests)
+gtest_discover_tests(component_coordination_tests)
 
-# E2E Tests - Phase A (Async Work-Stealing)
-add_executable(phase_a_e2e_tests
-    tests/e2e/phase_a_async_delegation.cpp
+# E2E Tests - Async Delegation (Work-Stealing)
+add_executable(async_delegation_tests
+    tests/e2e/async_delegation_test.cpp
 )
 
-target_link_libraries(phase_a_e2e_tests
-    keystone_agents
-    keystone_core
-    keystone_concurrency
-    GTest::gtest_main
-)
-
-gtest_discover_tests(phase_a_e2e_tests)
-
-# E2E Tests - Phase B (Async Agent Coroutines)
-add_executable(phase_b_e2e_tests
-    tests/e2e/phase_b_async_agents.cpp
-    tests/e2e/phase_b_full_async_hierarchy.cpp
-)
-
-target_link_libraries(phase_b_e2e_tests
+target_link_libraries(async_delegation_tests
     keystone_agents
     keystone_core
     keystone_concurrency
     GTest::gtest_main
 )
 
-gtest_discover_tests(phase_b_e2e_tests)
+gtest_discover_tests(async_delegation_tests)
 
-# E2E Tests - Phase D.3 (Distributed Hierarchy)
-add_executable(phase_d3_e2e_tests
-    tests/e2e/phase_d3_distributed_hierarchy.cpp
+# E2E Tests - Async Agents (Coroutines)
+add_executable(async_agents_tests
+    tests/e2e/async_agents_test.cpp
+    tests/e2e/full_async_hierarchy_test.cpp
 )
 
-target_link_libraries(phase_d3_e2e_tests
+target_link_libraries(async_agents_tests
+    keystone_agents
+    keystone_core
+    keystone_concurrency
+    GTest::gtest_main
+)
+
+gtest_discover_tests(async_agents_tests)
+
+# E2E Tests - Distributed Hierarchy
+add_executable(distributed_hierarchy_tests
+    tests/e2e/distributed_hierarchy_test.cpp
+)
+
+target_link_libraries(distributed_hierarchy_tests
     keystone_simulation
     keystone_concurrency
     keystone_core
     GTest::gtest_main
 )
 
-gtest_discover_tests(phase_d3_e2e_tests)
+gtest_discover_tests(distributed_hierarchy_tests)
 
-# E2E Tests - Phase 4 (Multi-Component Hierarchy)
-add_executable(phase_4_e2e_tests
-    tests/e2e/phase_4_multi_component.cpp
+# E2E Tests - Multi-Component Hierarchy
+add_executable(multi_component_tests
+    tests/e2e/multi_component_test.cpp
 )
 
-target_link_libraries(phase_4_e2e_tests
+target_link_libraries(multi_component_tests
     keystone_agents
     keystone_core
     keystone_concurrency
     GTest::gtest_main
 )
 
-gtest_discover_tests(phase_4_e2e_tests)
+gtest_discover_tests(multi_component_tests)
 
-# E2E Tests - Phase 5 (Chaos Engineering)
-add_executable(phase_5_e2e_tests
-    tests/e2e/phase_5_chaos_engineering.cpp
+# E2E Tests - Chaos Engineering
+add_executable(chaos_engineering_tests
+    tests/e2e/chaos_engineering_test.cpp
 )
 
-target_link_libraries(phase_5_e2e_tests
+target_link_libraries(chaos_engineering_tests
     keystone_agents
     keystone_core
     keystone_concurrency
@@ -310,7 +310,7 @@ target_link_libraries(phase_5_e2e_tests
 )
 
 gtest_discover_tests(
-    phase_5_e2e_tests
+    chaos_engineering_tests
     DISCOVERY_TIMEOUT 10
 )
 
@@ -379,7 +379,10 @@ gtest_discover_tests(simulation_unit_tests)
 # Add test target
 add_custom_target(run_tests
     COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
-    DEPENDS phase1_e2e_tests phase2_e2e_tests phase3_e2e_tests phase_d3_e2e_tests phase_4_e2e_tests phase_5_e2e_tests unit_tests concurrency_unit_tests simulation_unit_tests
+    DEPENDS basic_delegation_tests module_coordination_tests component_coordination_tests
+            async_delegation_tests async_agents_tests distributed_hierarchy_tests
+            multi_component_tests chaos_engineering_tests
+            unit_tests concurrency_unit_tests simulation_unit_tests
 )
 
 # Benchmarks

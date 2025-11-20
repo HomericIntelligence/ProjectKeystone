@@ -17,7 +17,7 @@ repos:
         args: [--markdown-linebreak-ext=md]
       - id: end-of-file-fixer
       - id: check-yaml
-        exclude: ^(k8s/|helm/|\.github/workflows/)
+        exclude: '^(k8s/|helm/|\.github/workflows/)'
       - id: check-json
       - id: check-toml
       - id: check-xml
@@ -68,7 +68,7 @@ repos:
     rev: v0.39.0
     hooks:
       - id: markdownlint
-        args: [--fix]
+        args: [--fix, --config, .markdownlint.yaml]
 
   # ============================================================================
   # Docker Linting
