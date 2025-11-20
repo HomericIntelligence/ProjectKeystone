@@ -1,4 +1,5 @@
 #include "core/metrics.hpp"
+#include "core/config.hpp"         // FIX m3: Centralized configuration
 #include "concurrency/logger.hpp"  // Phase D: For queue depth alerting
 #include <sstream>
 #include <iomanip>
@@ -42,7 +43,7 @@ void Metrics::recordMessageSent(const std::string& msg_id, Priority priority) {
         message_timestamps_[msg_id] = {std::chrono::steady_clock::now()};
 
         // FIX: Prevent memory leak by cleaning up old timestamps
-        if (message_timestamps_.size() > MAX_TIMESTAMP_ENTRIES) {
+        if (message_timestamps_.size() > Config::METRICS_MAX_TIMESTAMP_ENTRIES) {
             cleanupOldTimestamps();
         }
     }
@@ -87,12 +88,12 @@ void Metrics::recordQueueDepth(const std::string& agent_id, size_t depth) {
     }
 
     // Phase D: Alert on queue depth thresholds
-    if (depth > QUEUE_DEPTH_CRITICAL) {
+    if (depth > Config::METRICS_QUEUE_DEPTH_CRITICAL) {
         concurrency::Logger::critical("Agent {} queue CRITICAL: {} messages (threshold: {})",
-                                      agent_id, depth, QUEUE_DEPTH_CRITICAL);
-    } else if (depth > QUEUE_DEPTH_WARNING) {
+                                      agent_id, depth, Config::METRICS_QUEUE_DEPTH_CRITICAL);
+    } else if (depth > Config::METRICS_QUEUE_DEPTH_WARNING) {
         concurrency::Logger::warn("Agent {} queue high: {} messages (threshold: {})",
-                                  agent_id, depth, QUEUE_DEPTH_WARNING);
+                                  agent_id, depth, Config::METRICS_QUEUE_DEPTH_WARNING);
     }
 }
 
@@ -281,7 +282,7 @@ std::string Metrics::generateReport() const {
 
 void Metrics::cleanupOldTimestamps() {
     // FIX M3: Time-based expiration instead of O(n log n) sort
-    // Remove entries older than 60 seconds
+    // Remove entries older than Config::METRICS_TIMESTAMP_EXPIRY
     // Note: Caller must hold timestamps_mutex_
 
     if (message_timestamps_.empty()) {
@@ -289,11 +290,10 @@ void Metrics::cleanupOldTimestamps() {
     }
 
     auto now = std::chrono::steady_clock::now();
-    constexpr auto EXPIRY_TIME = std::chrono::seconds(60);
 
     // Iterate and erase old entries (more efficient than sorting)
     for (auto it = message_timestamps_.begin(); it != message_timestamps_.end(); ) {
-        if (now - it->second.send_time > EXPIRY_TIME) {
+        if (now - it->second.send_time > Config::METRICS_TIMESTAMP_EXPIRY) {
             it = message_timestamps_.erase(it);
         } else {
             ++it;

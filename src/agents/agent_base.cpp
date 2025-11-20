@@ -1,6 +1,7 @@
 #include "agents/agent_base.hpp"
 #include "core/message_bus.hpp"
 #include "core/metrics.hpp"
+#include "core/config.hpp"  // FIX m3: Centralized configuration
 #include <stdexcept>
 #include <iostream>  // FIX M1: For std::cerr (backpressure logging)
 
@@ -28,7 +29,7 @@ void AgentBase::receiveMessage(const core::KeystoneMessage& msg) {
                         normal_priority_inbox_.size_approx() +
                         low_priority_inbox_.size_approx();
 
-    if (total_depth >= MAX_QUEUE_SIZE) {
+    if (total_depth >= core::Config::AGENT_MAX_QUEUE_SIZE) {
         // Apply backpressure: reject message to prevent memory exhaustion
         if (!backpressure_applied_.exchange(true)) {
             // Log warning on first occurrence
@@ -43,7 +44,10 @@ void AgentBase::receiveMessage(const core::KeystoneMessage& msg) {
     }
 
     // Clear backpressure flag if queue is below limit
-    if (total_depth < MAX_QUEUE_SIZE * 0.8) {  // 80% threshold for hysteresis
+    size_t low_watermark = static_cast<size_t>(
+        core::Config::AGENT_MAX_QUEUE_SIZE * core::Config::AGENT_QUEUE_LOW_WATERMARK_PERCENT
+    );
+    if (total_depth < low_watermark) {
         if (backpressure_applied_.exchange(false)) {
             std::cerr << "[BACKPRESSURE] Agent " << agent_id_
                      << " inbox recovered (" << total_depth << " messages), "
@@ -71,14 +75,14 @@ void AgentBase::receiveMessage(const core::KeystoneMessage& msg) {
 
 std::optional<core::KeystoneMessage> AgentBase::getMessage() {
     // FIX M2: Time-based priority fairness to prevent LOW priority starvation
-    // Strategy: Every LOW_PRIORITY_CHECK_INTERVAL (100ms), force-check NORMAL/LOW
+    // Strategy: Every Config::AGENT_LOW_PRIORITY_CHECK_INTERVAL, force-check NORMAL/LOW
     // queues to ensure fairness even under sustained HIGH priority load
 
     core::KeystoneMessage msg;
     auto now = std::chrono::steady_clock::now();
 
     // Every 100ms, force-check lower priorities regardless of HIGH queue state
-    if (now - last_low_priority_check_ >= LOW_PRIORITY_CHECK_INTERVAL) {
+    if (now - last_low_priority_check_ >= core::Config::AGENT_LOW_PRIORITY_CHECK_INTERVAL) {
         last_low_priority_check_ = now;
 
         // Try NORMAL first (give it priority over LOW during fairness check)
