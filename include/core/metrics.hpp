@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/message.hpp"  // For Priority enum
+#include "core/config.hpp"   // FIX m3: Centralized configuration
 #include <atomic>
 #include <chrono>
 #include <string>
@@ -139,17 +140,10 @@ private:
     /**
      * @brief Clean up old timestamps to prevent memory leak
      *
-     * Called when timestamp map exceeds MAX_TIMESTAMP_ENTRIES.
-     * Removes oldest 50% of entries.
+     * Called when timestamp map exceeds Config::METRICS_MAX_TIMESTAMP_ENTRIES.
+     * Removes entries older than Config::METRICS_TIMESTAMP_EXPIRY.
      */
     void cleanupOldTimestamps();
-
-    // Configuration constants
-    static constexpr size_t MAX_TIMESTAMP_ENTRIES = 10000;  ///< Max entries before cleanup
-
-    // Phase D: Queue depth alerting thresholds
-    static constexpr size_t QUEUE_DEPTH_WARNING = 1000;    ///< Log warning when exceeded
-    static constexpr size_t QUEUE_DEPTH_CRITICAL = 10000;  ///< Log critical when exceeded
 
     // Message counters (atomic for lock-free increment)
     std::atomic<uint64_t> messages_sent_{0};

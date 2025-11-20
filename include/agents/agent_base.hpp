@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/message.hpp"
+#include "core/config.hpp"  // FIX m3: Centralized configuration
 #include "concurrentqueue.h"
 #include <string>
 #include <optional>
@@ -97,10 +98,8 @@ protected:
     // Force-check lower priorities every N milliseconds to prevent starvation
     // under sustained HIGH priority load
     std::chrono::steady_clock::time_point last_low_priority_check_;
-    static constexpr std::chrono::milliseconds LOW_PRIORITY_CHECK_INTERVAL{100};  ///< Check NORMAL/LOW every 100ms
 
     // FIX M1: Backpressure - Queue size limits to prevent memory exhaustion
-    static constexpr size_t MAX_QUEUE_SIZE = 10000;  ///< Max total messages across all priorities
     std::atomic<bool> backpressure_applied_{false};  ///< Flag when backpressure is active
 };
 

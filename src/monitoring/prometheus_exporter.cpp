@@ -1,5 +1,6 @@
 #include "monitoring/prometheus_exporter.hpp"
 #include "core/metrics.hpp"
+#include "core/config.hpp"  // FIX m3: Centralized configuration
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
@@ -93,7 +94,7 @@ bool PrometheusExporter::start() {
     }
 
     // Listen for connections
-    if (listen(server_fd_, 10) < 0) {
+    if (listen(server_fd_, core::Config::HTTP_MAX_PENDING_CONNECTIONS) < 0) {
         std::cerr << "Failed to listen on port " << port_ << std::endl;
         close(server_fd_);
         server_fd_ = -1;
@@ -154,6 +155,19 @@ void PrometheusExporter::serverLoop() {
         // FIX C3: Use RAII wrapper - socket closed automatically on scope exit
         SocketHandle client_socket(client_fd);
 
+        // FIX m4: Set socket read timeout to prevent slowloris attacks
+        struct timeval timeout;
+        timeout.tv_sec = std::chrono::duration_cast<std::chrono::seconds>(
+            core::Config::HTTP_READ_TIMEOUT
+        ).count();
+        timeout.tv_usec = 0;
+
+        if (setsockopt(client_socket.get(), SOL_SOCKET, SO_RCVTIMEO,
+                      &timeout, sizeof(timeout)) < 0) {
+            std::cerr << "Failed to set socket read timeout" << std::endl;
+            continue;  // Still try to handle request without timeout
+        }
+
         // Handle request
         handleRequest(client_socket.get());
 
@@ -163,12 +177,25 @@ void PrometheusExporter::serverLoop() {
 
 void PrometheusExporter::handleRequest(int client_fd) {
     // FIX C5: Use std::array for bounds safety and proper buffer handling
-    std::array<char, 1024> buffer;
+    std::array<char, core::Config::HTTP_REQUEST_BUFFER_SIZE> buffer;
     ssize_t bytes_read = read(client_fd, buffer.data(), buffer.size() - 1);
 
-    // Validate read result
+    // FIX m4: Validate read result and reject invalid requests
     if (bytes_read < 0) {
-        return;  // Read error
+        // Read error (including timeout)
+        return;
+    }
+
+    if (bytes_read == 0) {
+        // Empty request - connection closed by client
+        return;
+    }
+
+    // FIX m4: Validate minimum request size (at least "GET /")
+    if (bytes_read < 5) {
+        std::string bad_request = "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n";
+        write(client_fd, bad_request.c_str(), bad_request.size());
+        return;
     }
 
     // FIX C5: Clamp to safe range to prevent buffer overflow
@@ -179,6 +206,16 @@ void PrometheusExporter::handleRequest(int client_fd) {
     // Check if this is a GET request to /metrics
     buffer[bytes_read] = '\0';  // ✅ Safe: bytes_read is guaranteed < buffer.size()
     std::string request(buffer.data());
+
+    // FIX m4: Validate HTTP method (only accept GET)
+    if (request.substr(0, 3) != "GET") {
+        std::string method_not_allowed = "HTTP/1.1 405 Method Not Allowed\r\n"
+                                        "Allow: GET\r\n"
+                                        "Content-Length: 0\r\n\r\n";
+        write(client_fd, method_not_allowed.c_str(), method_not_allowed.size());
+        return;
+    }
+
     bool is_metrics_request = (request.find("GET /metrics") != std::string::npos);
 
     if (is_metrics_request) {

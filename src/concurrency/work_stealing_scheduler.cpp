@@ -4,6 +4,7 @@
  */
 
 #include "concurrency/work_stealing_scheduler.hpp"
+#include "core/config.hpp"  // FIX m3: Centralized configuration
 #include <sstream>
 
 // Phase D: CPU affinity support (Linux-specific)
@@ -150,7 +151,6 @@ void WorkStealingScheduler::workerLoop(size_t worker_index) {
 
     // FIX M5: Adaptive exponential backoff instead of fixed 100μs sleep
     size_t idle_count = 0;
-    constexpr size_t MAX_BACKOFF_US = 1000;  // Cap at 1ms
 
     // Main work loop
     while (!shutdown_requested_.load()) {
@@ -177,11 +177,11 @@ void WorkStealingScheduler::workerLoop(size_t worker_index) {
             idle_count = 0;  // Reset backoff on successful work
         } else {
             // FIX M5: Adaptive exponential backoff
-            // Start with 1μs, double each iteration up to 1ms
+            // Start with 1μs, double each iteration up to Config::SCHEDULER_MAX_BACKOFF_MICROSECONDS
             // This reduces CPU waste while maintaining low latency
             idle_count++;
             size_t backoff_shift = std::min(idle_count, static_cast<size_t>(10));  // Max 2^10 = 1024
-            size_t sleep_us = std::min(1UL << backoff_shift, MAX_BACKOFF_US);
+            size_t sleep_us = std::min(1UL << backoff_shift, core::Config::SCHEDULER_MAX_BACKOFF_MICROSECONDS);
             std::this_thread::sleep_for(std::chrono::microseconds(sleep_us));
         }
     }
