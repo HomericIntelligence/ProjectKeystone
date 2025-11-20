@@ -7,19 +7,18 @@
 namespace keystone {
 namespace agents {
 
-ComponentLeadAgent::ComponentLeadAgent(const std::string& agent_id)
-    : BaseAgent(agent_id) {
+ComponentLeadAgent::ComponentLeadAgent(const std::string& agent_id) : BaseAgent(agent_id) {
   transitionTo(State::IDLE);
 }
 
-core::Response ComponentLeadAgent::processMessage(
+concurrency::Task<core::Response> ComponentLeadAgent::processMessage(
     const core::KeystoneMessage& msg) {
+  // FIX C3: Changed to async (returns Task<Response>)
   // Check if this is a module result or a component goal
   if (msg.command == "module_result") {
     // This is a module result - handled separately
     processModuleResult(msg);
-    return core::Response::createSuccess(msg, agent_id_,
-                                         "Module result processed");
+    co_return core::Response::createSuccess(msg, agent_id_, "Module result processed");
   }
 
   // This is a component goal from ChiefArchitect
@@ -33,8 +32,7 @@ core::Response ComponentLeadAgent::processMessage(
 
   if (module_goals.empty()) {
     transitionTo(State::ERROR);
-    return core::Response::createError(msg, agent_id_,
-                                       "Failed to decompose component goal");
+    co_return core::Response::createError(msg, agent_id_, "Failed to decompose component goal");
   }
 
   // Delegate module goals to ModuleLeadAgents
@@ -45,28 +43,27 @@ core::Response ComponentLeadAgent::processMessage(
   transitionTo(State::WAITING_FOR_MODULES);
   delegateModules(module_goals);
 
-  return core::Response::createSuccess(msg, agent_id_,
-                                       "Component goal decomposed into " +
-                                           std::to_string(module_goals.size()) +
-                                           " modules");
+  co_return core::Response::createSuccess(msg,
+                                          agent_id_,
+                                          "Component goal decomposed into " +
+                                              std::to_string(module_goals.size()) + " modules");
 }
 
-void ComponentLeadAgent::setAvailableModuleLeads(
-    const std::vector<std::string>& module_lead_ids) {
+void ComponentLeadAgent::setAvailableModuleLeads(const std::vector<std::string>& module_lead_ids) {
   available_module_leads_ = module_lead_ids;
 }
 
-std::vector<std::string> ComponentLeadAgent::decomposeModules(
-    const std::string& component_goal) {
+std::vector<std::string> ComponentLeadAgent::decomposeModules(const std::string& component_goal) {
   std::vector<std::string> module_goals;
 
-  // Parse goal like "Implement Core component: Messaging(10+20+30) and
-  // Concurrency(40+50+60)" Extract module sections using regex
+  // Parse goal like "Implement Core component: Messaging(10+20+30) and Concurrency(40+50+60)"
+  // Extract module sections using regex
 
   // Pattern to match "ModuleName(numbers)"
   std::regex module_regex(R"((\w+)\(([0-9+]+)\))");
   auto modules_begin = std::sregex_iterator(component_goal.begin(),
-                                            component_goal.end(), module_regex);
+                                            component_goal.end(),
+                                            module_regex);
   auto modules_end = std::sregex_iterator();
 
   for (std::sregex_iterator i = modules_begin; i != modules_end; ++i) {
@@ -82,8 +79,7 @@ std::vector<std::string> ComponentLeadAgent::decomposeModules(
   return module_goals;
 }
 
-void ComponentLeadAgent::delegateModules(
-    const std::vector<std::string>& module_goals) {
+void ComponentLeadAgent::delegateModules(const std::vector<std::string>& module_goals) {
   // Assign module goals to available ModuleLeadAgents
   for (size_t i = 0; i < module_goals.size(); ++i) {
     if (available_module_leads_.empty()) {
@@ -98,8 +94,7 @@ void ComponentLeadAgent::delegateModules(
     const std::string& module_lead_id = available_module_leads_[i];
 
     // Create and send module goal message
-    auto module_msg = core::KeystoneMessage::create(agent_id_, module_lead_id,
-                                                    module_goals[i]);
+    auto module_msg = core::KeystoneMessage::create(agent_id_, module_lead_id, module_goals[i]);
 
     // Track pending module
     pending_modules_[module_msg.msg_id] = module_lead_id;
@@ -109,8 +104,7 @@ void ComponentLeadAgent::delegateModules(
   }
 }
 
-void ComponentLeadAgent::processModuleResult(
-    const core::KeystoneMessage& result_msg) {
+void ComponentLeadAgent::processModuleResult(const core::KeystoneMessage& result_msg) {
   if (!result_msg.payload) {
     // No payload, skip
     return;
@@ -127,8 +121,7 @@ void ComponentLeadAgent::processModuleResult(
 }
 
 std::string ComponentLeadAgent::synthesizeComponentResult() {
-  if (current_state_ != State::AGGREGATING &&
-      current_state_ != State::WAITING_FOR_MODULES) {
+  if (current_state_ != State::AGGREGATING && current_state_ != State::WAITING_FOR_MODULES) {
     return "ERROR: Cannot synthesize in current state";
   }
 

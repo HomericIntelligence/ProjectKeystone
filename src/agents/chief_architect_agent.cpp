@@ -3,25 +3,24 @@
 namespace keystone {
 namespace agents {
 
-ChiefArchitectAgent::ChiefArchitectAgent(const std::string& agent_id)
-    : BaseAgent(agent_id) {}
+ChiefArchitectAgent::ChiefArchitectAgent(const std::string& agent_id) : BaseAgent(agent_id) {}
 
-core::Response ChiefArchitectAgent::processMessage(
+concurrency::Task<core::Response> ChiefArchitectAgent::processMessage(
     const core::KeystoneMessage& msg) {
+  // FIX C3: Changed to async (returns Task<Response>)
   // For Phase 1, ChiefArchitect receives responses from TaskAgent
   // Defensive: check payload exists before dereferencing
   if (!msg.payload) {
-    return core::Response::createError(msg, agent_id_,
-                                       "Missing payload in message");
+    co_return core::Response::createError(msg, agent_id_, "Missing payload in message");
   }
 
-  core::Response resp =
-      core::Response::createSuccess(msg, agent_id_, *msg.payload);
-  return resp;
+  core::Response resp = core::Response::createSuccess(msg, agent_id_, *msg.payload);
+  co_return resp;
 }
 
-core::Response ChiefArchitectAgent::sendCommand(
+concurrency::Task<core::Response> ChiefArchitectAgent::sendCommand(
     const std::string& command, const std::string& task_agent_id) {
+  // FIX C3: Changed to async (returns Task<Response>)
   // Create message
   auto msg = core::KeystoneMessage::create(agent_id_, task_agent_id, command);
 
@@ -33,10 +32,10 @@ core::Response ChiefArchitectAgent::sendCommand(
   // Get the response
   auto response_msg = getMessage();
   if (response_msg) {
-    return processMessage(*response_msg);
+    co_return co_await processMessage(*response_msg);
   }
 
-  return core::Response::createError(msg, agent_id_, "No response received");
+  co_return core::Response::createError(msg, agent_id_, "No response received");
 }
 
 }  // namespace agents

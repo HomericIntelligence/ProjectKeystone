@@ -23,22 +23,26 @@ class ChiefArchitectAgent : public BaseAgent {
   explicit ChiefArchitectAgent(const std::string& agent_id);
 
   /**
-   * @brief Process incoming message (typically responses from subordinates)
+   * @brief Process incoming message asynchronously
+   *
+   * FIX C3: Changed to async (returns Task<Response>)
    *
    * @param msg Message to process
-   * @return core::Response Response to the message
+   * @return concurrency::Task<core::Response> Async task with response
    */
-  core::Response processMessage(const core::KeystoneMessage& msg) override;
+  concurrency::Task<core::Response> processMessage(const core::KeystoneMessage& msg) override;
 
   /**
    * @brief Send a command to a task agent and wait for response
    *
+   * FIX C3: Changed to async (returns Task<Response>)
+   *
    * @param command Command string to execute
    * @param task_agent_id Target task agent ID
-   * @return core::Response Response from the task agent
+   * @return concurrency::Task<core::Response> Async task with response
    */
-  core::Response sendCommand(const std::string& command,
-                             const std::string& task_agent_id);
+  concurrency::Task<core::Response> sendCommand(const std::string& command,
+                                                 const std::string& task_agent_id);
 };
 
 }  // namespace agents
