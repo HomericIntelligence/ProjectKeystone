@@ -44,9 +44,9 @@ option(ENABLE_FUZZING "Enable fuzz testing with libFuzzer" OFF)
 if(ENABLE_FUZZING)
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         message(STATUS "Fuzz testing enabled")
-        set(FUZZING_FLAGS "-fsanitize=fuzzer,address,undefined -fno-omit-frame-pointer -g")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${FUZZING_FLAGS}")
-        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${FUZZING_FLAGS}")
+        # Store fuzzing flags for use with fuzz targets only
+        set(FUZZING_FLAGS "-fsanitize=fuzzer,address,undefined" "-fno-omit-frame-pointer" "-g")
+        # Do NOT apply globally - only to fuzz targets to avoid breaking googletest
     else()
         message(WARNING "Fuzz testing only supported with Clang (use -DCMAKE_CXX_COMPILER=clang++)")
     endif()
@@ -431,7 +431,8 @@ if(ENABLE_FUZZING)
     add_executable(fuzz_message_serialization
         fuzz/fuzz_message_serialization.cpp
     )
-
+    target_compile_options(fuzz_message_serialization PRIVATE ${FUZZING_FLAGS})
+    target_link_options(fuzz_message_serialization PRIVATE ${FUZZING_FLAGS})
     target_link_libraries(fuzz_message_serialization
         keystone_core
     )
@@ -440,7 +441,8 @@ if(ENABLE_FUZZING)
     add_executable(fuzz_message_bus_routing
         fuzz/fuzz_message_bus_routing.cpp
     )
-
+    target_compile_options(fuzz_message_bus_routing PRIVATE ${FUZZING_FLAGS})
+    target_link_options(fuzz_message_bus_routing PRIVATE ${FUZZING_FLAGS})
     target_link_libraries(fuzz_message_bus_routing
         keystone_core
         keystone_agents
@@ -450,7 +452,8 @@ if(ENABLE_FUZZING)
     add_executable(fuzz_work_stealing
         fuzz/fuzz_work_stealing.cpp
     )
-
+    target_compile_options(fuzz_work_stealing PRIVATE ${FUZZING_FLAGS})
+    target_link_options(fuzz_work_stealing PRIVATE ${FUZZING_FLAGS})
     target_link_libraries(fuzz_work_stealing
         keystone_concurrency
         keystone_core
@@ -460,7 +463,8 @@ if(ENABLE_FUZZING)
     add_executable(fuzz_retry_policy
         fuzz/fuzz_retry_policy.cpp
     )
-
+    target_compile_options(fuzz_retry_policy PRIVATE ${FUZZING_FLAGS})
+    target_link_options(fuzz_retry_policy PRIVATE ${FUZZING_FLAGS})
     target_link_libraries(fuzz_retry_policy
         keystone_core
     )

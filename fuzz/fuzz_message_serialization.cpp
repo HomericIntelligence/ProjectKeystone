@@ -19,6 +19,7 @@
 #include <vector>
 
 using namespace keystone;
+using namespace keystone::core;
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     // Skip empty inputs
@@ -26,28 +27,20 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         return 0;
     }
 
-    // Convert input to string
-    std::string input(reinterpret_cast<const char*>(data), size);
-
     try {
         // Test 1: Try to deserialize arbitrary bytes as a message
-        auto deserialized = MessageSerializer::deserialize(input);
+        auto deserialized = MessageSerializer::deserialize(data, size);
 
         // If deserialization succeeded, re-serialize and verify stability
-        if (deserialized.has_value()) {
-            auto reserialized = MessageSerializer::serialize(deserialized.value());
+        auto reserialized = MessageSerializer::serialize(deserialized);
 
-            // Try to deserialize again - should not crash
-            auto redeserialized = MessageSerializer::deserialize(reserialized);
+        // Try to deserialize again - should not crash
+        auto redeserialized = MessageSerializer::deserialize(reserialized);
 
-            // Verify round-trip consistency
-            if (redeserialized.has_value()) {
-                // Both should have the same msg_id
-                if (deserialized->msg_id != redeserialized->msg_id) {
-                    // Inconsistency detected (but don't crash)
-                    return 0;
-                }
-            }
+        // Verify round-trip consistency (both should have the same msg_id)
+        if (deserialized.msg_id != redeserialized.msg_id) {
+            // Inconsistency detected (but don't crash)
+            return 0;
         }
     } catch (const std::exception&) {
         // Expected for malformed input - just return
