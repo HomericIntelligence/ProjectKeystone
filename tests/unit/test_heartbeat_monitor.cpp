@@ -3,99 +3,98 @@
  * @brief Unit tests for HeartbeatMonitor
  */
 
-#include <gtest/gtest.h>
 #include "core/heartbeat_monitor.hpp"
+
 #include <thread>
+
+#include <gtest/gtest.h>
 
 using namespace keystone::core;
 
 class HeartbeatMonitorTest : public ::testing::Test {
-protected:
-    HeartbeatMonitor::Config default_config_{
-        .heartbeat_interval = std::chrono::milliseconds(100),
-        .timeout_threshold = std::chrono::milliseconds(300),
-        .auto_remove_dead = false
-    };
+ protected:
+  HeartbeatMonitor::Config default_config_{.heartbeat_interval = std::chrono::milliseconds(100),
+                                           .timeout_threshold = std::chrono::milliseconds(300),
+                                           .auto_remove_dead = false};
 };
 
 TEST_F(HeartbeatMonitorTest, DefaultConstruction) {
-    HeartbeatMonitor monitor;
+  HeartbeatMonitor monitor;
 
-    EXPECT_EQ(monitor.getTotalFailures(), 0);
-    EXPECT_TRUE(monitor.getRegisteredAgents().empty());
+  EXPECT_EQ(monitor.getTotalFailures(), 0);
+  EXPECT_TRUE(monitor.getRegisteredAgents().empty());
 }
 
 TEST_F(HeartbeatMonitorTest, RecordHeartbeat) {
-    HeartbeatMonitor monitor(default_config_);
+  HeartbeatMonitor monitor(default_config_);
 
-    monitor.recordHeartbeat("agent1");
+  monitor.recordHeartbeat("agent1");
 
-    EXPECT_TRUE(monitor.isAlive("agent1"));
-    EXPECT_EQ(monitor.getRegisteredAgents().size(), 1);
+  EXPECT_TRUE(monitor.isAlive("agent1"));
+  EXPECT_EQ(monitor.getRegisteredAgents().size(), 1);
 }
 
 TEST_F(HeartbeatMonitorTest, DetectFailure) {
-    HeartbeatMonitor monitor(default_config_);
+  HeartbeatMonitor monitor(default_config_);
 
-    monitor.recordHeartbeat("agent1");
-    EXPECT_TRUE(monitor.isAlive("agent1"));
+  monitor.recordHeartbeat("agent1");
+  EXPECT_TRUE(monitor.isAlive("agent1"));
 
-    // Wait longer than timeout threshold
-    std::this_thread::sleep_for(std::chrono::milliseconds(350));
+  // Wait longer than timeout threshold
+  std::this_thread::sleep_for(std::chrono::milliseconds(350));
 
-    // Check agents should detect failure
-    int failures = monitor.checkAgents();
-    EXPECT_EQ(failures, 1);
-    EXPECT_FALSE(monitor.isAlive("agent1"));
-    EXPECT_EQ(monitor.getTotalFailures(), 1);
+  // Check agents should detect failure
+  int failures = monitor.checkAgents();
+  EXPECT_EQ(failures, 1);
+  EXPECT_FALSE(monitor.isAlive("agent1"));
+  EXPECT_EQ(monitor.getTotalFailures(), 1);
 }
 
 TEST_F(HeartbeatMonitorTest, AgentRecovery) {
-    HeartbeatMonitor monitor(default_config_);
+  HeartbeatMonitor monitor(default_config_);
 
-    monitor.recordHeartbeat("agent1");
-    std::this_thread::sleep_for(std::chrono::milliseconds(350));
-    monitor.checkAgents();
+  monitor.recordHeartbeat("agent1");
+  std::this_thread::sleep_for(std::chrono::milliseconds(350));
+  monitor.checkAgents();
 
-    EXPECT_FALSE(monitor.isAlive("agent1"));
+  EXPECT_FALSE(monitor.isAlive("agent1"));
 
-    // Agent sends heartbeat again
-    monitor.recordHeartbeat("agent1");
-    EXPECT_TRUE(monitor.isAlive("agent1"));
+  // Agent sends heartbeat again
+  monitor.recordHeartbeat("agent1");
+  EXPECT_TRUE(monitor.isAlive("agent1"));
 }
 
 TEST_F(HeartbeatMonitorTest, FailureCallback) {
-    HeartbeatMonitor monitor(default_config_);
+  HeartbeatMonitor monitor(default_config_);
 
-    std::string failed_agent;
-    monitor.setFailureCallback([&failed_agent](const std::string& agent_id) {
-        failed_agent = agent_id;
-    });
+  std::string failed_agent;
+  monitor.setFailureCallback(
+      [&failed_agent](const std::string& agent_id) { failed_agent = agent_id; });
 
-    monitor.recordHeartbeat("agent1");
-    std::this_thread::sleep_for(std::chrono::milliseconds(350));
-    monitor.checkAgents();
+  monitor.recordHeartbeat("agent1");
+  std::this_thread::sleep_for(std::chrono::milliseconds(350));
+  monitor.checkAgents();
 
-    EXPECT_EQ(failed_agent, "agent1");
+  EXPECT_EQ(failed_agent, "agent1");
 }
 
 TEST_F(HeartbeatMonitorTest, MultipleAgents) {
-    HeartbeatMonitor monitor(default_config_);
+  HeartbeatMonitor monitor(default_config_);
 
-    monitor.recordHeartbeat("agent1");
-    monitor.recordHeartbeat("agent2");
-    monitor.recordHeartbeat("agent3");
+  monitor.recordHeartbeat("agent1");
+  monitor.recordHeartbeat("agent2");
+  monitor.recordHeartbeat("agent3");
 
-    EXPECT_EQ(monitor.getAliveAgents().size(), 3);
+  EXPECT_EQ(monitor.getAliveAgents().size(), 3);
 
-    // Let agent2 timeout
-    std::this_thread::sleep_for(std::chrono::milliseconds(150));
-    monitor.recordHeartbeat("agent1");  // Keep agent1 alive
-    monitor.recordHeartbeat("agent3");  // Keep agent3 alive
+  // Let agent2 timeout
+  std::this_thread::sleep_for(std::chrono::milliseconds(150));
+  monitor.recordHeartbeat("agent1");  // Keep agent1 alive
+  monitor.recordHeartbeat("agent3");  // Keep agent3 alive
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
-    monitor.checkAgents();
+  std::this_thread::sleep_for(std::chrono::milliseconds(200));
+  monitor.checkAgents();
 
-    EXPECT_EQ(monitor.getAliveAgents().size(), 2);
-    EXPECT_EQ(monitor.getDeadAgents().size(), 1);
+  EXPECT_EQ(monitor.getAliveAgents().size(), 2);
+  EXPECT_EQ(monitor.getDeadAgents().size(), 1);
 }

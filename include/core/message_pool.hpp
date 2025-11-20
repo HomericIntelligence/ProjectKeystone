@@ -1,8 +1,9 @@
 #pragma once
 
 #include "core/message.hpp"
-#include <vector>
+
 #include <optional>
+#include <vector>
 
 namespace keystone {
 namespace core {
@@ -40,75 +41,75 @@ namespace core {
  * Note: Pool is opt-in. Existing KeystoneMessage::create() continues to work.
  */
 class MessagePool {
-public:
-    /**
-     * @brief Acquire a message from the pool
-     *
-     * If pool is empty, creates a new message.
-     * Returns a default-initialized message ready for use.
-     *
-     * @return KeystoneMessage ready to be filled
-     */
-    static KeystoneMessage acquire();
+ public:
+  /**
+   * @brief Acquire a message from the pool
+   *
+   * If pool is empty, creates a new message.
+   * Returns a default-initialized message ready for use.
+   *
+   * @return KeystoneMessage ready to be filled
+   */
+  static KeystoneMessage acquire();
 
-    /**
-     * @brief Release a message back to the pool
-     *
-     * Resets the message and returns it to the thread-local pool.
-     * If pool is full, message is simply destroyed (RAII).
-     *
-     * @param msg Message to release (must be moved)
-     */
-    static void release(KeystoneMessage&& msg);
+  /**
+   * @brief Release a message back to the pool
+   *
+   * Resets the message and returns it to the thread-local pool.
+   * If pool is full, message is simply destroyed (RAII).
+   *
+   * @param msg Message to release (must be moved)
+   */
+  static void release(KeystoneMessage&& msg);
 
-    /**
-     * @brief Get current pool size for this thread
-     *
-     * Useful for testing and monitoring.
-     *
-     * @return Number of messages in thread-local pool
-     */
-    static size_t getPoolSize();
+  /**
+   * @brief Get current pool size for this thread
+   *
+   * Useful for testing and monitoring.
+   *
+   * @return Number of messages in thread-local pool
+   */
+  static size_t getPoolSize();
 
-    /**
-     * @brief Clear the thread-local pool
-     *
-     * Destroys all pooled messages. Useful for testing.
-     */
-    static void clear();
+  /**
+   * @brief Clear the thread-local pool
+   *
+   * Destroys all pooled messages. Useful for testing.
+   */
+  static void clear();
 
-    /**
-     * @brief Get pool statistics
-     *
-     * Returns statistics about pool usage for this thread.
-     */
-    struct PoolStats {
-        size_t total_acquires;    ///< Total acquire() calls
-        size_t total_releases;    ///< Total release() calls
-        size_t pool_hits;          ///< Acquires from pool (not new)
-        size_t pool_misses;        ///< Acquires that needed new allocation
-        size_t current_size;       ///< Current pool size
-        size_t max_size_reached;   ///< Maximum size pool reached
-    };
-    static PoolStats getStats();
+  /**
+   * @brief Get pool statistics
+   *
+   * Returns statistics about pool usage for this thread.
+   */
+  struct PoolStats {
+    size_t total_acquires;    ///< Total acquire() calls
+    size_t total_releases;    ///< Total release() calls
+    size_t pool_hits;         ///< Acquires from pool (not new)
+    size_t pool_misses;       ///< Acquires that needed new allocation
+    size_t current_size;      ///< Current pool size
+    size_t max_size_reached;  ///< Maximum size pool reached
+  };
+  static PoolStats getStats();
 
-    /**
-     * @brief Reset statistics for this thread
-     */
-    static void resetStats();
+  /**
+   * @brief Reset statistics for this thread
+   */
+  static void resetStats();
 
-private:
-    // Configuration
-    static constexpr size_t MAX_POOL_SIZE = 1000;  ///< Max messages per thread
+ private:
+  // Configuration
+  static constexpr size_t MAX_POOL_SIZE = 1000;  ///< Max messages per thread
 
-    // Thread-local storage
-    struct ThreadLocalData {
-        std::vector<KeystoneMessage> pool;
-        PoolStats stats{};
-    };
+  // Thread-local storage
+  struct ThreadLocalData {
+    std::vector<KeystoneMessage> pool;
+    PoolStats stats{};
+  };
 
-    static ThreadLocalData& getThreadLocal();
+  static ThreadLocalData& getThreadLocal();
 };
 
-} // namespace core
-} // namespace keystone
+}  // namespace core
+}  // namespace keystone

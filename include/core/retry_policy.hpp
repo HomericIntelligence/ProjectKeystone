@@ -7,12 +7,12 @@
 
 #pragma once
 
-#include <chrono>
-#include <string>
 #include <atomic>
-#include <mutex>
+#include <chrono>
 #include <map>
+#include <mutex>
 #include <optional>
+#include <string>
 
 namespace keystone {
 namespace core {
@@ -42,145 +42,145 @@ namespace core {
  * @endcode
  */
 class RetryPolicy {
-public:
-    /**
-     * @brief Retry policy configuration
-     */
-    struct Config {
-        int max_attempts{3};                                    ///< Maximum retry attempts
-        std::chrono::milliseconds initial_delay_ms{100};        ///< Initial backoff delay
-        std::chrono::milliseconds max_delay_ms{5000};           ///< Maximum backoff delay
-        double backoff_multiplier{2.0};                         ///< Exponential backoff multiplier
-    };
+ public:
+  /**
+   * @brief Retry policy configuration
+   */
+  struct Config {
+    int max_attempts{3};                              ///< Maximum retry attempts
+    std::chrono::milliseconds initial_delay_ms{100};  ///< Initial backoff delay
+    std::chrono::milliseconds max_delay_ms{5000};     ///< Maximum backoff delay
+    double backoff_multiplier{2.0};                   ///< Exponential backoff multiplier
+  };
 
-    /**
-     * @brief Retry statistics for a message
-     */
-    struct RetryStats {
-        int attempts{0};                                        ///< Number of attempts made
-        std::chrono::steady_clock::time_point first_attempt;   ///< Time of first attempt
-        std::chrono::steady_clock::time_point last_attempt;    ///< Time of last attempt
-        std::chrono::milliseconds total_delay{0};               ///< Total delay accumulated
-    };
+  /**
+   * @brief Retry statistics for a message
+   */
+  struct RetryStats {
+    int attempts{0};                                      ///< Number of attempts made
+    std::chrono::steady_clock::time_point first_attempt;  ///< Time of first attempt
+    std::chrono::steady_clock::time_point last_attempt;   ///< Time of last attempt
+    std::chrono::milliseconds total_delay{0};             ///< Total delay accumulated
+  };
 
-    /**
-     * @brief Construct with default configuration
-     */
-    RetryPolicy();
+  /**
+   * @brief Construct with default configuration
+   */
+  RetryPolicy();
 
-    /**
-     * @brief Construct with custom configuration
-     * @param config Retry policy configuration
-     */
-    explicit RetryPolicy(Config config);
+  /**
+   * @brief Construct with custom configuration
+   * @param config Retry policy configuration
+   */
+  explicit RetryPolicy(Config config);
 
-    /**
-     * @brief Check if message should be retried
-     *
-     * Returns true if the message has not exceeded max attempts.
-     *
-     * @param message_id Unique message identifier
-     * @return true if message can be retried
-     */
-    bool shouldRetry(const std::string& message_id) const;
+  /**
+   * @brief Check if message should be retried
+   *
+   * Returns true if the message has not exceeded max attempts.
+   *
+   * @param message_id Unique message identifier
+   * @return true if message can be retried
+   */
+  bool shouldRetry(const std::string& message_id) const;
 
-    /**
-     * @brief Get next retry delay for a message
-     *
-     * Calculates exponential backoff delay based on attempt count.
-     *
-     * @param message_id Unique message identifier
-     * @return Delay before next retry attempt
-     */
-    std::chrono::milliseconds getNextDelay(const std::string& message_id);
+  /**
+   * @brief Get next retry delay for a message
+   *
+   * Calculates exponential backoff delay based on attempt count.
+   *
+   * @param message_id Unique message identifier
+   * @return Delay before next retry attempt
+   */
+  std::chrono::milliseconds getNextDelay(const std::string& message_id);
 
-    /**
-     * @brief Record a retry attempt for a message
-     *
-     * Increments attempt counter and updates statistics.
-     *
-     * @param message_id Unique message identifier
-     */
-    void recordAttempt(const std::string& message_id);
+  /**
+   * @brief Record a retry attempt for a message
+   *
+   * Increments attempt counter and updates statistics.
+   *
+   * @param message_id Unique message identifier
+   */
+  void recordAttempt(const std::string& message_id);
 
-    /**
-     * @brief Mark message as successfully delivered
-     *
-     * Removes message from retry tracking.
-     *
-     * @param message_id Unique message identifier
-     */
-    void recordSuccess(const std::string& message_id);
+  /**
+   * @brief Mark message as successfully delivered
+   *
+   * Removes message from retry tracking.
+   *
+   * @param message_id Unique message identifier
+   */
+  void recordSuccess(const std::string& message_id);
 
-    /**
-     * @brief Mark message as permanently failed
-     *
-     * Removes message from retry tracking and increments failure count.
-     *
-     * @param message_id Unique message identifier
-     */
-    void recordFailure(const std::string& message_id);
+  /**
+   * @brief Mark message as permanently failed
+   *
+   * Removes message from retry tracking and increments failure count.
+   *
+   * @param message_id Unique message identifier
+   */
+  void recordFailure(const std::string& message_id);
 
-    /**
-     * @brief Get retry statistics for a message
-     *
-     * @param message_id Unique message identifier
-     * @return Retry statistics, or nullopt if message not tracked
-     */
-    std::optional<RetryStats> getStats(const std::string& message_id) const;
+  /**
+   * @brief Get retry statistics for a message
+   *
+   * @param message_id Unique message identifier
+   * @return Retry statistics, or nullopt if message not tracked
+   */
+  std::optional<RetryStats> getStats(const std::string& message_id) const;
 
-    /**
-     * @brief Get total number of retries across all messages
-     * @return Total retry count
-     */
-    int getTotalRetries() const { return total_retries_.load(); }
+  /**
+   * @brief Get total number of retries across all messages
+   * @return Total retry count
+   */
+  int getTotalRetries() const { return total_retries_.load(); }
 
-    /**
-     * @brief Get total number of successful deliveries
-     * @return Success count
-     */
-    int getTotalSuccesses() const { return total_successes_.load(); }
+  /**
+   * @brief Get total number of successful deliveries
+   * @return Success count
+   */
+  int getTotalSuccesses() const { return total_successes_.load(); }
 
-    /**
-     * @brief Get total number of permanent failures
-     * @return Failure count
-     */
-    int getTotalFailures() const { return total_failures_.load(); }
+  /**
+   * @brief Get total number of permanent failures
+   * @return Failure count
+   */
+  int getTotalFailures() const { return total_failures_.load(); }
 
-    /**
-     * @brief Get number of messages currently being retried
-     * @return Active retry count
-     */
-    int getActiveRetries() const;
+  /**
+   * @brief Get number of messages currently being retried
+   * @return Active retry count
+   */
+  int getActiveRetries() const;
 
-    /**
-     * @brief Reset all statistics and tracked messages
-     */
-    void reset();
+  /**
+   * @brief Reset all statistics and tracked messages
+   */
+  void reset();
 
-private:
-    Config config_;  ///< Retry policy configuration
+ private:
+  Config config_;  ///< Retry policy configuration
 
-    // Per-message retry statistics
-    std::map<std::string, RetryStats> retry_stats_;
-    mutable std::mutex stats_mutex_;
+  // Per-message retry statistics
+  std::map<std::string, RetryStats> retry_stats_;
+  mutable std::mutex stats_mutex_;
 
-    // Global statistics
-    std::atomic<int> total_retries_{0};
-    std::atomic<int> total_successes_{0};
-    std::atomic<int> total_failures_{0};
+  // Global statistics
+  std::atomic<int> total_retries_{0};
+  std::atomic<int> total_successes_{0};
+  std::atomic<int> total_failures_{0};
 
-    /**
-     * @brief Calculate exponential backoff delay
-     *
-     * delay = initial_delay * (multiplier ^ attempts)
-     * Capped at max_delay_ms.
-     *
-     * @param attempts Number of attempts made
-     * @return Backoff delay
-     */
-    std::chrono::milliseconds calculateBackoff(int attempts) const;
+  /**
+   * @brief Calculate exponential backoff delay
+   *
+   * delay = initial_delay * (multiplier ^ attempts)
+   * Capped at max_delay_ms.
+   *
+   * @param attempts Number of attempts made
+   * @return Backoff delay
+   */
+  std::chrono::milliseconds calculateBackoff(int attempts) const;
 };
 
-} // namespace core
-} // namespace keystone
+}  // namespace core
+}  // namespace keystone

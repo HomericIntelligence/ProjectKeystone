@@ -4,6 +4,7 @@
  */
 
 #include "concurrency/pull_or_steal.hpp"
+
 #include <thread>
 
 namespace keystone {
@@ -22,88 +23,87 @@ PullOrSteal::PullOrSteal(WorkStealingQueue& own_queue,
       result_(std::nullopt) {}
 
 bool PullOrSteal::await_ready() noexcept {
-    // Fast path: Try to pop from own queue first (LIFO for cache locality)
-    result_ = own_queue_.pop();
-    if (result_.has_value()) {
-        return true;  // Work found, don't suspend
-    }
+  // Fast path: Try to pop from own queue first (LIFO for cache locality)
+  result_ = own_queue_.pop();
+  if (result_.has_value()) {
+    return true;  // Work found, don't suspend
+  }
 
-    // Slow path: Try to steal from other workers (FIFO)
-    result_ = trySteal();
-    if (result_.has_value()) {
-        return true;  // Stolen work found, don't suspend
-    }
+  // Slow path: Try to steal from other workers (FIFO)
+  result_ = trySteal();
+  if (result_.has_value()) {
+    return true;  // Stolen work found, don't suspend
+  }
 
-    // No work available, will suspend
-    return false;
+  // No work available, will suspend
+  return false;
 }
 
 void PullOrSteal::await_suspend(std::coroutine_handle<> handle) noexcept {
-    // Store the coroutine handle for later resumption
-    awaiting_coroutine_ = handle;
+  // Store the coroutine handle for later resumption
+  awaiting_coroutine_ = handle;
 
-    // Simplified implementation for testing: Try once more after a brief wait
-    // In a full WorkStealingScheduler, this would register with a condition variable
-    // and be woken up when work arrives
-    std::this_thread::sleep_for(std::chrono::microseconds(10));
+  // Simplified implementation for testing: Try once more after a brief wait
+  // In a full WorkStealingScheduler, this would register with a condition variable
+  // and be woken up when work arrives
+  std::this_thread::sleep_for(std::chrono::microseconds(10));
 
-    // Try one more time
-    result_ = own_queue_.pop();
-    if (!result_.has_value()) {
-        result_ = trySteal();
-    }
+  // Try one more time
+  result_ = own_queue_.pop();
+  if (!result_.has_value()) {
+    result_ = trySteal();
+  }
 
-    // Resume immediately (synchronous for testing)
-    if (awaiting_coroutine_) {
-        awaiting_coroutine_.resume();
-    }
+  // Resume immediately (synchronous for testing)
+  if (awaiting_coroutine_) {
+    awaiting_coroutine_.resume();
+  }
 }
 
 std::optional<WorkItem> PullOrSteal::await_resume() noexcept {
-    // Check shutdown flag
-    if (shutdown_flag_.load()) {
-        return std::nullopt;
-    }
+  // Check shutdown flag
+  if (shutdown_flag_.load()) {
+    return std::nullopt;
+  }
 
-    return result_;
+  return result_;
 }
 
 std::optional<WorkItem> PullOrSteal::trySteal() {
-    if (all_queues_.empty()) {
-        return std::nullopt;
+  if (all_queues_.empty()) {
+    return std::nullopt;
+  }
+
+  // Try to steal from each other worker in round-robin order
+  size_t num_workers = all_queues_.size();
+  for (size_t i = 1; i < num_workers; ++i) {
+    size_t victim_index = (worker_index_ + i) % num_workers;
+
+    if (victim_index >= all_queues_.size()) {
+      continue;  // Safety check
     }
 
-    // Try to steal from each other worker in round-robin order
-    size_t num_workers = all_queues_.size();
-    for (size_t i = 1; i < num_workers; ++i) {
-        size_t victim_index = (worker_index_ + i) % num_workers;
-
-        if (victim_index >= all_queues_.size()) {
-            continue;  // Safety check
-        }
-
-        auto* victim_queue = all_queues_[victim_index];
-        if (victim_queue == nullptr) {
-            continue;
-        }
-
-        auto stolen = victim_queue->steal();
-        if (stolen.has_value()) {
-            return stolen;  // Successfully stolen
-        }
+    auto* victim_queue = all_queues_[victim_index];
+    if (victim_queue == nullptr) {
+      continue;
     }
 
-    return std::nullopt;  // All queues empty
+    auto stolen = victim_queue->steal();
+    if (stolen.has_value()) {
+      return stolen;  // Successfully stolen
+    }
+  }
+
+  return std::nullopt;  // All queues empty
 }
 
 // PullOrStealWithTimeout implementation
 
-PullOrStealWithTimeout::PullOrStealWithTimeout(
-    WorkStealingQueue& own_queue,
-    std::vector<WorkStealingQueue*>& all_queues,
-    size_t worker_index,
-    std::atomic<bool>& shutdown_flag,
-    std::chrono::milliseconds timeout)
+PullOrStealWithTimeout::PullOrStealWithTimeout(WorkStealingQueue& own_queue,
+                                               std::vector<WorkStealingQueue*>& all_queues,
+                                               size_t worker_index,
+                                               std::atomic<bool>& shutdown_flag,
+                                               std::chrono::milliseconds timeout)
     : own_queue_(own_queue),
       all_queues_(all_queues),
       worker_index_(worker_index),
@@ -113,79 +113,79 @@ PullOrStealWithTimeout::PullOrStealWithTimeout(
       start_time_(std::chrono::steady_clock::now()) {}
 
 bool PullOrStealWithTimeout::await_ready() noexcept {
-    // Same logic as PullOrSteal
-    result_ = own_queue_.pop();
-    if (result_.has_value()) {
-        return true;
-    }
+  // Same logic as PullOrSteal
+  result_ = own_queue_.pop();
+  if (result_.has_value()) {
+    return true;
+  }
 
-    result_ = trySteal();
-    if (result_.has_value()) {
-        return true;
-    }
+  result_ = trySteal();
+  if (result_.has_value()) {
+    return true;
+  }
 
-    return false;
+  return false;
 }
 
 void PullOrStealWithTimeout::await_suspend(std::coroutine_handle<> handle) noexcept {
-    awaiting_coroutine_ = handle;
+  awaiting_coroutine_ = handle;
 
-    auto elapsed = std::chrono::steady_clock::now() - start_time_;
+  auto elapsed = std::chrono::steady_clock::now() - start_time_;
 
-    // Check if timeout exceeded
-    if (elapsed >= timeout_) {
-        result_ = std::nullopt;
-    } else {
-        // Wait for remaining time or until work arrives
-        auto remaining = timeout_ - std::chrono::duration_cast<std::chrono::milliseconds>(elapsed);
-        std::this_thread::sleep_for(std::min(remaining, std::chrono::milliseconds(10)));
+  // Check if timeout exceeded
+  if (elapsed >= timeout_) {
+    result_ = std::nullopt;
+  } else {
+    // Wait for remaining time or until work arrives
+    auto remaining = timeout_ - std::chrono::duration_cast<std::chrono::milliseconds>(elapsed);
+    std::this_thread::sleep_for(std::min(remaining, std::chrono::milliseconds(10)));
 
-        result_ = own_queue_.pop();
-        if (!result_.has_value()) {
-            result_ = trySteal();
-        }
+    result_ = own_queue_.pop();
+    if (!result_.has_value()) {
+      result_ = trySteal();
     }
+  }
 
-    // Resume immediately (synchronous for testing)
-    if (awaiting_coroutine_) {
-        awaiting_coroutine_.resume();
-    }
+  // Resume immediately (synchronous for testing)
+  if (awaiting_coroutine_) {
+    awaiting_coroutine_.resume();
+  }
 }
 
 std::optional<WorkItem> PullOrStealWithTimeout::await_resume() noexcept {
-    if (shutdown_flag_.load()) {
-        return std::nullopt;
-    }
+  if (shutdown_flag_.load()) {
+    return std::nullopt;
+  }
 
-    return result_;
+  return result_;
 }
 
 std::optional<WorkItem> PullOrStealWithTimeout::trySteal() {
-    if (all_queues_.empty()) {
-        return std::nullopt;
-    }
-
-    size_t num_workers = all_queues_.size();
-    for (size_t i = 1; i < num_workers; ++i) {
-        size_t victim_index = (worker_index_ + i) % num_workers;
-
-        if (victim_index >= all_queues_.size()) {
-            continue;
-        }
-
-        auto* victim_queue = all_queues_[victim_index];
-        if (victim_queue == nullptr) {
-            continue;
-        }
-
-        auto stolen = victim_queue->steal();
-        if (stolen.has_value()) {
-            return stolen;
-        }
-    }
-
+  if (all_queues_.empty()) {
     return std::nullopt;
+  }
+
+  size_t num_workers = all_queues_.size();
+  for (size_t i = 1; i < num_workers; ++i) {
+    size_t victim_index = (worker_index_ + i) % num_workers;
+
+    if (victim_index >= all_queues_.size()) {
+      continue;
+    }
+
+    auto* victim_queue = all_queues_[victim_index];
+    if (victim_queue == nullptr) {
+      continue;
+    }
+
+    auto stolen = victim_queue->steal();
+    if (stolen.has_value()) {
+      return stolen;
+    }
+  }
+
+  return std::nullopt;
 }
 
-} // namespace concurrency
-} // namespace keystone
+}  // namespace concurrency
+}  // namespace keystone

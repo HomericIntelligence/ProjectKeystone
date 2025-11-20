@@ -1,138 +1,131 @@
 #include "core/message.hpp"
-#include <sstream>
+
 #include <iomanip>
 #include <random>
+#include <sstream>
 
 namespace keystone {
 namespace core {
 
 namespace {
-    // Simple UUID generation (not cryptographically secure, but sufficient for Phase 1)
-    // Thread-safe: uses thread_local to avoid data races across threads
-    std::string generate_uuid() {
-        thread_local std::random_device rd;
-        thread_local std::mt19937 gen(rd());
-        thread_local std::uniform_int_distribution<> dis(0, 15);
-        static const char* hex = "0123456789abcdef";
+// Simple UUID generation (not cryptographically secure, but sufficient for Phase 1)
+// Thread-safe: uses thread_local to avoid data races across threads
+std::string generate_uuid() {
+  thread_local std::random_device rd;
+  thread_local std::mt19937 gen(rd());
+  thread_local std::uniform_int_distribution<> dis(0, 15);
+  static const char* hex = "0123456789abcdef";
 
-        std::stringstream ss;
-        for (int i = 0; i < 32; ++i) {
-            if (i == 8 || i == 12 || i == 16 || i == 20) {
-                ss << '-';
-            }
-            ss << hex[dis(gen)];
-        }
-        return ss.str();
+  std::stringstream ss;
+  for (int i = 0; i < 32; ++i) {
+    if (i == 8 || i == 12 || i == 16 || i == 20) {
+      ss << '-';
     }
+    ss << hex[dis(gen)];
+  }
+  return ss.str();
+}
+}  // namespace
+
+KeystoneMessage KeystoneMessage::create(const std::string& sender,
+                                        const std::string& receiver,
+                                        const std::string& cmd,
+                                        const std::optional<std::string>& data) {
+  KeystoneMessage msg;
+  msg.msg_id = generate_uuid();
+  msg.sender_id = sender;
+  msg.receiver_id = receiver;
+  msg.command = cmd;
+  msg.payload = data;
+  msg.timestamp = std::chrono::system_clock::now();
+
+  // Phase A: Initialize new fields with defaults for backward compatibility
+  msg.action_type = ActionType::EXECUTE;
+  msg.content_type = ContentType::TEXT_PLAIN;
+  msg.session_id = "default";
+  // metadata is empty by default
+
+  // Phase C: Initialize priority to NORMAL by default
+  msg.priority = Priority::NORMAL;
+
+  return msg;
 }
 
-KeystoneMessage KeystoneMessage::create(
-    const std::string& sender,
-    const std::string& receiver,
-    const std::string& cmd,
-    const std::optional<std::string>& data
-) {
-    KeystoneMessage msg;
-    msg.msg_id = generate_uuid();
-    msg.sender_id = sender;
-    msg.receiver_id = receiver;
-    msg.command = cmd;
-    msg.payload = data;
-    msg.timestamp = std::chrono::system_clock::now();
+KeystoneMessage KeystoneMessage::create(const std::string& sender,
+                                        const std::string& receiver,
+                                        ActionType action,
+                                        const std::string& session,
+                                        const std::optional<std::string>& data,
+                                        ContentType content) {
+  KeystoneMessage msg;
+  msg.msg_id = generate_uuid();
+  msg.sender_id = sender;
+  msg.receiver_id = receiver;
+  msg.action_type = action;
+  msg.content_type = content;
+  msg.session_id = session;
+  msg.payload = data;
+  msg.timestamp = std::chrono::system_clock::now();
 
-    // Phase A: Initialize new fields with defaults for backward compatibility
-    msg.action_type = ActionType::EXECUTE;
-    msg.content_type = ContentType::TEXT_PLAIN;
-    msg.session_id = "default";
-    // metadata is empty by default
+  // Legacy field: set command based on action type
+  msg.command = actionTypeToString(action);
 
-    // Phase C: Initialize priority to NORMAL by default
-    msg.priority = Priority::NORMAL;
+  // Phase C: Initialize priority and deadline (FIX: was missing!)
+  msg.priority = Priority::NORMAL;
+  msg.deadline = std::nullopt;
 
-    return msg;
-}
-
-KeystoneMessage KeystoneMessage::create(
-    const std::string& sender,
-    const std::string& receiver,
-    ActionType action,
-    const std::string& session,
-    const std::optional<std::string>& data,
-    ContentType content
-) {
-    KeystoneMessage msg;
-    msg.msg_id = generate_uuid();
-    msg.sender_id = sender;
-    msg.receiver_id = receiver;
-    msg.action_type = action;
-    msg.content_type = content;
-    msg.session_id = session;
-    msg.payload = data;
-    msg.timestamp = std::chrono::system_clock::now();
-
-    // Legacy field: set command based on action type
-    msg.command = actionTypeToString(action);
-
-    // Phase C: Initialize priority and deadline (FIX: was missing!)
-    msg.priority = Priority::NORMAL;
-    msg.deadline = std::nullopt;
-
-    return msg;
+  return msg;
 }
 
 void KeystoneMessage::setDeadlineFromNow(std::chrono::milliseconds duration_ms) {
-    deadline = std::chrono::system_clock::now() + duration_ms;
+  deadline = std::chrono::system_clock::now() + duration_ms;
 }
 
 bool KeystoneMessage::hasDeadlinePassed() const {
-    if (!deadline.has_value()) {
-        return false;  // No deadline means it can't be passed
-    }
-    return std::chrono::system_clock::now() > *deadline;
+  if (!deadline.has_value()) {
+    return false;  // No deadline means it can't be passed
+  }
+  return std::chrono::system_clock::now() > *deadline;
 }
 
 std::optional<std::chrono::milliseconds> KeystoneMessage::getTimeUntilDeadline() const {
-    if (!deadline.has_value()) {
-        return std::nullopt;
-    }
+  if (!deadline.has_value()) {
+    return std::nullopt;
+  }
 
-    auto now = std::chrono::system_clock::now();
-    if (now > *deadline) {
-        return std::chrono::milliseconds(0);  // Deadline already passed
-    }
+  auto now = std::chrono::system_clock::now();
+  if (now > *deadline) {
+    return std::chrono::milliseconds(0);  // Deadline already passed
+  }
 
-    return std::chrono::duration_cast<std::chrono::milliseconds>(*deadline - now);
+  return std::chrono::duration_cast<std::chrono::milliseconds>(*deadline - now);
 }
 
-Response Response::createSuccess(
-    const KeystoneMessage& original_msg,
-    const std::string& sender,
-    const std::string& result_data
-) {
-    Response resp;
-    resp.msg_id = original_msg.msg_id;
-    resp.sender_id = sender;
-    resp.receiver_id = original_msg.sender_id;
-    resp.status = Status::Success;
-    resp.result = result_data;
-    resp.timestamp = std::chrono::system_clock::now();
-    return resp;
+Response Response::createSuccess(const KeystoneMessage& original_msg,
+                                 const std::string& sender,
+                                 const std::string& result_data) {
+  Response resp;
+  resp.msg_id = original_msg.msg_id;
+  resp.sender_id = sender;
+  resp.receiver_id = original_msg.sender_id;
+  resp.status = Status::Success;
+  resp.result = result_data;
+  resp.timestamp = std::chrono::system_clock::now();
+  return resp;
 }
 
-Response Response::createError(
-    const KeystoneMessage& original_msg,
-    const std::string& sender,
-    const std::string& error_msg
-) {
-    Response resp;
-    resp.msg_id = original_msg.msg_id;
-    resp.sender_id = sender;
-    resp.receiver_id = original_msg.sender_id;
-    resp.status = Status::Error;
-    resp.result = error_msg;
-    resp.timestamp = std::chrono::system_clock::now();
-    return resp;
+Response Response::createError(const KeystoneMessage& original_msg,
+                               const std::string& sender,
+                               const std::string& error_msg) {
+  Response resp;
+  resp.msg_id = original_msg.msg_id;
+  resp.sender_id = sender;
+  resp.receiver_id = original_msg.sender_id;
+  resp.status = Status::Error;
+  resp.result = error_msg;
+  resp.timestamp = std::chrono::system_clock::now();
+  return resp;
 }
 
-} // namespace core
-} // namespace keystone
+}  // namespace core
+}  // namespace keystone

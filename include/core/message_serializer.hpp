@@ -1,11 +1,13 @@
 #pragma once
 
 #include "core/message.hpp"
-#include <cista/serialization.h>
+
+#include <cstdint>
+#include <vector>
+
 #include <cista/containers.h>
 #include <cista/containers/hash_map.h>
-#include <vector>
-#include <cstdint>
+#include <cista/serialization.h>
 
 namespace keystone {
 namespace core {
@@ -17,29 +19,29 @@ namespace core {
  * We use cista::offset types for pointer-independent serialization.
  */
 struct SerializableMessage {
-    cista::offset::string msg_id;
-    cista::offset::string sender_id;
-    cista::offset::string receiver_id;
+  cista::offset::string msg_id;
+  cista::offset::string sender_id;
+  cista::offset::string receiver_id;
 
-    uint32_t action_type;  // Serialized as uint32_t
-    uint32_t content_type; // Serialized as uint32_t
-    cista::offset::string session_id;
-    cista::offset::hash_map<cista::offset::string, cista::offset::string> metadata;
+  uint32_t action_type;   // Serialized as uint32_t
+  uint32_t content_type;  // Serialized as uint32_t
+  cista::offset::string session_id;
+  cista::offset::hash_map<cista::offset::string, cista::offset::string> metadata;
 
-    cista::offset::string command;
-    cista::offset::string payload;
-    bool has_payload;
-    int64_t timestamp_ns;  // Timestamp as nanoseconds since epoch
+  cista::offset::string command;
+  cista::offset::string payload;
+  bool has_payload;
+  int64_t timestamp_ns;  // Timestamp as nanoseconds since epoch
 
-    /**
-     * @brief Convert KeystoneMessage to SerializableMessage
-     */
-    static SerializableMessage fromKeystoneMessage(const KeystoneMessage& msg);
+  /**
+   * @brief Convert KeystoneMessage to SerializableMessage
+   */
+  static SerializableMessage fromKeystoneMessage(const KeystoneMessage& msg);
 
-    /**
-     * @brief Convert SerializableMessage to KeystoneMessage
-     */
-    KeystoneMessage toKeystoneMessage() const;
+  /**
+   * @brief Convert SerializableMessage to KeystoneMessage
+   */
+  KeystoneMessage toKeystoneMessage() const;
 };
 
 /**
@@ -55,46 +57,46 @@ struct SerializableMessage {
  * - Fast performance (<1μs for typical messages)
  */
 class MessageSerializer {
-public:
-    /**
-     * @brief Serialize a KeystoneMessage to binary format
-     *
-     * @param msg The message to serialize
-     * @return std::vector<uint8_t> Binary representation
-     */
-    static std::vector<uint8_t> serialize(const KeystoneMessage& msg);
+ public:
+  /**
+   * @brief Serialize a KeystoneMessage to binary format
+   *
+   * @param msg The message to serialize
+   * @return std::vector<uint8_t> Binary representation
+   */
+  static std::vector<uint8_t> serialize(const KeystoneMessage& msg);
 
-    /**
-     * @brief Deserialize a binary buffer to KeystoneMessage
-     *
-     * Makes a copy of the data for safety.
-     *
-     * @param buffer Binary data buffer
-     * @param size Size of the buffer
-     * @return KeystoneMessage Deserialized message
-     */
-    static KeystoneMessage deserialize(const uint8_t* buffer, size_t size);
+  /**
+   * @brief Deserialize a binary buffer to KeystoneMessage
+   *
+   * Makes a copy of the data for safety.
+   *
+   * @param buffer Binary data buffer
+   * @param size Size of the buffer
+   * @return KeystoneMessage Deserialized message
+   */
+  static KeystoneMessage deserialize(const uint8_t* buffer, size_t size);
 
-    /**
-     * @brief Deserialize from vector
-     *
-     * @param buffer Binary data vector
-     * @return KeystoneMessage Deserialized message
-     */
-    static KeystoneMessage deserialize(const std::vector<uint8_t>& buffer);
+  /**
+   * @brief Deserialize from vector
+   *
+   * @param buffer Binary data vector
+   * @return KeystoneMessage Deserialized message
+   */
+  static KeystoneMessage deserialize(const std::vector<uint8_t>& buffer);
 
-    /**
-     * @brief Zero-copy deserialization (in-place access)
-     *
-     * WARNING: The returned pointer is valid only as long as the buffer exists
-     * and is not modified. Use this for performance-critical paths.
-     *
-     * @param buffer Binary data buffer
-     * @param size Size of the buffer
-     * @return const SerializableMessage* Pointer to deserialized message
-     */
-    static const SerializableMessage* deserializeInPlace(const uint8_t* buffer, size_t size);
+  /**
+   * @brief Zero-copy deserialization (in-place access)
+   *
+   * WARNING: The returned pointer is valid only as long as the buffer exists
+   * and is not modified. Use this for performance-critical paths.
+   *
+   * @param buffer Binary data buffer
+   * @param size Size of the buffer
+   * @return const SerializableMessage* Pointer to deserialized message
+   */
+  static const SerializableMessage* deserializeInPlace(const uint8_t* buffer, size_t size);
 };
 
-} // namespace core
-} // namespace keystone
+}  // namespace core
+}  // namespace keystone

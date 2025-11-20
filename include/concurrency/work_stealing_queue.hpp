@@ -1,11 +1,12 @@
 #pragma once
 
-#include <concurrentqueue.h>
 #include <coroutine>
 #include <functional>
 #include <memory>
 #include <optional>
 #include <variant>
+
+#include <concurrentqueue.h>
 
 namespace keystone {
 namespace concurrency {
@@ -14,40 +15,40 @@ namespace concurrency {
  * @brief WorkItem - A unit of work (function or coroutine)
  */
 struct WorkItem {
-    enum class Type { Function, Coroutine };
+  enum class Type { Function, Coroutine };
 
-    Type type;
-    std::function<void()> func;
-    std::coroutine_handle<> handle;
+  Type type;
+  std::function<void()> func;
+  std::coroutine_handle<> handle;
 
-    WorkItem() : type(Type::Function), func(nullptr), handle(nullptr) {}
+  WorkItem() : type(Type::Function), func(nullptr), handle(nullptr) {}
 
-    static WorkItem makeFunction(std::function<void()> f) {
-        WorkItem item;
-        item.type = Type::Function;
-        item.func = std::move(f);
-        return item;
+  static WorkItem makeFunction(std::function<void()> f) {
+    WorkItem item;
+    item.type = Type::Function;
+    item.func = std::move(f);
+    return item;
+  }
+
+  static WorkItem makeCoroutine(std::coroutine_handle<> h) {
+    WorkItem item;
+    item.type = Type::Coroutine;
+    item.handle = h;
+    return item;
+  }
+
+  void execute() {
+    if (type == Type::Function && func) {
+      func();
+    } else if (type == Type::Coroutine && handle) {
+      handle.resume();
     }
+  }
 
-    static WorkItem makeCoroutine(std::coroutine_handle<> h) {
-        WorkItem item;
-        item.type = Type::Coroutine;
-        item.handle = h;
-        return item;
-    }
-
-    void execute() {
-        if (type == Type::Function && func) {
-            func();
-        } else if (type == Type::Coroutine && handle) {
-            handle.resume();
-        }
-    }
-
-    bool valid() const {
-        return (type == Type::Function && func != nullptr) ||
-               (type == Type::Coroutine && handle != nullptr);
-    }
+  bool valid() const {
+    return (type == Type::Function && func != nullptr) ||
+           (type == Type::Coroutine && handle != nullptr);
+  }
 };
 
 /**
@@ -75,64 +76,64 @@ struct WorkItem {
  *   auto stolen = queue.steal();  // FIFO
  */
 class WorkStealingQueue {
-public:
-    /**
-     * @brief Construct a WorkStealingQueue
-     */
-    WorkStealingQueue();
+ public:
+  /**
+   * @brief Construct a WorkStealingQueue
+   */
+  WorkStealingQueue();
 
-    /**
-     * @brief Destructor
-     */
-    ~WorkStealingQueue() = default;
+  /**
+   * @brief Destructor
+   */
+  ~WorkStealingQueue() = default;
 
-    // Non-copyable, movable
-    WorkStealingQueue(const WorkStealingQueue&) = delete;
-    WorkStealingQueue& operator=(const WorkStealingQueue&) = delete;
+  // Non-copyable, movable
+  WorkStealingQueue(const WorkStealingQueue&) = delete;
+  WorkStealingQueue& operator=(const WorkStealingQueue&) = delete;
 
-    WorkStealingQueue(WorkStealingQueue&&) noexcept = default;
-    WorkStealingQueue& operator=(WorkStealingQueue&&) noexcept = default;
+  WorkStealingQueue(WorkStealingQueue&&) noexcept = default;
+  WorkStealingQueue& operator=(WorkStealingQueue&&) noexcept = default;
 
-    /**
-     * @brief Push a work item onto the queue (owner thread)
-     *
-     * @param item Work item to push
-     */
-    void push(WorkItem item);
+  /**
+   * @brief Push a work item onto the queue (owner thread)
+   *
+   * @param item Work item to push
+   */
+  void push(WorkItem item);
 
-    /**
-     * @brief Pop a work item from the queue (owner thread, LIFO)
-     *
-     * @return Work item if available, std::nullopt otherwise
-     */
-    std::optional<WorkItem> pop();
+  /**
+   * @brief Pop a work item from the queue (owner thread, LIFO)
+   *
+   * @return Work item if available, std::nullopt otherwise
+   */
+  std::optional<WorkItem> pop();
 
-    /**
-     * @brief Steal a work item from the queue (thief thread, FIFO)
-     *
-     * @return Work item if available, std::nullopt otherwise
-     */
-    std::optional<WorkItem> steal();
+  /**
+   * @brief Steal a work item from the queue (thief thread, FIFO)
+   *
+   * @return Work item if available, std::nullopt otherwise
+   */
+  std::optional<WorkItem> steal();
 
-    /**
-     * @brief Get approximate size of the queue
-     *
-     * Note: This is an approximate count due to concurrent access
-     *
-     * @return Approximate number of items in queue
-     */
-    size_t size_approx() const;
+  /**
+   * @brief Get approximate size of the queue
+   *
+   * Note: This is an approximate count due to concurrent access
+   *
+   * @return Approximate number of items in queue
+   */
+  size_t size_approx() const;
 
-    /**
-     * @brief Check if queue is (approximately) empty
-     *
-     * @return true if queue appears empty
-     */
-    bool empty() const;
+  /**
+   * @brief Check if queue is (approximately) empty
+   *
+   * @return true if queue appears empty
+   */
+  bool empty() const;
 
-private:
-    moodycamel::ConcurrentQueue<WorkItem> queue_;
+ private:
+  moodycamel::ConcurrentQueue<WorkItem> queue_;
 };
 
-} // namespace concurrency
-} // namespace keystone
+}  // namespace concurrency
+}  // namespace keystone

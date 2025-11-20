@@ -18,5 +18,5 @@ template class Task<int>;
 template class Task<std::string>;
 template class Task<void>;
 
-} // namespace concurrency
-} // namespace keystone
+}  // namespace concurrency
+}  // namespace keystone

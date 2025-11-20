@@ -1,0 +1,2 @@
+# Python dependencies for ProjectKeystone
+# Currently no Python dependencies required
