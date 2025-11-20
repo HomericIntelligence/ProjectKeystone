@@ -22,6 +22,7 @@ concurrency::Task<core::Response> AsyncTaskAgent::processMessage(const core::Key
   // FIX: Check if deadline was missed
   if (msg.deadline.has_value() && msg.hasDeadlinePassed()) {
     auto time_remaining = msg.getTimeUntilDeadline();
+    (void)time_remaining;  // Suppress unused warning - reserved for future use
     // Deadline passed - time_remaining will be 0, we want the absolute value
     // For now, record as 0ms late (we don't track when it was supposed to be processed)
     core::Metrics::getInstance().recordDeadlineMiss(msg.msg_id, 0);

@@ -28,7 +28,7 @@ class SimulationCornerCaseTest : public ::testing::Test {
 // ============================================================================
 
 TEST_F(SimulationCornerCaseTest, SingleNodeCluster) {
-  SimulatedCluster::Config config{.num_nodes = 1, .workers_per_node = 1};
+  SimulatedCluster::Config config{.num_nodes = 1, .workers_per_node = 1, .network_config = {}};
   SimulatedCluster cluster(config);
   cluster.start();
 
@@ -46,7 +46,7 @@ TEST_F(SimulationCornerCaseTest, SingleNodeCluster) {
 }
 
 TEST_F(SimulationCornerCaseTest, SingleWorkerPerNode) {
-  SimulatedCluster::Config config{.num_nodes = 2, .workers_per_node = 1};
+  SimulatedCluster::Config config{.num_nodes = 2, .workers_per_node = 1, .network_config = {}};
   SimulatedCluster cluster(config);
   cluster.start();
 
@@ -62,7 +62,7 @@ TEST_F(SimulationCornerCaseTest, SingleWorkerPerNode) {
 }
 
 TEST_F(SimulationCornerCaseTest, ManyNodes) {
-  SimulatedCluster::Config config{.num_nodes = 8, .workers_per_node = 2};
+  SimulatedCluster::Config config{.num_nodes = 8, .workers_per_node = 2, .network_config = {}};
   SimulatedCluster cluster(config);
   cluster.start();
 
@@ -121,7 +121,7 @@ TEST_F(SimulationCornerCaseTest, VeryHighLatencyNetwork) {
 // ============================================================================
 
 TEST_F(SimulationCornerCaseTest, InvalidNodeIdSubmit) {
-  SimulatedCluster::Config config{.num_nodes = 2};
+  SimulatedCluster::Config config{.num_nodes = 2, .network_config = {}};
   SimulatedCluster cluster(config);
   cluster.start();
 
@@ -133,7 +133,7 @@ TEST_F(SimulationCornerCaseTest, InvalidNodeIdSubmit) {
 }
 
 TEST_F(SimulationCornerCaseTest, InvalidNodeIdRegisterAgent) {
-  SimulatedCluster::Config config{.num_nodes = 2};
+  SimulatedCluster::Config config{.num_nodes = 2, .network_config = {}};
   SimulatedCluster cluster(config);
 
   // Out-of-bounds node ID should throw
@@ -142,7 +142,7 @@ TEST_F(SimulationCornerCaseTest, InvalidNodeIdRegisterAgent) {
 }
 
 TEST_F(SimulationCornerCaseTest, UnregisteredAgentSubmit) {
-  SimulatedCluster::Config config{.num_nodes = 2};
+  SimulatedCluster::Config config{.num_nodes = 2, .network_config = {}};
   SimulatedCluster cluster(config);
   cluster.start();
 
@@ -160,7 +160,7 @@ TEST_F(SimulationCornerCaseTest, UnregisteredAgentSubmit) {
 }
 
 TEST_F(SimulationCornerCaseTest, DuplicateAgentRegistration) {
-  SimulatedCluster::Config config{.num_nodes = 2};
+  SimulatedCluster::Config config{.num_nodes = 2, .network_config = {}};
   SimulatedCluster cluster(config);
 
   cluster.registerAgent("agent_A", 0);
@@ -174,7 +174,7 @@ TEST_F(SimulationCornerCaseTest, DuplicateAgentRegistration) {
 }
 
 TEST_F(SimulationCornerCaseTest, UnregisterNonexistentAgent) {
-  SimulatedCluster::Config config{.num_nodes = 2};
+  SimulatedCluster::Config config{.num_nodes = 2, .network_config = {}};
   SimulatedCluster cluster(config);
 
   // Should not crash
@@ -189,7 +189,7 @@ TEST_F(SimulationCornerCaseTest, UnregisterNonexistentAgent) {
 // ============================================================================
 
 TEST_F(SimulationCornerCaseTest, MessageFlood) {
-  SimulatedCluster::Config config{.num_nodes = 2, .workers_per_node = 4};
+  SimulatedCluster::Config config{.num_nodes = 2, .workers_per_node = 4, .network_config = {}};
   SimulatedCluster cluster(config);
   cluster.start();
 
@@ -235,7 +235,7 @@ TEST_F(SimulationCornerCaseTest, NetworkMessageFlood) {
 }
 
 TEST_F(SimulationCornerCaseTest, HighQueueDepth) {
-  SimulatedCluster::Config config{.num_nodes = 1, .workers_per_node = 1};
+  SimulatedCluster::Config config{.num_nodes = 1, .workers_per_node = 1, .network_config = {}};
   SimulatedCluster cluster(config);
   cluster.start();
 
@@ -264,7 +264,7 @@ TEST_F(SimulationCornerCaseTest, HighQueueDepth) {
 // ============================================================================
 
 TEST_F(SimulationCornerCaseTest, ParallelSubmitFromMultipleThreads) {
-  SimulatedCluster::Config config{.num_nodes = 2, .workers_per_node = 4};
+  SimulatedCluster::Config config{.num_nodes = 2, .workers_per_node = 4, .network_config = {}};
   SimulatedCluster cluster(config);
   cluster.start();
 
@@ -293,7 +293,7 @@ TEST_F(SimulationCornerCaseTest, ParallelSubmitFromMultipleThreads) {
 }
 
 TEST_F(SimulationCornerCaseTest, ShutdownDuringActiveWork) {
-  SimulatedCluster::Config config{.num_nodes = 2, .workers_per_node = 2};
+  SimulatedCluster::Config config{.num_nodes = 2, .workers_per_node = 2, .network_config = {}};
   SimulatedCluster cluster(config);
   cluster.start();
 
@@ -320,7 +320,7 @@ TEST_F(SimulationCornerCaseTest, ShutdownDuringActiveWork) {
 }
 
 TEST_F(SimulationCornerCaseTest, ConcurrentAgentRegistration) {
-  SimulatedCluster::Config config{.num_nodes = 4};
+  SimulatedCluster::Config config{.num_nodes = 4, .network_config = {}};
   SimulatedCluster cluster(config);
 
   const int THREADS = 4;
@@ -431,7 +431,7 @@ TEST_F(SimulationCornerCaseTest, MessageTimeoutScenario) {
 // ============================================================================
 
 TEST_F(SimulationCornerCaseTest, StatisticsWithNoActivity) {
-  SimulatedCluster::Config config{.num_nodes = 2};
+  SimulatedCluster::Config config{.num_nodes = 2, .network_config = {}};
   SimulatedCluster cluster(config);
   cluster.start();
 
@@ -446,7 +446,7 @@ TEST_F(SimulationCornerCaseTest, StatisticsWithNoActivity) {
 }
 
 TEST_F(SimulationCornerCaseTest, ResetStatsDuringOperation) {
-  SimulatedCluster::Config config{.num_nodes = 2, .workers_per_node = 2};
+  SimulatedCluster::Config config{.num_nodes = 2, .workers_per_node = 2, .network_config = {}};
   SimulatedCluster cluster(config);
   cluster.start();
 
@@ -481,7 +481,7 @@ TEST_F(SimulationCornerCaseTest, NetworkStatisticsOverflow) {
 }
 
 TEST_F(SimulationCornerCaseTest, LoadImbalanceCalculationExtremes) {
-  SimulatedCluster::Config config{.num_nodes = 4, .workers_per_node = 1};
+  SimulatedCluster::Config config{.num_nodes = 4, .workers_per_node = 1, .network_config = {}};
   SimulatedCluster cluster(config);
   cluster.start();
 
@@ -505,7 +505,7 @@ TEST_F(SimulationCornerCaseTest, LoadImbalanceCalculationExtremes) {
 // ============================================================================
 
 TEST_F(SimulationCornerCaseTest, MultipleStartCalls) {
-  SimulatedCluster::Config config{.num_nodes = 2};
+  SimulatedCluster::Config config{.num_nodes = 2, .network_config = {}};
   SimulatedCluster cluster(config);
 
   cluster.start();
@@ -518,7 +518,7 @@ TEST_F(SimulationCornerCaseTest, MultipleStartCalls) {
 }
 
 TEST_F(SimulationCornerCaseTest, MultipleShutdownCalls) {
-  SimulatedCluster::Config config{.num_nodes = 2};
+  SimulatedCluster::Config config{.num_nodes = 2, .network_config = {}};
   SimulatedCluster cluster(config);
 
   cluster.start();
@@ -529,7 +529,7 @@ TEST_F(SimulationCornerCaseTest, MultipleShutdownCalls) {
 }
 
 TEST_F(SimulationCornerCaseTest, SubmitWithoutStart) {
-  SimulatedCluster::Config config{.num_nodes = 2};
+  SimulatedCluster::Config config{.num_nodes = 2, .network_config = {}};
   SimulatedCluster cluster(config);
 
   // Submit without calling start (may queue or throw)
@@ -548,7 +548,7 @@ TEST_F(SimulationCornerCaseTest, SubmitWithoutStart) {
 }
 
 TEST_F(SimulationCornerCaseTest, EmptyAgentNameRegistration) {
-  SimulatedCluster::Config config{.num_nodes = 2};
+  SimulatedCluster::Config config{.num_nodes = 2, .network_config = {}};
   SimulatedCluster cluster(config);
 
   // Empty agent name should work (valid string)

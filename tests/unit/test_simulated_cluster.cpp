@@ -42,7 +42,7 @@ TEST_F(SimulatedClusterTest, CreateWithCustomConfig) {
 }
 
 TEST_F(SimulatedClusterTest, StartAndShutdown) {
-  SimulatedCluster::Config config{.num_nodes = 2, .workers_per_node = 2};
+  SimulatedCluster::Config config{.num_nodes = 2, .workers_per_node = 2, .network_config = {}};
   SimulatedCluster cluster(config);
 
   cluster.start();
@@ -57,7 +57,7 @@ TEST_F(SimulatedClusterTest, StartAndShutdown) {
 }
 
 TEST_F(SimulatedClusterTest, RegisterAgent) {
-  SimulatedCluster::Config config{.num_nodes = 3};
+  SimulatedCluster::Config config{.num_nodes = 3, .network_config = {}};
   SimulatedCluster cluster(config);
 
   cluster.registerAgent("agent_A", 0);
@@ -71,7 +71,7 @@ TEST_F(SimulatedClusterTest, RegisterAgent) {
 }
 
 TEST_F(SimulatedClusterTest, UnregisterAgent) {
-  SimulatedCluster::Config config{.num_nodes = 2};
+  SimulatedCluster::Config config{.num_nodes = 2, .network_config = {}};
   SimulatedCluster cluster(config);
 
   cluster.registerAgent("agent_A", 0);
@@ -82,7 +82,7 @@ TEST_F(SimulatedClusterTest, UnregisterAgent) {
 }
 
 TEST_F(SimulatedClusterTest, SubmitToRegisteredAgent) {
-  SimulatedCluster::Config config{.num_nodes = 2, .workers_per_node = 2};
+  SimulatedCluster::Config config{.num_nodes = 2, .workers_per_node = 2, .network_config = {}};
   SimulatedCluster cluster(config);
   cluster.start();
 
@@ -107,7 +107,7 @@ TEST_F(SimulatedClusterTest, SubmitToRegisteredAgent) {
 }
 
 TEST_F(SimulatedClusterTest, SubmitToUnregisteredAgent) {
-  SimulatedCluster::Config config{.num_nodes = 2, .workers_per_node = 2};
+  SimulatedCluster::Config config{.num_nodes = 2, .workers_per_node = 2, .network_config = {}};
   SimulatedCluster cluster(config);
   cluster.start();
 
@@ -126,7 +126,7 @@ TEST_F(SimulatedClusterTest, SubmitToUnregisteredAgent) {
 }
 
 TEST_F(SimulatedClusterTest, SubmitDirectlyToNode) {
-  SimulatedCluster::Config config{.num_nodes = 3, .workers_per_node = 2};
+  SimulatedCluster::Config config{.num_nodes = 3, .workers_per_node = 2, .network_config = {}};
   SimulatedCluster cluster(config);
   cluster.start();
 
@@ -157,6 +157,7 @@ TEST_F(SimulatedClusterTest, RemoteWorkSteal) {
   // network interaction is set up correctly.
 
   bool success = cluster.stealRemoteWork(0, 1);
+  (void)success;  // Suppress unused warning - just testing API doesn't crash
   // May succeed or fail depending on work availability
   // Just verify it doesn't crash
 
@@ -190,7 +191,7 @@ TEST_F(SimulatedClusterTest, ProcessNetworkMessages) {
 }
 
 TEST_F(SimulatedClusterTest, GetStats) {
-  SimulatedCluster::Config config{.num_nodes = 2, .workers_per_node = 2};
+  SimulatedCluster::Config config{.num_nodes = 2, .workers_per_node = 2, .network_config = {}};
   SimulatedCluster cluster(config);
   cluster.start();
 
@@ -210,7 +211,7 @@ TEST_F(SimulatedClusterTest, GetStats) {
 }
 
 TEST_F(SimulatedClusterTest, QueueDepthTracking) {
-  SimulatedCluster::Config config{.num_nodes = 2, .workers_per_node = 2};
+  SimulatedCluster::Config config{.num_nodes = 2, .workers_per_node = 2, .network_config = {}};
   SimulatedCluster cluster(config);
   cluster.start();
 
@@ -235,7 +236,7 @@ TEST_F(SimulatedClusterTest, QueueDepthTracking) {
 }
 
 TEST_F(SimulatedClusterTest, LoadImbalanceCalculation) {
-  SimulatedCluster::Config config{.num_nodes = 3, .workers_per_node = 2};
+  SimulatedCluster::Config config{.num_nodes = 3, .workers_per_node = 2, .network_config = {}};
   SimulatedCluster cluster(config);
   cluster.start();
 
@@ -255,7 +256,7 @@ TEST_F(SimulatedClusterTest, LoadImbalanceCalculation) {
 }
 
 TEST_F(SimulatedClusterTest, ResetStats) {
-  SimulatedCluster::Config config{.num_nodes = 2, .workers_per_node = 2};
+  SimulatedCluster::Config config{.num_nodes = 2, .workers_per_node = 2, .network_config = {}};
   SimulatedCluster cluster(config);
   cluster.start();
 
@@ -305,7 +306,7 @@ TEST_F(SimulatedClusterTest, NetworkStatistics) {
 }
 
 TEST_F(SimulatedClusterTest, MultiNodeWorkDistribution) {
-  SimulatedCluster::Config config{.num_nodes = 4, .workers_per_node = 2};
+  SimulatedCluster::Config config{.num_nodes = 4, .workers_per_node = 2, .network_config = {}};
   SimulatedCluster cluster(config);
   cluster.start();
 
@@ -329,7 +330,7 @@ TEST_F(SimulatedClusterTest, MultiNodeWorkDistribution) {
 }
 
 TEST_F(SimulatedClusterTest, InvalidNodeIdThrows) {
-  SimulatedCluster::Config config{.num_nodes = 2};
+  SimulatedCluster::Config config{.num_nodes = 2, .network_config = {}};
   SimulatedCluster cluster(config);
 
   EXPECT_THROW(cluster.submitToNode(2, []() {}), std::out_of_range);

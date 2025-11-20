@@ -832,7 +832,7 @@ TEST_F(Phase5MessageLossTest, MessageLossWithManualRetries) {
       total_attempts++;
 
       // Simulate sending (network may drop it)
-      bool dropped = (network.getDroppedMessages() < total_attempts.load());
+      bool dropped = (network.getDroppedMessages() < static_cast<size_t>(total_attempts.load()));
 
       if (!dropped) {
         // Message delivered

@@ -194,7 +194,7 @@ void PrometheusExporter::handleRequest(int client_fd) {
   // FIX m4: Validate minimum request size (at least "GET /")
   if (bytes_read < 5) {
     std::string bad_request = "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n";
-    write(client_fd, bad_request.c_str(), bad_request.size());
+    [[maybe_unused]] auto result = write(client_fd, bad_request.c_str(), bad_request.size());
     return;
   }
 
@@ -213,7 +213,7 @@ void PrometheusExporter::handleRequest(int client_fd) {
         "HTTP/1.1 405 Method Not Allowed\r\n"
         "Allow: GET\r\n"
         "Content-Length: 0\r\n\r\n";
-    write(client_fd, method_not_allowed.c_str(), method_not_allowed.size());
+    [[maybe_unused]] auto result = write(client_fd, method_not_allowed.c_str(), method_not_allowed.size());
     return;
   }
 
@@ -232,11 +232,11 @@ void PrometheusExporter::handleRequest(int client_fd) {
     response << metrics;
 
     std::string response_str = response.str();
-    write(client_fd, response_str.c_str(), response_str.size());
+    [[maybe_unused]] auto result = write(client_fd, response_str.c_str(), response_str.size());
   } else {
     // Send 404 for other paths
     std::string not_found = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n";
-    write(client_fd, not_found.c_str(), not_found.size());
+    [[maybe_unused]] auto result = write(client_fd, not_found.c_str(), not_found.size());
   }
 }
 
