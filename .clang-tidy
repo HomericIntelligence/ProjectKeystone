@@ -20,7 +20,7 @@ WarningsAsErrors: ''
 
 HeaderFilterRegex: '.*'
 
-AnalyzeTemporaryDtors: false
+# AnalyzeTemporaryDtors: false  # DEPRECATED: Removed in clang-tidy 14+
 
 FormatStyle: none
 

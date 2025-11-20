@@ -87,9 +87,9 @@ if [[ "$RUN_CLANG_TIDY" == "true" ]]; then
         clang-tidy "$file" -p "$BUILD_DIR" >> "$CLANG_TIDY_REPORT" 2>&1 || true
     done
 
-    # Count issues
-    CLANG_TIDY_WARNINGS=$(grep -c "warning:" "$CLANG_TIDY_REPORT" 2>/dev/null || echo "0")
-    CLANG_TIDY_ERRORS=$(grep -c "error:" "$CLANG_TIDY_REPORT" 2>/dev/null || echo "0")
+    # Count issues (exclude third-party dependency parsing errors)
+    CLANG_TIDY_WARNINGS=$(grep "warning:" "$CLANG_TIDY_REPORT" | grep -v "_deps/" | grep -c "" || echo "0")
+    CLANG_TIDY_ERRORS=$(grep "error:" "$CLANG_TIDY_REPORT" | grep -v "Error parsing.*_deps/" | grep -c "" || echo "0")
 
     echo ""
     echo -e "${GREEN}clang-tidy analysis complete${NC}"
