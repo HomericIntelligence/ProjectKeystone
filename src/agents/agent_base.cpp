@@ -10,10 +10,12 @@
 namespace keystone {
 namespace agents {
 
-AgentBase::AgentBase(const std::string& agent_id)
-    : agent_id_(agent_id),
-      last_low_priority_check_(std::chrono::steady_clock::now()) {
-  // FIX M2: Initialize time-based fairness timer
+AgentBase::AgentBase(const std::string& agent_id) : agent_id_(agent_id) {
+  // FIX C1: Initialize time-based fairness timer (thread-safe atomic)
+  auto now = std::chrono::steady_clock::now();
+  last_low_priority_check_ns_.store(
+      std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count(),
+      std::memory_order_relaxed);
   // Phase C: Priority queues initialized by default constructors
 }
 
@@ -26,18 +28,25 @@ void AgentBase::sendMessage(const core::KeystoneMessage& msg) {
 }
 
 void AgentBase::receiveMessage(const core::KeystoneMessage& msg) {
-  // FIX M1: Backpressure - check queue size limit before accepting message
-  size_t total_depth = high_priority_inbox_.size_approx() +
-                       normal_priority_inbox_.size_approx() +
+  // FIX C4: Backpressure - check queue size limit before accepting message
+  // THREAD-SAFE: Separate atomic check from side effects to prevent race
+  size_t total_depth = high_priority_inbox_.size_approx() + normal_priority_inbox_.size_approx() +
                        low_priority_inbox_.size_approx();
 
-  if (total_depth >= core::Config::AGENT_MAX_QUEUE_SIZE) {
+  bool should_apply_backpressure = (total_depth >= core::Config::AGENT_MAX_QUEUE_SIZE);
+  bool was_backpressure_applied = backpressure_applied_.load(std::memory_order_relaxed);
+
+  if (should_apply_backpressure) {
     // Apply backpressure: reject message to prevent memory exhaustion
-    if (!backpressure_applied_.exchange(true)) {
-      // Log warning on first occurrence
-      std::cerr << "[BACKPRESSURE] Agent " << agent_id_ << " inbox full ("
-                << total_depth << " messages), " << "rejecting new messages"
-                << std::endl;
+    if (!was_backpressure_applied) {
+      // Only one thread wins the race to set and log
+      bool expected = false;
+      if (backpressure_applied_.compare_exchange_strong(expected, true,
+                                                        std::memory_order_relaxed)) {
+        // Log warning on first occurrence
+        std::cerr << "[BACKPRESSURE] Agent " << agent_id_ << " inbox full (" << total_depth
+                  << " messages), rejecting new messages" << std::endl;
+      }
     }
 
     // For now, drop the message (could also throw exception or send NACK)
@@ -45,15 +54,15 @@ void AgentBase::receiveMessage(const core::KeystoneMessage& msg) {
     return;
   }
 
-  // Clear backpressure flag if queue is below limit
-  size_t low_watermark =
-      static_cast<size_t>(core::Config::AGENT_MAX_QUEUE_SIZE *
-                          core::Config::AGENT_QUEUE_LOW_WATERMARK_PERCENT);
-  if (total_depth < low_watermark) {
-    if (backpressure_applied_.exchange(false)) {
-      std::cerr << "[BACKPRESSURE] Agent " << agent_id_ << " inbox recovered ("
-                << total_depth << " messages), " << "accepting messages again"
-                << std::endl;
+  // Clear backpressure flag if queue is below low watermark (hysteresis)
+  size_t low_watermark = static_cast<size_t>(core::Config::AGENT_MAX_QUEUE_SIZE *
+                                             core::Config::AGENT_QUEUE_LOW_WATERMARK_PERCENT);
+  if (total_depth < low_watermark && was_backpressure_applied) {
+    // Only one thread wins the race to clear and log
+    bool expected = true;
+    if (backpressure_applied_.compare_exchange_strong(expected, false, std::memory_order_relaxed)) {
+      std::cerr << "[BACKPRESSURE] Agent " << agent_id_ << " inbox recovered (" << total_depth
+                << " messages), accepting messages again" << std::endl;
     }
   }
 
@@ -76,18 +85,25 @@ void AgentBase::receiveMessage(const core::KeystoneMessage& msg) {
 }
 
 std::optional<core::KeystoneMessage> AgentBase::getMessage() {
-  // FIX M2: Time-based priority fairness to prevent LOW priority starvation
-  // Strategy: Every Config::AGENT_LOW_PRIORITY_CHECK_INTERVAL, force-check
-  // NORMAL/LOW queues to ensure fairness even under sustained HIGH priority
-  // load
+  // FIX C1: Time-based priority fairness to prevent LOW priority starvation
+  // Strategy: Every Config::AGENT_LOW_PRIORITY_CHECK_INTERVAL, force-check NORMAL/LOW
+  // queues to ensure fairness even under sustained HIGH priority load
+  // THREAD-SAFE: Uses atomic for last_low_priority_check_ns_
 
   core::KeystoneMessage msg;
   auto now = std::chrono::steady_clock::now();
+  auto now_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();
+
+  // Load last check time (atomic, thread-safe)
+  int64_t last_check_ns = last_low_priority_check_ns_.load(std::memory_order_relaxed);
+  auto interval_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                         core::Config::AGENT_LOW_PRIORITY_CHECK_INTERVAL)
+                         .count();
 
   // Every 100ms, force-check lower priorities regardless of HIGH queue state
-  if (now - last_low_priority_check_ >=
-      core::Config::AGENT_LOW_PRIORITY_CHECK_INTERVAL) {
-    last_low_priority_check_ = now;
+  if (now_ns - last_check_ns >= interval_ns) {
+    // Try to update last check time (only one thread succeeds)
+    last_low_priority_check_ns_.store(now_ns, std::memory_order_relaxed);
 
     // Try NORMAL first (give it priority over LOW during fairness check)
     if (normal_priority_inbox_.try_dequeue(msg)) {
