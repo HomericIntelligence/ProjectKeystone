@@ -26,12 +26,14 @@ class TaskAgent : public BaseAgent {
   explicit TaskAgent(const std::string& agent_id);
 
   /**
-   * @brief Process incoming command messages
+   * @brief Process incoming command messages asynchronously
+   *
+   * FIX C3: Changed to async (returns Task<Response>)
    *
    * @param msg Message containing command to execute
-   * @return core::Response Response with execution result
+   * @return concurrency::Task<core::Response> Async task with execution result
    */
-  core::Response processMessage(const core::KeystoneMessage& msg) override;
+  concurrency::Task<core::Response> processMessage(const core::KeystoneMessage& msg) override;
 
   /**
    * @brief Get command execution history

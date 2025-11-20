@@ -64,11 +64,14 @@ class MessageBus {
   /**
    * @brief Register an agent with the bus
    *
+   * FIX C2: Changed to shared_ptr for safe lifetime management.
+   * Prevents use-after-free in async routing scenarios.
+   *
    * @param agent_id Unique identifier for the agent
-   * @param agent Pointer to the agent (must outlive registration)
+   * @param agent Shared pointer to the agent (lifetime managed by shared_ptr)
    * @throws std::runtime_error if agent_id already registered
    */
-  void registerAgent(const std::string& agent_id, agents::AgentBase* agent);
+  void registerAgent(const std::string& agent_id, std::shared_ptr<agents::AgentBase> agent);
 
   /**
    * @brief Unregister an agent from the bus
@@ -107,7 +110,8 @@ class MessageBus {
 
  private:
   mutable std::mutex registry_mutex_;
-  std::unordered_map<std::string, agents::AgentBase*> agents_;
+  // FIX C2: Use shared_ptr for safe lifetime management in async scenarios
+  std::unordered_map<std::string, std::shared_ptr<agents::AgentBase>> agents_;
   // FIX C5: Atomic scheduler pointer for thread-safe access without registry_mutex
   std::atomic<concurrency::WorkStealingScheduler*> scheduler_{nullptr};
 };
