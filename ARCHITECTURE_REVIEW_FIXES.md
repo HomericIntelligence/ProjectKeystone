@@ -1,6 +1,6 @@
 # Architecture Review Fixes - Phase 6.6
 
-**Date**: 2025-11-20  
+**Date**: 2025-11-20
 **Review**: ProjectKeystone Kubernetes Architecture Review
 
 ## Summary
@@ -53,7 +53,7 @@ kubectl create secret tls hmas-tls \
 - Added `prometheus-data` PVC with 100Gi storage
 - Configured for 15-day retention with headroom
 
-**Impact**: 
+**Impact**:
 - Metrics now persist across pod restarts
 - Historical data available for SLO compliance
 - Incident investigation possible with past metrics
@@ -74,7 +74,7 @@ kubectl create secret tls hmas-tls \
 - Added comment noting this monitors average, not P95
 - Added note in description referencing GitHub issue for histogram implementation
 
-**Limitation**: 
+**Limitation**:
 - Now monitors **average latency** instead of P95
 - Less accurate than histogram-based P95
 - Histogram implementation tracked in GitHub issue
@@ -166,7 +166,7 @@ kubectl create secret generic grafana-admin-credentials \
 openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
   -keyout tls.key -out tls.crt \
   -subj "/CN=hmas.projectkeystone.svc.cluster.local"
-  
+
 kubectl create secret tls hmas-tls \
   --cert=tls.crt --key=tls.key \
   -n projectkeystone
