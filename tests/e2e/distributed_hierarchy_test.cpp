@@ -173,10 +173,11 @@ TEST_F(DistributedHierarchyTest, LoadBalancingAcrossNodes) {
   for (int i = 0; i < 100; ++i) {
     cluster.submit("task_" + std::to_string(i % 10), [&]() {
       // Simulate work
-      volatile int sum = 0;
+      int sum = 0;
       for (int j = 0; j < 1000; ++j) {
         sum += j;
       }
+      [[maybe_unused]] volatile int result = sum;  // Prevent optimization
       completed_tasks++;
     });
   }
@@ -357,10 +358,11 @@ TEST_F(DistributedHierarchyTest, DistributedStatisticsCollection) {
     size_t target_node = (i % 2 == 0) ? 1 : 2;
     cluster.getNetwork()->send(0, target_node, [&]() {
       // Work
-      volatile int sum = 0;
+      int sum = 0;
       for (int j = 0; j < 100; ++j) {
         sum += j;
       }
+      [[maybe_unused]] volatile int result = sum;  // Prevent optimization
     });
   }
 
