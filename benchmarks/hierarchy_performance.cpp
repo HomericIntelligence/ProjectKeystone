@@ -121,7 +121,7 @@ static void BM_Async4LayerHierarchy_4Workers(benchmark::State& state) {
 
     // Warmup: ensure workers are ready
     for (int i = 0; i < 10; ++i) {
-        scheduler.submit([]() { volatile int x = 42; });
+        scheduler.submit([]() { volatile int x = 42; (void)x; });
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
@@ -185,7 +185,7 @@ static void BM_Async4LayerHierarchy_8Workers(benchmark::State& state) {
 
     // Warmup: ensure workers are ready
     for (int i = 0; i < 10; ++i) {
-        scheduler.submit([]() { volatile int x = 42; });
+        scheduler.submit([]() { volatile int x = 42; (void)x; });
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
 

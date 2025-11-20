@@ -20,6 +20,7 @@ TEST_F(ProfilingTest, DisabledByDefault) {
 
   // Even if disabled, API should be safe to use
   auto stats = ProfilingSession::getStats("test_section");
+  (void)stats;  // Suppress unused warning - just testing API safety
   // Stats may or may not exist depending on env variable
 }
 

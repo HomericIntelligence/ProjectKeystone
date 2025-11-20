@@ -15,7 +15,8 @@ static void BM_WorkStealing_LocalOnly(benchmark::State& state) {
     for (auto _ : state) {
         SimulatedCluster::Config config{
             .num_nodes = 1,
-            .workers_per_node = 4
+            .workers_per_node = 4,
+            .network_config = {}
         };
         SimulatedCluster cluster(config);
         cluster.start();
@@ -277,7 +278,8 @@ static void BM_AgentAffinity_Registered(benchmark::State& state) {
     for (auto _ : state) {
         SimulatedCluster::Config config{
             .num_nodes = 4,
-            .workers_per_node = 4
+            .workers_per_node = 4,
+            .network_config = {}
         };
         SimulatedCluster cluster(config);
         cluster.start();

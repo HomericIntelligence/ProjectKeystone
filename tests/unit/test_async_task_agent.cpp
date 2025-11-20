@@ -101,6 +101,7 @@ TEST_F(AsyncTaskAgentTest, HandleCommandFailure) {
   // Command should still be logged (with error)
   // The agent creates an error response
   const auto& history = agent_->getCommandHistory();
+  (void)history;  // Suppress unused warning - reserved for future assertions
   // Note: Failed commands might not be logged depending on exception handling
   // The important part is that the agent doesn't crash
 }
