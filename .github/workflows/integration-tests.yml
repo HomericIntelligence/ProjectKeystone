@@ -12,18 +12,10 @@ permissions:
   pull-requests: write
 
 jobs:
-  test-integration:
+  test-all:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     if: github.event.pull_request.draft == false
-    strategy:
-      fail-fast: false
-      matrix:
-        suite:
-          - phase1  # L0 <-> L3 basic delegation
-          - phase2  # L0 <-> L2 <-> L3 coordination
-          - phase3  # L0 <-> L1 <-> L2 <-> L3 full hierarchy
-          - phase4  # Multi-component parallel execution
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -35,83 +27,75 @@ jobs:
         run: |
           docker build --target runtime -t projectkeystone:test .
 
-      - name: Check for test suite
-        id: check-suite
-        run: |
-          if docker run --rm projectkeystone:test ls /workspace/build/${{ matrix.suite }}_e2e_tests 2>/dev/null; then
-            echo "suite_exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "suite_exists=false" >> $GITHUB_OUTPUT
-            echo "Test suite ${{ matrix.suite }} not implemented yet"
-          fi
-
-      - name: Run integration tests (${{ matrix.suite }})
-        if: steps.check-suite.outputs.suite_exists == 'true'
+      - name: Run all tests
         id: run-tests
         run: |
-          mkdir -p test-results/${{ matrix.suite }}
+          mkdir -p test-results
           docker run --rm \
-            -v ${{ github.workspace }}/test-results/${{ matrix.suite }}:/workspace/test-results \
+            -v ${{ github.workspace }}/test-results:/workspace/test-results \
             projectkeystone:test \
             bash -c "cd build && \
-              ./${{ matrix.suite }}_e2e_tests \
-                --reporter JUnit::out=/workspace/test-results/results.xml \
-                '[e2e]' || exit 1"
+              ctest --output-on-failure --output-junit /workspace/test-results/results.xml || exit 1"
         continue-on-error: true
 
-      - name: Generate suite summary
+      - name: Parse test results
+        if: always()
+        id: parse-results
         run: |
-          if [ "${{ steps.check-suite.outputs.suite_exists }}" = "true" ]; then
-            if [ "${{ steps.run-tests.outcome }}" = "success" ]; then
-              echo "✅ ${{ matrix.suite }}" > test-results/${{ matrix.suite }}/status.txt
-            else
-              echo "❌ ${{ matrix.suite }}" > test-results/${{ matrix.suite }}/status.txt
-            fi
+          # Count tests from ctest output
+          if [ -f "test-results/results.xml" ]; then
+            # Extract test counts from JUnit XML
+            total=$(grep -o 'tests="[0-9]*"' test-results/results.xml | head -1 | grep -o '[0-9]*' || echo "0")
+            failures=$(grep -o 'failures="[0-9]*"' test-results/results.xml | head -1 | grep -o '[0-9]*' || echo "0")
+            passed=$((total - failures))
+
+            echo "total=$total" >> $GITHUB_OUTPUT
+            echo "passed=$passed" >> $GITHUB_OUTPUT
+            echo "failed=$failures" >> $GITHUB_OUTPUT
           else
-            echo "⚠️ ${{ matrix.suite }} (not implemented)" > test-results/${{ matrix.suite }}/status.txt
+            echo "total=0" >> $GITHUB_OUTPUT
+            echo "passed=0" >> $GITHUB_OUTPUT
+            echo "failed=0" >> $GITHUB_OUTPUT
           fi
 
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: integration-results-${{ matrix.suite }}
-          path: test-results/${{ matrix.suite }}/
+          name: test-results
+          path: test-results/
           retention-days: 30
 
-  integration-report:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    needs: [test-integration]
-    if: always()
-    steps:
-      - name: Download all test results
-        uses: actions/download-artifact@v6
-        with:
-          path: all-results/
-
-      - name: Generate integration report
+      - name: Generate test report
+        if: always()
         id: report
         run: |
-          echo "## Integration Test Results" > report.md
+          echo "## Test Results" > report.md
           echo "" >> report.md
-          echo "| Phase | Status | Description |" >> report.md
-          echo "|-------|--------|-------------|" >> report.md
 
-          for phase in phase1 phase2 phase3 phase4; do
-            if [ -f "all-results/integration-results-${phase}/status.txt" ]; then
-              status=$(cat "all-results/integration-results-${phase}/status.txt")
-              case "$phase" in
-                phase1) desc="L0 ↔ L3 Basic Delegation" ;;
-                phase2) desc="L0 ↔ L2 ↔ L3 Coordination" ;;
-                phase3) desc="L0 ↔ L1 ↔ L2 ↔ L3 Full Hierarchy" ;;
-                phase4) desc="Multi-Component Parallel" ;;
-              esac
-              echo "| $phase | $status | $desc |" >> report.md
-            else
-              echo "| $phase | ⚠️ No results | Unknown |" >> report.md
-            fi
-          done
+          if [ "${{ steps.run-tests.outcome }}" = "success" ]; then
+            echo "✅ **All tests passed!**" >> report.md
+          else
+            echo "❌ **Some tests failed**" >> report.md
+          fi
+
+          echo "" >> report.md
+          echo "- **Total**: ${{ steps.parse-results.outputs.total }}" >> report.md
+          echo "- **Passed**: ${{ steps.parse-results.outputs.passed }}" >> report.md
+          echo "- **Failed**: ${{ steps.parse-results.outputs.failed }}" >> report.md
+
+          echo "" >> report.md
+          echo "### Test Suites Included" >> report.md
+          echo "" >> report.md
+          echo "- Phase 1: L0 ↔ L3 Basic Delegation" >> report.md
+          echo "- Phase 2: L0 ↔ L2 ↔ L3 Coordination" >> report.md
+          echo "- Phase 3: L0 ↔ L1 ↔ L2 ↔ L3 Full Hierarchy" >> report.md
+          echo "- Phase 4: Multi-Component Parallel Execution" >> report.md
+          echo "- Phase 5: Chaos Engineering & Resilience" >> report.md
+          echo "- Phase A: Priority Scheduling" >> report.md
+          echo "- Phase B: Deadline Scheduling" >> report.md
+          echo "- Phase D: Distributed Work Stealing" >> report.md
+          echo "- Unit Tests: Core Components" >> report.md
 
           echo "" >> report.md
           echo "---" >> report.md
@@ -119,15 +103,16 @@ jobs:
 
           cat report.md >> $GITHUB_STEP_SUMMARY
 
-      - name: Upload integration report
+      - name: Upload test report
+        if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: integration-report
+          name: test-report
           path: report.md
           retention-days: 30
 
       - name: Comment PR
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && always()
         uses: actions/github-script@v8
         with:
           script: |
@@ -142,7 +127,7 @@ jobs:
 
             const botComment = comments.data.find(comment =>
               comment.user.type === 'Bot' &&
-              comment.body.includes('Integration Test Results')
+              comment.body.includes('Test Results')
             );
 
             if (botComment) {
@@ -161,10 +146,10 @@ jobs:
               });
             }
 
-      - name: Check integration status
+      - name: Check test status
+        if: always()
         run: |
-          # Fail if any required tests failed (not just missing)
-          if grep -q "❌" report.md; then
-            echo "::error::One or more integration tests failed"
+          if [ "${{ steps.run-tests.outcome }}" != "success" ]; then
+            echo "::error::Tests failed"
             exit 1
           fi
