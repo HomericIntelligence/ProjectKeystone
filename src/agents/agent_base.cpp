@@ -34,7 +34,8 @@ void AgentBase::receiveMessage(const core::KeystoneMessage& msg) {
     if (!backpressure_applied_.exchange(true)) {
       // Log warning on first occurrence
       std::cerr << "[BACKPRESSURE] Agent " << agent_id_ << " inbox full (" << total_depth
-                << " messages), " << "rejecting new messages" << std::endl;
+                << " messages), "
+                << "rejecting new messages" << std::endl;
     }
 
     // For now, drop the message (could also throw exception or send NACK)
@@ -48,7 +49,8 @@ void AgentBase::receiveMessage(const core::KeystoneMessage& msg) {
   if (total_depth < low_watermark) {
     if (backpressure_applied_.exchange(false)) {
       std::cerr << "[BACKPRESSURE] Agent " << agent_id_ << " inbox recovered (" << total_depth
-                << " messages), " << "accepting messages again" << std::endl;
+                << " messages), "
+                << "accepting messages again" << std::endl;
     }
   }
 
