@@ -72,6 +72,10 @@ KeystoneMessage SerializableMessage::toKeystoneMessage() const {
         std::chrono::duration_cast<std::chrono::system_clock::duration>(duration)
     };
 
+    // Initialize Phase C fields with defaults (not in serialized format yet)
+    msg.priority = Priority::NORMAL;
+    msg.deadline = std::nullopt;
+
     return msg;
 }
 
