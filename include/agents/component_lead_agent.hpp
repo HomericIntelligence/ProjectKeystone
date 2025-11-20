@@ -42,12 +42,14 @@ class ComponentLeadAgent : public BaseAgent {
   explicit ComponentLeadAgent(const std::string& agent_id);
 
   /**
-   * @brief Process incoming message (component goals or module results)
+   * @brief Process incoming message asynchronously
+   *
+   * FIX C3: Changed to async (returns Task<Response>)
    *
    * @param msg Message to process
-   * @return core::Response Response to the message
+   * @return concurrency::Task<core::Response> Async task with response
    */
-  core::Response processMessage(const core::KeystoneMessage& msg) override;
+  concurrency::Task<core::Response> processMessage(const core::KeystoneMessage& msg) override;
 
   /**
    * @brief Configure available ModuleLeadAgents for delegation

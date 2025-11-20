@@ -160,19 +160,14 @@ target_include_directories(
 target_link_libraries(keystone_concurrency PUBLIC keystone_core spdlog::spdlog)
 
 # Agents library
-add_library(
-  keystone_agents
-  src/agents/agent_base.cpp
-  src/agents/base_agent.cpp
-  src/agents/chief_architect_agent.cpp
-  src/agents/component_lead_agent.cpp
-  src/agents/module_lead_agent.cpp
-  src/agents/task_agent.cpp
-  src/agents/async_base_agent.cpp
-  src/agents/async_task_agent.cpp
-  src/agents/async_chief_architect_agent.cpp
-  src/agents/async_module_lead_agent.cpp
-  src/agents/async_component_lead_agent.cpp)
+add_library(keystone_agents
+    src/agents/agent_base.cpp
+    src/agents/base_agent.cpp
+    src/agents/chief_architect_agent.cpp
+    src/agents/component_lead_agent.cpp
+    src/agents/module_lead_agent.cpp
+    src/agents/task_agent.cpp
+)
 
 target_link_libraries(keystone_agents PUBLIC keystone_core keystone_concurrency)
 
