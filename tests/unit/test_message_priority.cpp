@@ -35,7 +35,7 @@ class TestPriorityAgent : public AgentBase {
  * @brief Test that HIGH priority messages are processed first
  */
 TEST(MessagePriorityTest, HighPriorityProcessedFirst) {
-  auto agent = std::make_unique<TestPriorityAgent>("test_agent");
+  auto agent = std::make_shared<TestPriorityAgent>("test_agent");
 
   // Send messages in NORMAL, HIGH, LOW order
   auto normal_msg =
@@ -68,7 +68,7 @@ TEST(MessagePriorityTest, HighPriorityProcessedFirst) {
  * @brief Test multiple messages of same priority maintain FIFO order
  */
 TEST(MessagePriorityTest, SamePriorityFIFO) {
-  auto agent = std::make_unique<TestPriorityAgent>("test_agent");
+  auto agent = std::make_shared<TestPriorityAgent>("test_agent");
 
   // Send multiple NORMAL priority messages
   auto msg1 = KeystoneMessage::create("sender", "test_agent", "cmd", "FIRST");
@@ -97,7 +97,7 @@ TEST(MessagePriorityTest, SamePriorityFIFO) {
  * @brief Test complex mixed priority scenario
  */
 TEST(MessagePriorityTest, MixedPriorityOrdering) {
-  auto agent = std::make_unique<TestPriorityAgent>("test_agent");
+  auto agent = std::make_shared<TestPriorityAgent>("test_agent");
 
   // Send messages in mixed order
   auto low1 = KeystoneMessage::create("sender", "test_agent", "cmd", "LOW1");
@@ -154,7 +154,7 @@ TEST(MessagePriorityTest, DefaultPriorityIsNormal) {
  * @brief Test priority with getMessage() one at a time
  */
 TEST(MessagePriorityTest, GetMessageRespectsPriority) {
-  auto agent = std::make_unique<TestPriorityAgent>("test_agent");
+  auto agent = std::make_shared<TestPriorityAgent>("test_agent");
 
   // Send LOW, NORMAL, HIGH
   auto low_msg = KeystoneMessage::create("sender", "test_agent", "cmd", "LOW");

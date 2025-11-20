@@ -1,16 +1,16 @@
-#include <gtest/gtest.h>
+#include "agents/chief_architect_agent.hpp"
+#include "agents/component_lead_agent.hpp"
+#include "agents/module_lead_agent.hpp"
+#include "agents/task_agent.hpp"
+#include "concurrency/work_stealing_scheduler.hpp"
+#include "core/message_bus.hpp"
 
 #include <chrono>
 #include <memory>
 #include <thread>
 #include <vector>
 
-#include "agents/async_chief_architect_agent.hpp"
-#include "agents/async_component_lead_agent.hpp"
-#include "agents/async_module_lead_agent.hpp"
-#include "agents/async_task_agent.hpp"
-#include "concurrency/work_stealing_scheduler.hpp"
-#include "core/message_bus.hpp"
+#include <gtest/gtest.h>
 
 using namespace keystone;
 using namespace keystone::agents;
@@ -22,13 +22,13 @@ using namespace keystone::concurrency;
  *
  * This test demonstrates the complete async agent hierarchy:
  *
- * Level 0 (L0): AsyncChiefArchitectAgent
+ * Level 0 (L0): ChiefArchitectAgent
  *     ↓
- * Level 1 (L1): AsyncComponentLeadAgent
+ * Level 1 (L1): ComponentLeadAgent
  *     ↓
- * Level 2 (L2): AsyncModuleLeadAgent (multiple)
+ * Level 2 (L2): ModuleLeadAgent (multiple)
  *     ↓
- * Level 3 (L3): AsyncTaskAgent (multiple)
+ * Level 3 (L3): TaskAgent (multiple)
  *
  * All communication happens asynchronously via WorkStealingScheduler.
  */
@@ -42,37 +42,37 @@ TEST(E2E_PhaseB, FullAsync4LayerHierarchy) {
   bus.setScheduler(&scheduler);
 
   // Level 0: Chief Architect
-  auto chief = std::make_unique<AsyncChiefArchitectAgent>("chief");
+  auto chief = std::make_shared<ChiefArchitectAgent>("chief");
   chief->setMessageBus(&bus);
   chief->setScheduler(&scheduler);
-  bus.registerAgent(chief->getAgentId(), chief.get());
+  bus.registerAgent(chief->getAgentId(), chief);
 
   // Level 1: Component Lead
-  auto comp_lead = std::make_unique<AsyncComponentLeadAgent>("comp_lead");
+  auto comp_lead = std::make_shared<ComponentLeadAgent>("comp_lead");
   comp_lead->setMessageBus(&bus);
   comp_lead->setScheduler(&scheduler);
-  bus.registerAgent(comp_lead->getAgentId(), comp_lead.get());
+  bus.registerAgent(comp_lead->getAgentId(), comp_lead);
 
   // Level 2: Module Leads (2 modules)
-  auto module1 = std::make_unique<AsyncModuleLeadAgent>("module1");
-  auto module2 = std::make_unique<AsyncModuleLeadAgent>("module2");
+  auto module1 = std::make_shared<ModuleLeadAgent>("module1");
+  auto module2 = std::make_shared<ModuleLeadAgent>("module2");
 
   module1->setMessageBus(&bus);
   module1->setScheduler(&scheduler);
   module2->setMessageBus(&bus);
   module2->setScheduler(&scheduler);
 
-  bus.registerAgent(module1->getAgentId(), module1.get());
-  bus.registerAgent(module2->getAgentId(), module2.get());
+  bus.registerAgent(module1->getAgentId(), module1);
+  bus.registerAgent(module2->getAgentId(), module2);
 
   // Level 3: Task Agents (6 total: 3 per module)
-  std::vector<std::unique_ptr<AsyncTaskAgent>> task_agents;
+  std::vector<std::shared_ptr<TaskAgent>> task_agents;
   for (int i = 1; i <= 6; ++i) {
-    auto task = std::make_unique<AsyncTaskAgent>("task" + std::to_string(i));
+    auto task = std::make_shared<TaskAgent>("task" + std::to_string(i));
     task->setMessageBus(&bus);
     task->setScheduler(&scheduler);
-    bus.registerAgent(task->getAgentId(), task.get());
-    task_agents.push_back(std::move(task));
+    bus.registerAgent(task->getAgentId(), task);
+    task_agents.push_back(task);
   }
 
   // Configure hierarchy
@@ -83,29 +83,23 @@ TEST(E2E_PhaseB, FullAsync4LayerHierarchy) {
   // Test: Chief sends component goal to ComponentLead
   // Goal format: "Messaging(10+20+30) and Concurrency(40+50+60)"
   // This should decompose to:
-  //   - Module 1: "Calculate Messaging: 10+20+30" → tasks: echo 10, echo 20,
-  //   echo 30 → sum = 60
-  //   - Module 2: "Calculate Concurrency: 40+50+60" → tasks: echo 40, echo 50,
-  //   echo 60 → sum = 150
-  //   - Component aggregates: "Module result: Sum = 60, Module result: Sum =
-  //   150"
+  //   - Module 1: "Calculate Messaging: 10+20+30" → tasks: echo 10, echo 20, echo 30 → sum = 60
+  //   - Module 2: "Calculate Concurrency: 40+50+60" → tasks: echo 40, echo 50, echo 60 → sum = 150
+  //   - Component aggregates: "Module result: Sum = 60, Module result: Sum = 150"
 
-  chief->sendCommandAsync(
-      "Component: Messaging(10+20+30) and Concurrency(40+50+60)", "comp_lead");
+  chief->sendCommandAsync("Component: Messaging(10+20+30) and Concurrency(40+50+60)", "comp_lead");
 
   // Wait for async processing through all 4 layers
   std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
   // Verify state transitions for Component Lead
   const auto& comp_trace = comp_lead->getExecutionTrace();
-  EXPECT_GE(comp_trace.size(),
-            4);  // At least: IDLE → PLANNING → WAITING → AGGREGATING → IDLE
+  EXPECT_GE(comp_trace.size(), 4);  // At least: IDLE → PLANNING → WAITING → AGGREGATING → IDLE
 
   // Verify state transitions for Module Leads
   const auto& mod1_trace = module1->getExecutionTrace();
   const auto& mod2_trace = module2->getExecutionTrace();
-  EXPECT_GE(mod1_trace.size(),
-            4);  // IDLE → PLANNING → WAITING → SYNTHESIZING → IDLE
+  EXPECT_GE(mod1_trace.size(), 4);  // IDLE → PLANNING → WAITING → SYNTHESIZING → IDLE
   EXPECT_GE(mod2_trace.size(), 4);
 
   // Verify all task agents executed their commands
@@ -116,9 +110,9 @@ TEST(E2E_PhaseB, FullAsync4LayerHierarchy) {
   EXPECT_EQ(total_commands, 6);  // 3 tasks per module × 2 modules
 
   // Verify final states
-  EXPECT_EQ(comp_lead->getCurrentState(), AsyncComponentLeadAgent::State::IDLE);
-  EXPECT_EQ(module1->getCurrentState(), AsyncModuleLeadAgent::State::IDLE);
-  EXPECT_EQ(module2->getCurrentState(), AsyncModuleLeadAgent::State::IDLE);
+  EXPECT_EQ(comp_lead->getCurrentState(), ComponentLeadAgent::State::IDLE);
+  EXPECT_EQ(module1->getCurrentState(), ModuleLeadAgent::State::IDLE);
+  EXPECT_EQ(module2->getCurrentState(), ModuleLeadAgent::State::IDLE);
 
   // Verify Chief received final aggregated result in inbox
   auto chief_response = chief->getMessage();
@@ -143,10 +137,10 @@ TEST(E2E_PhaseB, Async4LayerConcurrentExecution) {
   bus.setScheduler(&scheduler);
 
   // Setup hierarchy
-  auto chief = std::make_unique<AsyncChiefArchitectAgent>("chief");
-  auto comp_lead = std::make_unique<AsyncComponentLeadAgent>("comp_lead");
-  auto module1 = std::make_unique<AsyncModuleLeadAgent>("module1");
-  auto module2 = std::make_unique<AsyncModuleLeadAgent>("module2");
+  auto chief = std::make_shared<ChiefArchitectAgent>("chief");
+  auto comp_lead = std::make_shared<ComponentLeadAgent>("comp_lead");
+  auto module1 = std::make_shared<ModuleLeadAgent>("module1");
+  auto module2 = std::make_shared<ModuleLeadAgent>("module2");
 
   chief->setMessageBus(&bus);
   chief->setScheduler(&scheduler);
@@ -157,19 +151,19 @@ TEST(E2E_PhaseB, Async4LayerConcurrentExecution) {
   module2->setMessageBus(&bus);
   module2->setScheduler(&scheduler);
 
-  bus.registerAgent(chief->getAgentId(), chief.get());
-  bus.registerAgent(comp_lead->getAgentId(), comp_lead.get());
-  bus.registerAgent(module1->getAgentId(), module1.get());
-  bus.registerAgent(module2->getAgentId(), module2.get());
+  bus.registerAgent(chief->getAgentId(), chief);
+  bus.registerAgent(comp_lead->getAgentId(), comp_lead);
+  bus.registerAgent(module1->getAgentId(), module1);
+  bus.registerAgent(module2->getAgentId(), module2);
 
   // Create slow task agents (sleep 0.05s per task)
-  std::vector<std::unique_ptr<AsyncTaskAgent>> task_agents;
+  std::vector<std::shared_ptr<TaskAgent>> task_agents;
   for (int i = 1; i <= 6; ++i) {
-    auto task = std::make_unique<AsyncTaskAgent>("task" + std::to_string(i));
+    auto task = std::make_shared<TaskAgent>("task" + std::to_string(i));
     task->setMessageBus(&bus);
     task->setScheduler(&scheduler);
-    bus.registerAgent(task->getAgentId(), task.get());
-    task_agents.push_back(std::move(task));
+    bus.registerAgent(task->getAgentId(), task);
+    task_agents.push_back(task);
   }
 
   comp_lead->setAvailableModuleLeads({"module1", "module2"});
@@ -180,8 +174,7 @@ TEST(E2E_PhaseB, Async4LayerConcurrentExecution) {
   auto start = std::chrono::steady_clock::now();
 
   // Send component goal with slow tasks: sleep 0.05 && echo NUMBER
-  chief->sendCommandAsync("Component: Slow(1+2+3) and Fast(4+5+6)",
-                          "comp_lead");
+  chief->sendCommandAsync("Component: Slow(1+2+3) and Fast(4+5+6)", "comp_lead");
 
   // Wait for completion
   std::this_thread::sleep_for(std::chrono::milliseconds(400));
@@ -214,9 +207,9 @@ TEST(E2E_PhaseB, Async4LayerMessageCorrelation) {
   bus.setScheduler(&scheduler);
 
   // Setup hierarchy
-  auto chief = std::make_unique<AsyncChiefArchitectAgent>("chief");
-  auto comp_lead = std::make_unique<AsyncComponentLeadAgent>("comp_lead");
-  auto module1 = std::make_unique<AsyncModuleLeadAgent>("module1");
+  auto chief = std::make_shared<ChiefArchitectAgent>("chief");
+  auto comp_lead = std::make_shared<ComponentLeadAgent>("comp_lead");
+  auto module1 = std::make_shared<ModuleLeadAgent>("module1");
 
   chief->setMessageBus(&bus);
   chief->setScheduler(&scheduler);
@@ -225,22 +218,21 @@ TEST(E2E_PhaseB, Async4LayerMessageCorrelation) {
   module1->setMessageBus(&bus);
   module1->setScheduler(&scheduler);
 
-  bus.registerAgent(chief->getAgentId(), chief.get());
-  bus.registerAgent(comp_lead->getAgentId(), comp_lead.get());
-  bus.registerAgent(module1->getAgentId(), module1.get());
+  bus.registerAgent(chief->getAgentId(), chief);
+  bus.registerAgent(comp_lead->getAgentId(), comp_lead);
+  bus.registerAgent(module1->getAgentId(), module1);
 
   // Single task agent
-  auto task1 = std::make_unique<AsyncTaskAgent>("task1");
+  auto task1 = std::make_shared<TaskAgent>("task1");
   task1->setMessageBus(&bus);
   task1->setScheduler(&scheduler);
-  bus.registerAgent(task1->getAgentId(), task1.get());
+  bus.registerAgent(task1->getAgentId(), task1);
 
   comp_lead->setAvailableModuleLeads({"module1"});
   module1->setAvailableTaskAgents({"task1"});
 
   // Send command and track original msg_id
-  auto original_msg =
-      KeystoneMessage::create("chief", "comp_lead", "Component: Test(42)");
+  auto original_msg = KeystoneMessage::create("chief", "comp_lead", "Component: Test(42)");
   std::string original_msg_id = original_msg.msg_id;
 
   bus.routeMessage(original_msg);
@@ -251,9 +243,8 @@ TEST(E2E_PhaseB, Async4LayerMessageCorrelation) {
   auto chief_response = chief->getMessage();
   ASSERT_TRUE(chief_response.has_value());
 
-  // Note: Message ID correlation works for responses sent back through the
-  // hierarchy The component lead preserves the original msg_id when sending the
-  // final response
+  // Note: Message ID correlation works for responses sent back through the hierarchy
+  // The component lead preserves the original msg_id when sending the final response
 
   scheduler.shutdown();
 }

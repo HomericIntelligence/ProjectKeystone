@@ -33,12 +33,12 @@ using namespace keystone::core;
 TEST(E2E_Phase1, ChiefArchitectDelegatesToTaskAgent) {
   // ARRANGE: Create MessageBus and agents
   auto bus = std::make_unique<MessageBus>();
-  auto chief = std::make_unique<ChiefArchitectAgent>("chief_1");
-  auto task_agent = std::make_unique<TaskAgent>("task_1");
+  auto chief = std::make_shared<ChiefArchitectAgent>("chief_1");
+  auto task_agent = std::make_shared<TaskAgent>("task_1");
 
-  // Register agents with bus
-  bus->registerAgent(chief->getAgentId(), chief.get());
-  bus->registerAgent(task_agent->getAgentId(), task_agent.get());
+  // Register agents with bus (using shared_ptr for safe lifetime management)
+  bus->registerAgent(chief->getAgentId(), chief);
+  bus->registerAgent(task_agent->getAgentId(), task_agent);
 
   // Set message bus for each agent
   chief->setMessageBus(bus.get());
@@ -72,7 +72,7 @@ TEST(E2E_Phase1, ChiefArchitectDelegatesToTaskAgent) {
   auto task_msg = task_agent->getMessage();
   ASSERT_TRUE(task_msg.has_value()) << "TaskAgent should receive message";
 
-  auto response = task_agent->processMessage(*task_msg);
+  auto response = task_agent->processMessage(*task_msg).get();
 
   // Response is automatically routed back via MessageBus
   // ChiefArchitect receives it
@@ -80,7 +80,7 @@ TEST(E2E_Phase1, ChiefArchitectDelegatesToTaskAgent) {
   ASSERT_TRUE(chief_response_msg.has_value())
       << "ChiefArchitect should receive response";
 
-  auto final_response = chief->processMessage(*chief_response_msg);
+  auto final_response = chief->processMessage(*chief_response_msg).get();
 
   // ASSERT: Verify the result
   EXPECT_EQ(final_response.status, Response::Status::Success)
@@ -108,12 +108,12 @@ TEST(E2E_Phase1, ChiefArchitectDelegatesToTaskAgent) {
 TEST(E2E_Phase1, ChiefArchitectSendsMultipleCommands) {
   // ARRANGE: Create MessageBus and agents
   auto bus = std::make_unique<MessageBus>();
-  auto chief = std::make_unique<ChiefArchitectAgent>("chief_1");
-  auto task_agent = std::make_unique<TaskAgent>("task_1");
+  auto chief = std::make_shared<ChiefArchitectAgent>("chief_1");
+  auto task_agent = std::make_shared<TaskAgent>("task_1");
 
-  // Register agents with bus
-  bus->registerAgent(chief->getAgentId(), chief.get());
-  bus->registerAgent(task_agent->getAgentId(), task_agent.get());
+  // Register agents with bus (using shared_ptr for safe lifetime management)
+  bus->registerAgent(chief->getAgentId(), chief);
+  bus->registerAgent(task_agent->getAgentId(), task_agent);
 
   // Set message bus for each agent
   chief->setMessageBus(bus.get());
@@ -138,13 +138,13 @@ TEST(E2E_Phase1, ChiefArchitectSendsMultipleCommands) {
     // Process
     auto task_msg = task_agent->getMessage();
     ASSERT_TRUE(task_msg.has_value());
-    auto response = task_agent->processMessage(*task_msg);
+    auto response = task_agent->processMessage(*task_msg).get();
 
     // Response automatically routed back via MessageBus
     // Verify
     auto chief_response_msg = chief->getMessage();
     ASSERT_TRUE(chief_response_msg.has_value());
-    auto final_response = chief->processMessage(*chief_response_msg);
+    auto final_response = chief->processMessage(*chief_response_msg).get();
 
     EXPECT_EQ(final_response.status, Response::Status::Success);
     EXPECT_EQ(std::stoi(final_response.result), expected)
@@ -165,12 +165,12 @@ TEST(E2E_Phase1, ChiefArchitectSendsMultipleCommands) {
 TEST(E2E_Phase1, TaskAgentHandlesCommandErrors) {
   // ARRANGE: Create MessageBus and agents
   auto bus = std::make_unique<MessageBus>();
-  auto chief = std::make_unique<ChiefArchitectAgent>("chief_1");
-  auto task_agent = std::make_unique<TaskAgent>("task_1");
+  auto chief = std::make_shared<ChiefArchitectAgent>("chief_1");
+  auto task_agent = std::make_shared<TaskAgent>("task_1");
 
-  // Register agents with bus
-  bus->registerAgent(chief->getAgentId(), chief.get());
-  bus->registerAgent(task_agent->getAgentId(), task_agent.get());
+  // Register agents with bus (using shared_ptr for safe lifetime management)
+  bus->registerAgent(chief->getAgentId(), chief);
+  bus->registerAgent(task_agent->getAgentId(), task_agent);
 
   // Set message bus for each agent
   chief->setMessageBus(bus.get());
@@ -187,7 +187,7 @@ TEST(E2E_Phase1, TaskAgentHandlesCommandErrors) {
 
   auto task_msg = task_agent->getMessage();
   ASSERT_TRUE(task_msg.has_value());
-  auto response = task_agent->processMessage(*task_msg);
+  auto response = task_agent->processMessage(*task_msg).get();
 
   // ASSERT: Should get error response
   EXPECT_EQ(response.status, Response::Status::Error)
