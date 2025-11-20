@@ -148,6 +148,10 @@ void WorkStealingScheduler::workerLoop(size_t worker_index) {
 
     auto& own_queue = *worker_queues_[worker_index];
 
+    // FIX M5: Adaptive exponential backoff instead of fixed 100μs sleep
+    size_t idle_count = 0;
+    constexpr size_t MAX_BACKOFF_US = 1000;  // Cap at 1ms
+
     // Main work loop
     while (!shutdown_requested_.load()) {
         // Try to get work: pop from own queue or steal from others
@@ -170,9 +174,15 @@ void WorkStealingScheduler::workerLoop(size_t worker_index) {
             // Execute the work item
             Logger::trace("Worker {} executing work", worker_index);
             work->execute();
+            idle_count = 0;  // Reset backoff on successful work
         } else {
-            // No work available, sleep briefly to avoid busy-waiting
-            std::this_thread::sleep_for(std::chrono::microseconds(100));
+            // FIX M5: Adaptive exponential backoff
+            // Start with 1μs, double each iteration up to 1ms
+            // This reduces CPU waste while maintaining low latency
+            idle_count++;
+            size_t backoff_shift = std::min(idle_count, static_cast<size_t>(10));  // Max 2^10 = 1024
+            size_t sleep_us = std::min(1UL << backoff_shift, MAX_BACKOFF_US);
+            std::this_thread::sleep_for(std::chrono::microseconds(sleep_us));
         }
     }
 

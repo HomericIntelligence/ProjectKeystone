@@ -280,29 +280,24 @@ std::string Metrics::generateReport() const {
 }
 
 void Metrics::cleanupOldTimestamps() {
-    // FIX: Remove oldest 50% of entries to prevent unbounded growth
+    // FIX M3: Time-based expiration instead of O(n log n) sort
+    // Remove entries older than 60 seconds
     // Note: Caller must hold timestamps_mutex_
 
     if (message_timestamps_.empty()) {
         return;
     }
 
-    // Sort entries by timestamp (oldest first)
-    std::vector<std::pair<std::string, LatencyRecord>> entries(
-        message_timestamps_.begin(),
-        message_timestamps_.end()
-    );
+    auto now = std::chrono::steady_clock::now();
+    constexpr auto EXPIRY_TIME = std::chrono::seconds(60);
 
-    std::sort(entries.begin(), entries.end(),
-        [](const auto& a, const auto& b) {
-            return a.second.send_time < b.second.send_time;
+    // Iterate and erase old entries (more efficient than sorting)
+    for (auto it = message_timestamps_.begin(); it != message_timestamps_.end(); ) {
+        if (now - it->second.send_time > EXPIRY_TIME) {
+            it = message_timestamps_.erase(it);
+        } else {
+            ++it;
         }
-    );
-
-    // Remove oldest 50%
-    size_t to_remove = entries.size() / 2;
-    for (size_t i = 0; i < to_remove; ++i) {
-        message_timestamps_.erase(entries[i].first);
     }
 }
 

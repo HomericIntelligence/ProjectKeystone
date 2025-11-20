@@ -5,6 +5,7 @@
 #include <string>
 #include <optional>
 #include <atomic>
+#include <chrono>  // FIX M2: For time-based priority fairness
 
 namespace keystone {
 
@@ -92,10 +93,11 @@ protected:
     moodycamel::ConcurrentQueue<core::KeystoneMessage> normal_priority_inbox_;
     moodycamel::ConcurrentQueue<core::KeystoneMessage> low_priority_inbox_;
 
-    // FIX: Anti-starvation counters for weighted round-robin
-    // After N high-priority messages, force-check lower priorities
-    std::atomic<uint64_t> high_priority_processed_{0};
-    static constexpr uint64_t HIGH_PRIORITY_QUOTA = 10;  ///< Process max 10 HIGH before checking NORMAL/LOW
+    // FIX M2: Anti-starvation using time-based fairness (not count-based)
+    // Force-check lower priorities every N milliseconds to prevent starvation
+    // under sustained HIGH priority load
+    std::chrono::steady_clock::time_point last_low_priority_check_;
+    static constexpr std::chrono::milliseconds LOW_PRIORITY_CHECK_INTERVAL{100};  ///< Check NORMAL/LOW every 100ms
 
     // FIX M1: Backpressure - Queue size limits to prevent memory exhaustion
     static constexpr size_t MAX_QUEUE_SIZE = 10000;  ///< Max total messages across all priorities
