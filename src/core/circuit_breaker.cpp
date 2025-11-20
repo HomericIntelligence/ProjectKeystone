@@ -27,11 +27,11 @@ bool CircuitBreaker::allowRequest(const std::string& target_id) {
   auto it = circuits_.find(target_id);
   if (it == circuits_.end()) {
     // First request to this target - create circuit in CLOSED state
-    circuits_[target_id] = CircuitStatus{
-        .target_id = target_id,
-        .state = State::CLOSED,
-        .last_failure_time = std::chrono::steady_clock::time_point{},
-        .circuit_opened_time = std::chrono::steady_clock::time_point{}};
+    circuits_[target_id] =
+        CircuitStatus{.target_id = target_id,
+                      .state = State::CLOSED,
+                      .last_failure_time = std::chrono::steady_clock::time_point{},
+                      .circuit_opened_time = std::chrono::steady_clock::time_point{}};
     return true;
   }
 
@@ -92,11 +92,11 @@ void CircuitBreaker::recordFailure(const std::string& target_id) {
   auto it = circuits_.find(target_id);
   if (it == circuits_.end()) {
     // Create circuit if it doesn't exist
-    circuits_[target_id] = CircuitStatus{
-        .target_id = target_id,
-        .state = State::CLOSED,
-        .last_failure_time = std::chrono::steady_clock::time_point{},
-        .circuit_opened_time = std::chrono::steady_clock::time_point{}};
+    circuits_[target_id] =
+        CircuitStatus{.target_id = target_id,
+                      .state = State::CLOSED,
+                      .last_failure_time = std::chrono::steady_clock::time_point{},
+                      .circuit_opened_time = std::chrono::steady_clock::time_point{}};
     it = circuits_.find(target_id);
   }
 
