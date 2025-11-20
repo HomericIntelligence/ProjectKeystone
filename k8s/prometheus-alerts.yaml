@@ -220,16 +220,17 @@ data:
               description: "HMAS availability is {{ $value | humanizePercentage }} over the last 30 days (SLO: 99.9%)."
               runbook_url: "https://github.com/projectkeystone/runbooks/slo-availability-violation.md"
 
-          # SLO: P95 latency < 1ms
+          # SLO: Average latency < 1ms (gauge metric)
+          # NOTE: This uses average latency (gauge). For P95 monitoring, implement histogram metrics.
           - alert: SLOLatencyViolation
-            expr: histogram_quantile(0.95, hmas_message_latency_microseconds) > 1000
+            expr: hmas_message_latency_microseconds > 1000
             for: 5m
             labels:
               severity: warning
               component: slo
             annotations:
               summary: "SLO latency violation"
-              description: "P95 message latency is {{ $value }}µs (SLO: < 1000µs)."
+              description: "Average message latency is {{ $value }}µs (SLO: < 1000µs). Note: This monitors average, not P95. See issue for histogram implementation."
               runbook_url: "https://github.com/projectkeystone/runbooks/slo-latency-violation.md"
 
           # SLO: Error rate < 0.1%
