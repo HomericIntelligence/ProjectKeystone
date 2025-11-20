@@ -53,10 +53,11 @@ jobs:
             p/cpp
             p/docker
             p/cmake
+          generateSarif: true
         continue-on-error: true
 
       - name: Upload Semgrep SARIF
-        if: always()
+        if: always() && hashFiles('semgrep.sarif') != ''
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: semgrep.sarif
