@@ -14,11 +14,13 @@ AsyncComponentLeadAgent::AsyncComponentLeadAgent(const std::string& agent_id)
 concurrency::Task<core::Response> AsyncComponentLeadAgent::processMessage(
     const core::KeystoneMessage& msg) {
   // Check if this is a module result or a component goal
-  // Async version uses "response" for consistency (sync version used "module_result")
+  // Async version uses "response" for consistency (sync version used
+  // "module_result")
   if (msg.command == "response" || msg.command == "module_result") {
     // This is a module result - process asynchronously
     co_await processModuleResult(msg);
-    auto response = core::Response::createSuccess(msg, agent_id_, "Module result processed");
+    auto response = core::Response::createSuccess(msg, agent_id_,
+                                                  "Module result processed");
     co_return response;
   }
 
@@ -37,9 +39,8 @@ concurrency::Task<core::Response> AsyncComponentLeadAgent::processMessage(
 
   if (module_goals.empty()) {
     transitionTo(State::ERROR);
-    auto response = core::Response::createError(msg,
-                                                agent_id_,
-                                                "Failed to decompose component goal");
+    auto response = core::Response::createError(
+        msg, agent_id_, "Failed to decompose component goal");
     co_return response;
   }
 
@@ -54,11 +55,10 @@ concurrency::Task<core::Response> AsyncComponentLeadAgent::processMessage(
   transitionTo(State::WAITING_FOR_MODULES);
   delegateModules(module_goals);
 
-  auto response = core::Response::createSuccess(msg,
-                                                agent_id_,
-                                                "Component goal decomposed into " +
-                                                    std::to_string(module_goals.size()) +
-                                                    " modules");
+  auto response = core::Response::createSuccess(
+      msg, agent_id_,
+      "Component goal decomposed into " + std::to_string(module_goals.size()) +
+          " modules");
   co_return response;
 }
 
@@ -101,14 +101,13 @@ std::vector<std::string> AsyncComponentLeadAgent::decomposeModules(
     const std::string& component_goal) {
   std::vector<std::string> module_goals;
 
-  // Parse goal like "Implement Core component: Messaging(10+20+30) and Concurrency(40+50+60)"
-  // Extract module sections using regex
+  // Parse goal like "Implement Core component: Messaging(10+20+30) and
+  // Concurrency(40+50+60)" Extract module sections using regex
 
   // Pattern to match "ModuleName(numbers)"
   std::regex module_regex(R"((\w+)\(([0-9+]+)\))");
   auto modules_begin = std::sregex_iterator(component_goal.begin(),
-                                            component_goal.end(),
-                                            module_regex);
+                                            component_goal.end(), module_regex);
   auto modules_end = std::sregex_iterator();
 
   for (std::sregex_iterator i = modules_begin; i != modules_end; ++i) {
@@ -124,7 +123,8 @@ std::vector<std::string> AsyncComponentLeadAgent::decomposeModules(
   return module_goals;
 }
 
-void AsyncComponentLeadAgent::delegateModules(const std::vector<std::string>& module_goals) {
+void AsyncComponentLeadAgent::delegateModules(
+    const std::vector<std::string>& module_goals) {
   std::lock_guard<std::mutex> lock(module_mutex_);
 
   // Assign module goals to available ModuleLeadAgents
@@ -141,7 +141,8 @@ void AsyncComponentLeadAgent::delegateModules(const std::vector<std::string>& mo
     const std::string& module_lead_id = available_module_leads_[i];
 
     // Create and send module goal message
-    auto module_msg = core::KeystoneMessage::create(agent_id_, module_lead_id, module_goals[i]);
+    auto module_msg = core::KeystoneMessage::create(agent_id_, module_lead_id,
+                                                    module_goals[i]);
 
     // Track pending module
     pending_modules_[module_msg.msg_id] = module_lead_id;
@@ -178,8 +179,10 @@ void AsyncComponentLeadAgent::aggregateAndRespond() {
   transitionTo(State::IDLE);
 
   // Send aggregated result back to requester (ChiefArchitect)
-  auto response_msg = core::KeystoneMessage::create(agent_id_, requester, "response", aggregation);
-  response_msg.msg_id = request_msg_id;  // Preserve original msg_id for correlation
+  auto response_msg = core::KeystoneMessage::create(agent_id_, requester,
+                                                    "response", aggregation);
+  response_msg.msg_id =
+      request_msg_id;  // Preserve original msg_id for correlation
 
   sendMessage(response_msg);
 }

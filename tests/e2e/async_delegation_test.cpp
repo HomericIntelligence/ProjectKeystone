@@ -9,11 +9,7 @@
  * - Work-stealing enables parallel execution
  */
 
-#include "agents/chief_architect_agent.hpp"
-#include "agents/task_agent.hpp"
-#include "concurrency/logger.hpp"
-#include "concurrency/work_stealing_scheduler.hpp"
-#include "core/message_bus.hpp"
+#include <gtest/gtest.h>
 
 #include <atomic>
 #include <chrono>
@@ -23,7 +19,11 @@
 #include <thread>
 #include <vector>
 
-#include <gtest/gtest.h>
+#include "agents/chief_architect_agent.hpp"
+#include "agents/task_agent.hpp"
+#include "concurrency/logger.hpp"
+#include "concurrency/work_stealing_scheduler.hpp"
+#include "core/message_bus.hpp"
 
 using namespace keystone::agents;
 using namespace keystone::core;
@@ -77,7 +77,8 @@ TEST(E2E_PhaseA, AsyncDelegationWithWorkStealing) {
   std::cout << "✓ All agents registered and configured" << std::endl;
 
   // ACT: Send commands to different task agents
-  std::map<std::string, std::pair<TaskAgent*, int>> commands;  // msg_id -> (agent, expected)
+  std::map<std::string, std::pair<TaskAgent*, int>>
+      commands;  // msg_id -> (agent, expected)
   std::random_device rd;
   std::mt19937 gen(rd());
   std::uniform_int_distribution<> dis(1, 50);
@@ -93,17 +94,20 @@ TEST(E2E_PhaseA, AsyncDelegationWithWorkStealing) {
     std::stringstream cmd;
     cmd << "echo $((" << num1 << " + " << num2 << "))";
 
-    auto msg = KeystoneMessage::create(chief->getAgentId(), target->getAgentId(), cmd.str());
+    auto msg = KeystoneMessage::create(chief->getAgentId(),
+                                       target->getAgentId(), cmd.str());
 
     commands[msg.msg_id] = {target, expected};
     chief->sendMessage(msg);  // Async routing via scheduler
 
-    std::cout << "  → Sent command " << (i + 1) << " to " << target->getAgentId() << ": " << num1
-              << " + " << num2 << " = " << expected << std::endl;
+    std::cout << "  → Sent command " << (i + 1) << " to "
+              << target->getAgentId() << ": " << num1 << " + " << num2 << " = "
+              << expected << std::endl;
   }
 
   // Wait for async processing
-  std::cout << "\n⏳ Waiting for async message delivery and processing..." << std::endl;
+  std::cout << "\n⏳ Waiting for async message delivery and processing..."
+            << std::endl;
   std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
   // ASSERT: Process messages from all task agents
@@ -137,7 +141,8 @@ TEST(E2E_PhaseA, AsyncDelegationWithWorkStealing) {
   for (const auto& resp : responses) {
     auto it = commands.find(resp.msg_id);
     if (it == commands.end()) {
-      std::cout << "  ✗ Unexpected response with msg_id: " << resp.msg_id << std::endl;
+      std::cout << "  ✗ Unexpected response with msg_id: " << resp.msg_id
+                << std::endl;
       continue;
     }
 
@@ -146,20 +151,23 @@ TEST(E2E_PhaseA, AsyncDelegationWithWorkStealing) {
     try {
       int result = std::stoi(resp.payload.value());
       if (result == expected) {
-        std::cout << "  ✓ Command for msg_id " << resp.msg_id.substr(0, 8) << "... succeeded: got "
-                  << result << std::endl;
+        std::cout << "  ✓ Command for msg_id " << resp.msg_id.substr(0, 8)
+                  << "... succeeded: got " << result << std::endl;
         successful++;
       } else {
-        std::cout << "  ✗ Command for msg_id " << resp.msg_id.substr(0, 8) << "... incorrect: got "
-                  << result << ", expected " << expected << std::endl;
+        std::cout << "  ✗ Command for msg_id " << resp.msg_id.substr(0, 8)
+                  << "... incorrect: got " << result << ", expected "
+                  << expected << std::endl;
       }
     } catch (...) {
       std::cout << "  ✗ Command failed to parse result" << std::endl;
     }
   }
 
-  std::cout << "\n📊 Results: " << successful << "/" << total << " commands succeeded" << std::endl;
-  EXPECT_EQ(successful, total) << "All async commands should complete successfully";
+  std::cout << "\n📊 Results: " << successful << "/" << total
+            << " commands succeeded" << std::endl;
+  EXPECT_EQ(successful, total)
+      << "All async commands should complete successfully";
 
   // Shutdown scheduler (waits for pending work)
   std::cout << "\n🛑 Shutting down scheduler..." << std::endl;
@@ -201,7 +209,8 @@ TEST(E2E_PhaseA, WorkStealingLoadBalancing) {
   // Send 100 commands (will be distributed via work-stealing)
   for (int i = 0; i < 100; ++i) {
     auto target = task_agents[i % 10].get();
-    auto msg = KeystoneMessage::create(chief->getAgentId(), target->getAgentId(), "echo ok");
+    auto msg = KeystoneMessage::create(chief->getAgentId(),
+                                       target->getAgentId(), "echo ok");
     chief->sendMessage(msg);
   }
 
@@ -220,12 +229,13 @@ TEST(E2E_PhaseA, WorkStealingLoadBalancing) {
     }
   }
 
-  std::cout << "Load distribution: " << agents_with_messages << "/10 agents received work"
-            << std::endl;
+  std::cout << "Load distribution: " << agents_with_messages
+            << "/10 agents received work" << std::endl;
 
   // With work-stealing, multiple agents should process messages
   // (Exact distribution depends on timing, but should be > 1)
-  EXPECT_GT(agents_with_messages, 0) << "At least some agents should receive work";
+  EXPECT_GT(agents_with_messages, 0)
+      << "At least some agents should receive work";
 
   scheduler.shutdown();
   Logger::shutdown();
@@ -252,12 +262,14 @@ TEST(E2E_PhaseA, MixedSyncAsyncProcessing) {
   task->setMessageBus(bus.get());
 
   // Send message in sync mode
-  auto msg1 = KeystoneMessage::create(chief->getAgentId(), task->getAgentId(), "echo sync");
+  auto msg1 = KeystoneMessage::create(chief->getAgentId(), task->getAgentId(),
+                                      "echo sync");
   chief->sendMessage(msg1);
 
   // Should be delivered immediately (synchronous)
   auto received1 = task->getMessage();
-  ASSERT_TRUE(received1.has_value()) << "Sync message should be delivered immediately";
+  ASSERT_TRUE(received1.has_value())
+      << "Sync message should be delivered immediately";
 
   // Now enable async mode
   WorkStealingScheduler scheduler(2);
@@ -265,7 +277,8 @@ TEST(E2E_PhaseA, MixedSyncAsyncProcessing) {
   bus->setScheduler(&scheduler);
 
   // Send message in async mode
-  auto msg2 = KeystoneMessage::create(chief->getAgentId(), task->getAgentId(), "echo async");
+  auto msg2 = KeystoneMessage::create(chief->getAgentId(), task->getAgentId(),
+                                      "echo async");
   chief->sendMessage(msg2);
 
   // Wait for async delivery

@@ -7,7 +7,10 @@
 
 ## Context
 
-Phase 1 of ProjectKeystone initially implemented direct agent-to-agent communication via raw pointers (`sendMessage(msg, BaseAgent* target)`). Code review identified this as a critical architectural debt that would not scale to the 4-layer hierarchy (L0→L1→L2→L3) and 100+ agent deployments planned for Phases 2-5.
+Phase 1 of ProjectKeystone initially implemented direct agent-to-agent communication via
+raw pointers (`sendMessage(msg, BaseAgent* target)`). Code review identified this as a
+critical architectural debt that would not scale to the 4-layer hierarchy (L0→L1→L2→L3)
+and 100+ agent deployments planned for Phases 2-5.
 
 ### Problems with Direct Coupling
 
@@ -54,6 +57,7 @@ private:
 ```
 
 **Rationale**:
+
 - Thread-safe registration/unregistration
 - O(1) lookup by agent ID
 - Allows dynamic agent management
@@ -115,11 +119,13 @@ public:
 ### Migration Path
 
 **Breaking Changes**:
+
 - `BaseAgent::sendMessage(msg, target)` → `BaseAgent::sendMessage(msg)`
 - `ChiefArchitectAgent::sendCommand(cmd, agent*)` → `sendCommand(cmd, agent_id)`
 - All tests updated to create and configure MessageBus
 
 **Migration Steps**:
+
 1. ✅ Create MessageBus header and implementation
 2. ✅ Update BaseAgent to use MessageBus
 3. ✅ Remove test infrastructure (storeResponse/getStoredResponse)
@@ -187,6 +193,7 @@ class MessageBroker {
 ### Code Review
 
 All critical issues from code review resolved:
+
 - ✅ Thread-unsafe UUID generation → thread_local
 - ✅ Resource leak in popen → RAII PipeHandle
 - ✅ Direct agent coupling → MessageBus abstraction

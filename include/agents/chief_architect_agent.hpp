@@ -1,8 +1,8 @@
 #pragma once
 
-#include "base_agent.hpp"
-
 #include <map>
+
+#include "base_agent.hpp"
 
 namespace keystone {
 namespace agents {
@@ -37,7 +37,8 @@ class ChiefArchitectAgent : public BaseAgent {
    * @param task_agent_id Target task agent ID
    * @return core::Response Response from the task agent
    */
-  core::Response sendCommand(const std::string& command, const std::string& task_agent_id);
+  core::Response sendCommand(const std::string& command,
+                             const std::string& task_agent_id);
 };
 
 }  // namespace agents

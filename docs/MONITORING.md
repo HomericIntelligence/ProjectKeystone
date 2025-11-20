@@ -4,7 +4,8 @@
 
 ## Overview
 
-ProjectKeystone HMAS exports metrics in Prometheus format via an HTTP endpoint on port 9090. This document describes the available metrics, how to deploy Prometheus, and how to query metrics.
+ProjectKeystone HMAS exports metrics in Prometheus format via an HTTP endpoint on port 9090. This
+document describes the available metrics, how to deploy Prometheus, and how to query metrics.
 
 ---
 
@@ -73,6 +74,7 @@ open http://localhost:9091
 ```
 
 **What This Creates**:
+
 - Prometheus deployment (1 replica)
 - ConfigMap with scrape configuration
 - Service for Prometheus UI
@@ -124,6 +126,7 @@ curl http://localhost:9090/metrics
 ```
 
 **Expected Output**:
+
 ```
 # HELP hmas_messages_total Total number of messages sent by priority
 # TYPE hmas_messages_total counter
@@ -155,6 +158,7 @@ open http://localhost:9091
 ```
 
 Navigate to:
+
 - **Graph**: Query and visualize metrics
 - **Targets**: View scrape targets and health
 - **Alerts**: View active alerts (if configured)
@@ -362,6 +366,7 @@ open http://localhost:3000
 ```
 
 **What This Creates**:
+
 - Grafana deployment (1 replica)
 - PersistentVolumeClaim (10Gi for dashboards and data)
 - ConfigMap for Prometheus datasource (auto-configured)
@@ -371,6 +376,7 @@ open http://localhost:3000
 
 **Dashboards Auto-Loaded**:
 The following dashboards are automatically available after deployment:
+
 - **HMAS Overview** (`/d/hmas-overview`)
 - **HMAS Agent Details** (`/d/hmas-agent-details`)
 - **HMAS System Health** (`/d/hmas-system-health`)
@@ -404,6 +410,7 @@ open http://localhost:3000
 **Purpose**: High-level system monitoring and KPIs
 
 **Panels** (10 panels):
+
 - **Message Throughput** (Time Series) - Messages/sec rate over time
 - **Average Message Latency** (Gauge) - Current latency with thresholds (green <1ms, yellow <5ms, red >5ms)
 - **Messages by Priority** (Stacked Time Series) - High/Normal/Low priority breakdown
@@ -419,6 +426,7 @@ open http://localhost:3000
 **Time Range**: Last 1 hour (default)
 
 **Use Cases**:
+
 - Ops dashboard for monitoring system health
 - Performance overview for stakeholders
 - First-line troubleshooting
@@ -428,6 +436,7 @@ open http://localhost:3000
 **Purpose**: Detailed agent performance analysis and debugging
 
 **Panels** (7 panels):
+
 - **Message Processing Latency** (Time Series) - Current and 5-min average latency trends
 - **Message Priority Distribution** (Pie Chart) - Visual breakdown of priority distribution
 - **Agent Queue Depth** (Bar Chart) - Queue backlog visualization with thresholds
@@ -440,6 +449,7 @@ open http://localhost:3000
 **Time Range**: Last 1 hour (default)
 
 **Use Cases**:
+
 - Performance optimization and tuning
 - Identifying bottlenecks in message processing
 - Analyzing priority queue behavior
@@ -450,6 +460,7 @@ open http://localhost:3000
 **Purpose**: Infrastructure monitoring and reliability metrics
 
 **Panels** (9 panels):
+
 - **HMAS Health Status** (Large Stat) - Visual health indicator (GREEN=UP, RED=DOWN)
 - **System Uptime** (Stat) - Uptime with trend graph
 - **Total Messages Processed** (Stat) - Cumulative count with trend
@@ -464,6 +475,7 @@ open http://localhost:3000
 **Time Range**: Last 6 hours (default)
 
 **Use Cases**:
+
 - SRE monitoring and alerting
 - Capacity planning
 - Reliability tracking (SLO/SLA monitoring)
@@ -499,6 +511,7 @@ ls grafana/dashboards/
 ```
 
 **Import via UI**:
+
 1. Navigate to **Dashboards** → **Import**
 2. Click **Upload JSON file**
 3. Select dashboard JSON (e.g., `hmas-overview.json`)
@@ -512,6 +525,7 @@ Repeat for all 3 dashboards.
 All dashboards are editable and customizable:
 
 **Common Customizations**:
+
 - Adjust time ranges (default: 1h or 6h)
 - Modify refresh intervals (default: 10s)
 - Add alert thresholds
@@ -519,6 +533,7 @@ All dashboards are editable and customizable:
 - Export dashboards as JSON for version control
 
 **Adding Variables** (future enhancement):
+
 ```
 $namespace - Kubernetes namespace filter
 $pod - Pod name filter
@@ -528,28 +543,33 @@ $agent_id - Agent ID filter (when per-agent metrics available)
 ### Example Dashboard Queries
 
 **Messages Per Second**:
+
 ```promql
 rate(hmas_messages_processed_total[5m])
 ```
 
 **Latency Over Time (milliseconds)**:
+
 ```promql
 hmas_message_latency_microseconds / 1000
 ```
 
 **Queue Depth with Threshold**:
+
 ```promql
 hmas_queue_depth_max
 # Alert expression: hmas_queue_depth_max > 1000
 ```
 
 **Worker Utilization**:
+
 ```promql
 hmas_worker_utilization_percent
 # Alert expression: hmas_worker_utilization_percent > 90
 ```
 
 **Deadline Miss Rate**:
+
 ```promql
 rate(hmas_deadline_misses_total[5m])
 # Alert expression: rate(hmas_deadline_misses_total[5m]) > 10
@@ -559,16 +579,19 @@ rate(hmas_deadline_misses_total[5m])
 
 ## Centralized Logging with Loki
 
-ProjectKeystone uses **Loki** for centralized log aggregation, providing a unified view of logs from all HMAS pods alongside metrics in Grafana.
+ProjectKeystone uses **Loki** for centralized log aggregation, providing a unified view of logs
+from all HMAS pods alongside metrics in Grafana.
 
 ### Architecture
 
 **Components**:
+
 1. **Loki** - Log aggregation system (similar to Prometheus, but for logs)
 2. **Promtail** - Log collection agent (runs as DaemonSet on every node)
 3. **Grafana** - Unified metrics + logs visualization
 
 **Log Flow**:
+
 ```
 HMAS Pods → Promtail (collects) → Loki (aggregates) → Grafana (visualizes)
 ```
@@ -589,6 +612,7 @@ kubectl logs -n projectkeystone -l app=loki --tail=20
 ```
 
 **What This Creates**:
+
 - Loki deployment (1 replica, Loki 2.9.3)
 - PersistentVolumeClaim (50Gi for log storage)
 - ConfigMap with Loki configuration
@@ -610,12 +634,14 @@ kubectl logs -n projectkeystone -l app=promtail --tail=20
 ```
 
 **What This Creates**:
+
 - Promtail DaemonSet (runs on every node)
 - ConfigMap with Promtail configuration
 - ServiceAccount and RBAC permissions
 - ClusterRole for pod discovery
 
 **Promtail Features**:
+
 - Auto-discovers all pods in `projectkeystone` namespace
 - Parses log levels (ERROR, WARN, INFO)
 - Adds labels: namespace, pod, container, app, component
@@ -641,6 +667,7 @@ kubectl port-forward -n projectkeystone svc/grafana 3000:3000
 A pre-built **HMAS Logs** dashboard is included (`/d/hmas-logs`):
 
 **Panels** (8 panels):
+
 1. **HMAS Log Stream** (Live Logs) - Real-time log stream from all pods
 2. **Log Volume by Pod** (Time Series) - Log rate per pod
 3. **Logs by Level** (Pie Chart) - Distribution of ERROR/WARN/INFO logs
@@ -651,6 +678,7 @@ A pre-built **HMAS Logs** dashboard is included (`/d/hmas-logs`):
 8. **Total Log Volume** (Stat) - Total log count (last hour)
 
 **Features**:
+
 - Live streaming logs (10-second refresh)
 - LogQL filtering and search
 - Color-coded by log level
@@ -663,16 +691,19 @@ LogQL is Loki's query language (similar to PromQL).
 #### Basic Queries
 
 **All logs from HMAS**:
+
 ```logql
 {namespace="projectkeystone"}
 ```
 
 **Logs from specific pod**:
+
 ```logql
 {namespace="projectkeystone", pod="hmas-deployment-abc123"}
 ```
 
 **Logs from specific container**:
+
 ```logql
 {namespace="projectkeystone", container="hmas"}
 ```
@@ -680,26 +711,31 @@ LogQL is Loki's query language (similar to PromQL).
 #### Filtering
 
 **Error logs only**:
+
 ```logql
 {namespace="projectkeystone"} |~ "ERROR"
 ```
 
 **Warnings and errors**:
+
 ```logql
 {namespace="projectkeystone"} |~ "ERROR|WARN"
 ```
 
 **Exclude INFO logs**:
+
 ```logql
 {namespace="projectkeystone"} != "INFO"
 ```
 
 **Search for specific text**:
+
 ```logql
 {namespace="projectkeystone"} |~ "deadline miss"
 ```
 
 **Case-insensitive search**:
+
 ```logql
 {namespace="projectkeystone"} |~ "(?i)error"
 ```
@@ -707,21 +743,25 @@ LogQL is Loki's query language (similar to PromQL).
 #### Aggregations
 
 **Log rate (logs per second)**:
+
 ```logql
 rate({namespace="projectkeystone"}[5m])
 ```
 
 **Log count over time**:
+
 ```logql
 count_over_time({namespace="projectkeystone"}[5m])
 ```
 
 **Error rate by pod**:
+
 ```logql
 sum by (pod) (rate({namespace="projectkeystone"} |~ "ERROR" [5m]))
 ```
 
 **Top 10 pods by log volume**:
+
 ```logql
 topk(10, sum by (pod) (count_over_time({namespace="projectkeystone"}[1h])))
 ```
@@ -729,16 +769,19 @@ topk(10, sum by (pod) (count_over_time({namespace="projectkeystone"}[1h])))
 #### Advanced Queries
 
 **Parse JSON logs**:
+
 ```logql
 {namespace="projectkeystone"} | json | level="ERROR"
 ```
 
 **Extract specific field**:
+
 ```logql
 {namespace="projectkeystone"} | json | latency_us > 1000
 ```
 
 **Line format (custom output)**:
+
 ```logql
 {namespace="projectkeystone"} | line_format "{{.pod}} - {{.level}} - {{.msg}}"
 ```
@@ -748,6 +791,7 @@ topk(10, sum by (pod) (count_over_time({namespace="projectkeystone"}[1h])))
 **Default Retention**: 31 days (744 hours)
 
 Configure in `k8s/loki.yaml`:
+
 ```yaml
 limits_config:
   retention_period: 744h  # 31 days
@@ -758,6 +802,7 @@ compactor:
 ```
 
 **Storage Requirements**:
+
 - Average: ~100 MB/day per pod (depends on log verbosity)
 - 2 pods × 100 MB/day × 31 days = ~6.2 GB
 - 50 GB PVC provides headroom for growth
@@ -774,6 +819,7 @@ Correlate logs with metrics using Grafana's **Explore** view:
 6. Synchronized time ranges show logs and metrics side-by-side
 
 **Derived Fields** (configured):
+
 - Automatically link trace IDs in logs to Prometheus metrics
 - Click trace ID in logs → jump to correlated metrics
 
@@ -806,6 +852,7 @@ kubectl exec -n projectkeystone <prometheus-pod> -- wget -O- http://hmas:9090/me
 ```
 
 **Common Issues**:
+
 - Service selector doesn't match pods
 - Prometheus annotations missing on pods
 - Network policy blocking traffic
@@ -825,6 +872,7 @@ kubectl exec -n projectkeystone <pod-name> -- curl localhost:9090/metrics
 ### High Cardinality Warnings
 
 If you see warnings about high cardinality:
+
 - Avoid adding labels with many unique values (e.g., msg_id, timestamps)
 - Use aggregations instead of per-message metrics
 - Consider using histograms for distributions
@@ -834,16 +882,19 @@ If you see warnings about high cardinality:
 ## Monitoring Stack Integration
 
 **Phase 6.3**: Prometheus Monitoring ✅
+
 - Metrics export from HMAS (port 9090)
 - Prometheus deployment with 30s scrape interval
 - 20+ metrics: messages, latency, queue depth, worker utilization, deadlines, system health
 
 **Phase 6.4**: Grafana Dashboards ✅
+
 - 3 pre-built dashboards (HMAS Overview, Agent Details, System Health)
 - Auto-provisioned Prometheus datasource
 - 26 total panels across all dashboards
 
 **Phase 6.5**: Centralized Logging ✅
+
 - Loki log aggregation (31-day retention)
 - Promtail DaemonSet for log collection
 - HMAS Logs dashboard (8 panels)
@@ -851,6 +902,7 @@ If you see warnings about high cardinality:
 - Logs + metrics correlation
 
 **Complete Monitoring Stack Quick Start**:
+
 ```bash
 # Deploy Prometheus (metrics)
 kubectl apply -f k8s/prometheus.yaml
@@ -869,6 +921,7 @@ open http://localhost:3000  # Login: admin/admin
 ```
 
 **Available Dashboards**:
+
 - `/d/hmas-overview` - System KPIs and health
 - `/d/hmas-agent-details` - Performance analysis
 - `/d/hmas-system-health` - Infrastructure monitoring
@@ -920,11 +973,13 @@ resources:
 ### Storage Requirements
 
 **Per metric**:
+
 - ~1-2 bytes per data point
 - 30s scrape interval = 2 data points/minute
 - 15 days retention = ~43k data points/metric
 
 **Total** (20 metrics):
+
 - ~20 metrics × 43k points × 2 bytes = ~1.7 MB
 - Plus overhead: ~5-10 MB total
 
@@ -941,6 +996,7 @@ resources:
 ### Phase 6.6: Production Readiness (Coming Next)
 
 The final phase of production deployment:
+
 - Production readiness checklist
 - Deployment procedures and runbooks
 - Rollback procedures and disaster recovery
@@ -956,6 +1012,7 @@ The final phase of production deployment:
 **Status**: Complete ✅
 
 **Completed Phases**:
+
 - ✅ Phase 6.1 - Kubernetes Deployment Manifests
 - ✅ Phase 6.2 - Helm Chart
 - ✅ Phase 6.3 - Prometheus Monitoring

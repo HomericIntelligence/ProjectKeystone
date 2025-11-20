@@ -9,7 +9,8 @@ namespace keystone {
 namespace core {
 
 // Static helper to get global section data
-std::map<std::string, ProfilingSession::SectionData>& ProfilingSession::getSectionData() {
+std::map<std::string, ProfilingSession::SectionData>&
+ProfilingSession::getSectionData() {
   static std::map<std::string, SectionData> data;
   return data;
 }
@@ -27,11 +28,10 @@ bool ProfilingSession::checkEnabled() {
   return enabled;
 }
 
-bool ProfilingSession::isEnabled() {
-  return checkEnabled();
-}
+bool ProfilingSession::isEnabled() { return checkEnabled(); }
 
-ProfilingSession::ProfilingSession(const std::string& section_name, bool enabled)
+ProfilingSession::ProfilingSession(const std::string& section_name,
+                                   bool enabled)
     : section_name_(section_name),
       start_time_(std::chrono::steady_clock::now()),
       enabled_(enabled),
@@ -49,7 +49,8 @@ void ProfilingSession::end() {
   ended_ = true;
 
   auto end_time = std::chrono::steady_clock::now();
-  auto duration_us = std::chrono::duration<double, std::micro>(end_time - start_time_).count();
+  auto duration_us =
+      std::chrono::duration<double, std::micro>(end_time - start_time_).count();
 
   recordDuration(section_name_, duration_us);
 }
@@ -66,7 +67,8 @@ ProfilingSession::ProfilingSession(ProfilingSession&& other) noexcept
   other.ended_ = true;  // Prevent double-end
 }
 
-ProfilingSession& ProfilingSession::operator=(ProfilingSession&& other) noexcept {
+ProfilingSession& ProfilingSession::operator=(
+    ProfilingSession&& other) noexcept {
   if (this != &other) {
     end();  // End current session
     section_name_ = std::move(other.section_name_);
@@ -78,7 +80,8 @@ ProfilingSession& ProfilingSession::operator=(ProfilingSession&& other) noexcept
   return *this;
 }
 
-void ProfilingSession::recordDuration(const std::string& section_name, double duration_us) {
+void ProfilingSession::recordDuration(const std::string& section_name,
+                                      double duration_us) {
   std::lock_guard<std::mutex> global_lock(getGlobalMutex());
 
   auto& data = getSectionData();
@@ -146,23 +149,24 @@ std::string ProfilingSession::generateReport() {
 
   std::ostringstream oss;
   oss << "\n=== Performance Profiling Report ===\n\n";
-  oss << std::left << std::setw(30) << "Section" << std::right << std::setw(10) << "Samples"
-      << std::setw(12) << "Min (µs)" << std::setw(12) << "Mean (µs)" << std::setw(12) << "P50 (µs)"
-      << std::setw(12) << "P95 (µs)" << std::setw(12) << "P99 (µs)" << std::setw(12) << "Max (µs)"
-      << "\n";
+  oss << std::left << std::setw(30) << "Section" << std::right << std::setw(10)
+      << "Samples" << std::setw(12) << "Min (µs)" << std::setw(12)
+      << "Mean (µs)" << std::setw(12) << "P50 (µs)" << std::setw(12)
+      << "P95 (µs)" << std::setw(12) << "P99 (µs)" << std::setw(12)
+      << "Max (µs)" << "\n";
   oss << std::string(112, '-') << "\n";
 
   for (const auto& [section_name, section_data] : data) {
     auto stats_opt = getStats(section_name);
-    if (!stats_opt)
-      continue;
+    if (!stats_opt) continue;
 
     const auto& stats = *stats_opt;
 
-    oss << std::left << std::setw(30) << section_name << std::right << std::setw(10)
-        << stats.sample_count << std::setw(12) << std::fixed << std::setprecision(2) << stats.min_us
-        << std::setw(12) << std::fixed << std::setprecision(2) << stats.mean_us << std::setw(12)
-        << std::fixed << std::setprecision(2) << stats.p50_us << std::setw(12) << std::fixed
+    oss << std::left << std::setw(30) << section_name << std::right
+        << std::setw(10) << stats.sample_count << std::setw(12) << std::fixed
+        << std::setprecision(2) << stats.min_us << std::setw(12) << std::fixed
+        << std::setprecision(2) << stats.mean_us << std::setw(12) << std::fixed
+        << std::setprecision(2) << stats.p50_us << std::setw(12) << std::fixed
         << std::setprecision(2) << stats.p95_us << std::setw(12) << std::fixed
         << std::setprecision(2) << stats.p99_us << std::setw(12) << std::fixed
         << std::setprecision(2) << stats.max_us << "\n";

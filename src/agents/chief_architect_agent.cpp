@@ -3,21 +3,25 @@
 namespace keystone {
 namespace agents {
 
-ChiefArchitectAgent::ChiefArchitectAgent(const std::string& agent_id) : BaseAgent(agent_id) {}
+ChiefArchitectAgent::ChiefArchitectAgent(const std::string& agent_id)
+    : BaseAgent(agent_id) {}
 
-core::Response ChiefArchitectAgent::processMessage(const core::KeystoneMessage& msg) {
+core::Response ChiefArchitectAgent::processMessage(
+    const core::KeystoneMessage& msg) {
   // For Phase 1, ChiefArchitect receives responses from TaskAgent
   // Defensive: check payload exists before dereferencing
   if (!msg.payload) {
-    return core::Response::createError(msg, agent_id_, "Missing payload in message");
+    return core::Response::createError(msg, agent_id_,
+                                       "Missing payload in message");
   }
 
-  core::Response resp = core::Response::createSuccess(msg, agent_id_, *msg.payload);
+  core::Response resp =
+      core::Response::createSuccess(msg, agent_id_, *msg.payload);
   return resp;
 }
 
-core::Response ChiefArchitectAgent::sendCommand(const std::string& command,
-                                                const std::string& task_agent_id) {
+core::Response ChiefArchitectAgent::sendCommand(
+    const std::string& command, const std::string& task_agent_id) {
   // Create message
   auto msg = core::KeystoneMessage::create(agent_id_, task_agent_id, command);
 

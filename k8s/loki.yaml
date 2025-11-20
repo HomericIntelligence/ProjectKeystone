@@ -149,61 +149,61 @@ spec:
         fsGroup: 10001
 
       containers:
-      - name: loki
-        image: grafana/loki:2.9.3
-        imagePullPolicy: IfNotPresent
+        - name: loki
+          image: grafana/loki:2.9.3
+          imagePullPolicy: IfNotPresent
 
-        args:
-          - -config.file=/etc/loki/loki.yaml
-          - -target=all
+          args:
+            - -config.file=/etc/loki/loki.yaml
+            - -target=all
 
-        ports:
-        - name: http-metrics
-          containerPort: 3100
-          protocol: TCP
-        - name: grpc
-          containerPort: 9096
-          protocol: TCP
+          ports:
+            - name: http-metrics
+              containerPort: 3100
+              protocol: TCP
+            - name: grpc
+              containerPort: 9096
+              protocol: TCP
 
-        volumeMounts:
-        - name: config
-          mountPath: /etc/loki
-        - name: storage
-          mountPath: /loki
+          volumeMounts:
+            - name: config
+              mountPath: /etc/loki
+            - name: storage
+              mountPath: /loki
 
-        resources:
-          requests:
-            cpu: 200m
-            memory: 256Mi
-          limits:
-            cpu: 1000m
-            memory: 1Gi
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
 
-        livenessProbe:
-          httpGet:
-            path: /ready
-            port: http-metrics
-          initialDelaySeconds: 45
-          periodSeconds: 10
-          timeoutSeconds: 5
-          failureThreshold: 10
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: http-metrics
+            initialDelaySeconds: 45
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 10
 
-        readinessProbe:
-          httpGet:
-            path: /ready
-            port: http-metrics
-          initialDelaySeconds: 15
-          periodSeconds: 5
-          timeoutSeconds: 3
-          failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http-metrics
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
 
       volumes:
-      - name: config
-        configMap:
-          name: loki-config
-      - name: storage
-        persistentVolumeClaim:
-          claimName: loki-storage
+        - name: config
+          configMap:
+            name: loki-config
+        - name: storage
+          persistentVolumeClaim:
+            claimName: loki-storage
 
 ---
 apiVersion: v1
@@ -219,14 +219,14 @@ spec:
   selector:
     app: loki
   ports:
-  - name: http-metrics
-    port: 3100
-    targetPort: http-metrics
-    protocol: TCP
-  - name: grpc
-    port: 9096
-    targetPort: grpc
-    protocol: TCP
+    - name: http-metrics
+      port: 3100
+      targetPort: http-metrics
+      protocol: TCP
+    - name: grpc
+      port: 9096
+      targetPort: grpc
+      protocol: TCP
 
 ---
 # Headless service for direct pod access (if needed for clustering)
@@ -243,7 +243,7 @@ spec:
   selector:
     app: loki
   ports:
-  - name: http-metrics
-    port: 3100
-    targetPort: http-metrics
-    protocol: TCP
+    - name: http-metrics
+      port: 3100
+      targetPort: http-metrics
+      protocol: TCP

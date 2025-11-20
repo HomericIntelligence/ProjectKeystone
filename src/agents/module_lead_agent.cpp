@@ -8,16 +8,20 @@
 namespace keystone {
 namespace agents {
 
-ModuleLeadAgent::ModuleLeadAgent(const std::string& agent_id) : BaseAgent(agent_id) {
+ModuleLeadAgent::ModuleLeadAgent(const std::string& agent_id)
+    : BaseAgent(agent_id) {
   transitionTo(State::IDLE);
 }
 
-core::Response ModuleLeadAgent::processMessage(const core::KeystoneMessage& msg) {
-  // Check if this is a task result (from TaskAgent) or a module goal (from ChiefArchitect)
+core::Response ModuleLeadAgent::processMessage(
+    const core::KeystoneMessage& msg) {
+  // Check if this is a task result (from TaskAgent) or a module goal (from
+  // ChiefArchitect)
   if (msg.command == "response") {
     // This is a task result - handled separately
     processTaskResult(msg);
-    return core::Response::createSuccess(msg, agent_id_, "Task result processed");
+    return core::Response::createSuccess(msg, agent_id_,
+                                         "Task result processed");
   }
 
   // This is a module goal from ChiefArchitect
@@ -31,7 +35,8 @@ core::Response ModuleLeadAgent::processMessage(const core::KeystoneMessage& msg)
 
   if (tasks.empty()) {
     transitionTo(State::ERROR);
-    return core::Response::createError(msg, agent_id_, "Failed to decompose module goal");
+    return core::Response::createError(msg, agent_id_,
+                                       "Failed to decompose module goal");
   }
 
   // Delegate tasks to TaskAgents
@@ -43,14 +48,17 @@ core::Response ModuleLeadAgent::processMessage(const core::KeystoneMessage& msg)
   delegateTasks(tasks);
 
   return core::Response::createSuccess(
-      msg, agent_id_, "Module goal decomposed into " + std::to_string(tasks.size()) + " tasks");
+      msg, agent_id_,
+      "Module goal decomposed into " + std::to_string(tasks.size()) + " tasks");
 }
 
-void ModuleLeadAgent::setAvailableTaskAgents(const std::vector<std::string>& task_agent_ids) {
+void ModuleLeadAgent::setAvailableTaskAgents(
+    const std::vector<std::string>& task_agent_ids) {
   available_task_agents_ = task_agent_ids;
 }
 
-std::vector<std::string> ModuleLeadAgent::decomposeTasks(const std::string& module_goal) {
+std::vector<std::string> ModuleLeadAgent::decomposeTasks(
+    const std::string& module_goal) {
   std::vector<std::string> tasks;
 
   // Parse goal like "Calculate sum of: 10 + 20 + 30"
@@ -58,7 +66,8 @@ std::vector<std::string> ModuleLeadAgent::decomposeTasks(const std::string& modu
 
   // Extract numbers using regex
   std::regex number_regex(R"(\d+)");
-  auto numbers_begin = std::sregex_iterator(module_goal.begin(), module_goal.end(), number_regex);
+  auto numbers_begin = std::sregex_iterator(module_goal.begin(),
+                                            module_goal.end(), number_regex);
   auto numbers_end = std::sregex_iterator();
 
   // Create a task for each number (echo the number)
@@ -83,7 +92,8 @@ void ModuleLeadAgent::delegateTasks(const std::vector<std::string>& tasks) {
     const std::string& task_agent_id = available_task_agents_[agent_index];
 
     // Create and send task message
-    auto task_msg = core::KeystoneMessage::create(agent_id_, task_agent_id, tasks[i]);
+    auto task_msg =
+        core::KeystoneMessage::create(agent_id_, task_agent_id, tasks[i]);
 
     // Track pending task
     pending_tasks_[task_msg.msg_id] = task_agent_id;
@@ -93,7 +103,8 @@ void ModuleLeadAgent::delegateTasks(const std::vector<std::string>& tasks) {
   }
 }
 
-void ModuleLeadAgent::processTaskResult(const core::KeystoneMessage& result_msg) {
+void ModuleLeadAgent::processTaskResult(
+    const core::KeystoneMessage& result_msg) {
   if (!result_msg.payload) {
     // No payload, skip
     return;
@@ -110,7 +121,8 @@ void ModuleLeadAgent::processTaskResult(const core::KeystoneMessage& result_msg)
 }
 
 std::string ModuleLeadAgent::synthesizeResults() {
-  if (current_state_ != State::SYNTHESIZING && current_state_ != State::WAITING_FOR_TASKS) {
+  if (current_state_ != State::SYNTHESIZING &&
+      current_state_ != State::WAITING_FOR_TASKS) {
     return "ERROR: Cannot synthesize in current state";
   }
 

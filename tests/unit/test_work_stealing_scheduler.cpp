@@ -3,15 +3,15 @@
  * @brief Unit tests for WorkStealingScheduler
  */
 
-#include "concurrency/task.hpp"
-#include "concurrency/work_stealing_scheduler.hpp"
+#include <gtest/gtest.h>
 
 #include <atomic>
 #include <chrono>
 #include <thread>
 #include <vector>
 
-#include <gtest/gtest.h>
+#include "concurrency/task.hpp"
+#include "concurrency/work_stealing_scheduler.hpp"
 
 using namespace keystone::concurrency;
 
@@ -49,8 +49,8 @@ TEST(WorkStealingSchedulerTest, SubmitFunction) {
 }
 
 // Test: Submit coroutine work items
-// DISABLED: Direct coroutine handle submission has issues - async agents use function wrappers
-// instead
+// DISABLED: Direct coroutine handle submission has issues - async agents use
+// function wrappers instead
 TEST(WorkStealingSchedulerTest, DISABLED_SubmitCoroutine) {
   WorkStealingScheduler scheduler(2);
   scheduler.start();
@@ -58,7 +58,8 @@ TEST(WorkStealingSchedulerTest, DISABLED_SubmitCoroutine) {
   auto counter = std::make_shared<std::atomic<int>>(0);
 
   // Create and submit coroutines
-  // IMPORTANT: Keep tasks alive until after shutdown to prevent handle destruction
+  // IMPORTANT: Keep tasks alive until after shutdown to prevent handle
+  // destruction
   std::vector<Task<void>> tasks;
   for (int i = 0; i < 5; ++i) {
     tasks.push_back([counter]() -> Task<void> {
@@ -223,7 +224,8 @@ TEST(WorkStealingSchedulerTest, ApproximateWorkCount) {
 
   // Submit work with delays
   for (int i = 0; i < 50; ++i) {
-    scheduler.submit([]() { std::this_thread::sleep_for(std::chrono::milliseconds(10)); });
+    scheduler.submit(
+        []() { std::this_thread::sleep_for(std::chrono::milliseconds(10)); });
   }
 
   // Check approximate work count (should be > 0 while work is pending)
@@ -231,7 +233,8 @@ TEST(WorkStealingSchedulerTest, ApproximateWorkCount) {
   size_t count = scheduler.getApproximateWorkCount();
 
   // Note: Exact count depends on timing, but should have some work pending
-  // This test is somewhat flaky due to timing, so we'll just check it doesn't crash
+  // This test is somewhat flaky due to timing, so we'll just check it doesn't
+  // crash
   EXPECT_GE(count, 0);
 
   scheduler.shutdown();
@@ -253,7 +256,8 @@ TEST(WorkStealingSchedulerTest, ParallelExecution) {
 
       // Update max concurrent
       int max = max_concurrent->load();
-      while (current > max && !max_concurrent->compare_exchange_weak(max, current)) {
+      while (current > max &&
+             !max_concurrent->compare_exchange_weak(max, current)) {
         max = max_concurrent->load();
       }
 

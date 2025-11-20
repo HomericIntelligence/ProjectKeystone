@@ -1,9 +1,9 @@
-#include "core/metrics.hpp"
+#include <gtest/gtest.h>
 
 #include <chrono>
 #include <thread>
 
-#include <gtest/gtest.h>
+#include "core/metrics.hpp"
 
 using namespace keystone::core;
 
@@ -215,9 +215,10 @@ TEST_F(MetricsTest, ThreadSafety) {
   std::vector<std::thread> threads;
 
   for (int t = 0; t < num_threads; ++t) {
-    threads.emplace_back([&metrics, t, msgs_per_thread]() {
+    threads.emplace_back([&metrics, t]() {
       for (int i = 0; i < msgs_per_thread; ++i) {
-        std::string msg_id = "thread" + std::to_string(t) + "_msg" + std::to_string(i);
+        std::string msg_id =
+            "thread" + std::to_string(t) + "_msg" + std::to_string(i);
         // Cycle through priorities: HIGH, NORMAL, LOW
         Priority priority = static_cast<Priority>(i % 3);
         metrics.recordMessageSent(msg_id, priority);

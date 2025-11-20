@@ -8,8 +8,8 @@ namespace keystone {
 namespace core {
 
 namespace {
-// Simple UUID generation (not cryptographically secure, but sufficient for Phase 1)
-// Thread-safe: uses thread_local to avoid data races across threads
+// Simple UUID generation (not cryptographically secure, but sufficient for
+// Phase 1) Thread-safe: uses thread_local to avoid data races across threads
 std::string generate_uuid() {
   thread_local std::random_device rd;
   thread_local std::mt19937 gen(rd());
@@ -27,10 +27,9 @@ std::string generate_uuid() {
 }
 }  // namespace
 
-KeystoneMessage KeystoneMessage::create(const std::string& sender,
-                                        const std::string& receiver,
-                                        const std::string& cmd,
-                                        const std::optional<std::string>& data) {
+KeystoneMessage KeystoneMessage::create(
+    const std::string& sender, const std::string& receiver,
+    const std::string& cmd, const std::optional<std::string>& data) {
   KeystoneMessage msg;
   msg.msg_id = generate_uuid();
   msg.sender_id = sender;
@@ -77,7 +76,8 @@ KeystoneMessage KeystoneMessage::create(const std::string& sender,
   return msg;
 }
 
-void KeystoneMessage::setDeadlineFromNow(std::chrono::milliseconds duration_ms) {
+void KeystoneMessage::setDeadlineFromNow(
+    std::chrono::milliseconds duration_ms) {
   deadline = std::chrono::system_clock::now() + duration_ms;
 }
 
@@ -88,7 +88,8 @@ bool KeystoneMessage::hasDeadlinePassed() const {
   return std::chrono::system_clock::now() > *deadline;
 }
 
-std::optional<std::chrono::milliseconds> KeystoneMessage::getTimeUntilDeadline() const {
+std::optional<std::chrono::milliseconds> KeystoneMessage::getTimeUntilDeadline()
+    const {
   if (!deadline.has_value()) {
     return std::nullopt;
   }

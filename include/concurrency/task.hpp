@@ -13,7 +13,8 @@ namespace concurrency {
  * @brief Task<T> - A C++20 coroutine awaitable type for asynchronous operations
  *
  * This class represents an asynchronous task that can be co_awaited. It uses
- * C++20 coroutines to provide a clean async/await style API for agent operations.
+ * C++20 coroutines to provide a clean async/await style API for agent
+ * operations.
  *
  * Usage:
  *   Task<int> example() {
@@ -74,7 +75,8 @@ class Task {
   Task(const Task&) = delete;
   Task& operator=(const Task&) = delete;
 
-  Task(Task&& other) noexcept : handle_(std::exchange(other.handle_, nullptr)) {}
+  Task(Task&& other) noexcept
+      : handle_(std::exchange(other.handle_, nullptr)) {}
 
   Task& operator=(Task&& other) noexcept {
     if (this != &other) {
@@ -199,7 +201,8 @@ class Task<void> {
   Task(const Task&) = delete;
   Task& operator=(const Task&) = delete;
 
-  Task(Task&& other) noexcept : handle_(std::exchange(other.handle_, nullptr)) {}
+  Task(Task&& other) noexcept
+      : handle_(std::exchange(other.handle_, nullptr)) {}
 
   Task& operator=(Task&& other) noexcept {
     if (this != &other) {

@@ -6,17 +6,20 @@
 namespace keystone {
 namespace agents {
 
-AsyncModuleLeadAgent::AsyncModuleLeadAgent(const std::string& agent_id) : AsyncBaseAgent(agent_id) {
+AsyncModuleLeadAgent::AsyncModuleLeadAgent(const std::string& agent_id)
+    : AsyncBaseAgent(agent_id) {
   transitionTo(State::IDLE);
 }
 
 concurrency::Task<core::Response> AsyncModuleLeadAgent::processMessage(
     const core::KeystoneMessage& msg) {
-  // Check if this is a task result (from TaskAgent) or a module goal (from ChiefArchitect)
+  // Check if this is a task result (from TaskAgent) or a module goal (from
+  // ChiefArchitect)
   if (msg.command == "response") {
     // This is a task result - process asynchronously
     co_await processTaskResult(msg);
-    auto response = core::Response::createSuccess(msg, agent_id_, "Task result processed");
+    auto response =
+        core::Response::createSuccess(msg, agent_id_, "Task result processed");
     co_return response;
   }
 
@@ -35,7 +38,8 @@ concurrency::Task<core::Response> AsyncModuleLeadAgent::processMessage(
 
   if (tasks.empty()) {
     transitionTo(State::ERROR);
-    auto response = core::Response::createError(msg, agent_id_, "Failed to decompose module goal");
+    auto response = core::Response::createError(
+        msg, agent_id_, "Failed to decompose module goal");
     co_return response;
   }
 
@@ -51,11 +55,13 @@ concurrency::Task<core::Response> AsyncModuleLeadAgent::processMessage(
   delegateTasks(tasks);
 
   auto response = core::Response::createSuccess(
-      msg, agent_id_, "Module goal decomposed into " + std::to_string(tasks.size()) + " tasks");
+      msg, agent_id_,
+      "Module goal decomposed into " + std::to_string(tasks.size()) + " tasks");
   co_return response;
 }
 
-void AsyncModuleLeadAgent::setAvailableTaskAgents(const std::vector<std::string>& task_agent_ids) {
+void AsyncModuleLeadAgent::setAvailableTaskAgents(
+    const std::vector<std::string>& task_agent_ids) {
   std::lock_guard<std::mutex> lock(task_mutex_);
   available_task_agents_ = task_agent_ids;
 }
@@ -89,7 +95,8 @@ concurrency::Task<void> AsyncModuleLeadAgent::processTaskResult(
   co_return;
 }
 
-std::vector<std::string> AsyncModuleLeadAgent::decomposeTasks(const std::string& module_goal) {
+std::vector<std::string> AsyncModuleLeadAgent::decomposeTasks(
+    const std::string& module_goal) {
   std::vector<std::string> tasks;
 
   // Parse goal like "Calculate sum of: 10 + 20 + 30"
@@ -97,7 +104,8 @@ std::vector<std::string> AsyncModuleLeadAgent::decomposeTasks(const std::string&
 
   // Extract numbers using regex
   std::regex number_regex(R"(\d+)");
-  auto numbers_begin = std::sregex_iterator(module_goal.begin(), module_goal.end(), number_regex);
+  auto numbers_begin = std::sregex_iterator(module_goal.begin(),
+                                            module_goal.end(), number_regex);
   auto numbers_end = std::sregex_iterator();
 
   // Create a task for each number (echo the number)
@@ -110,7 +118,8 @@ std::vector<std::string> AsyncModuleLeadAgent::decomposeTasks(const std::string&
   return tasks;
 }
 
-void AsyncModuleLeadAgent::delegateTasks(const std::vector<std::string>& tasks) {
+void AsyncModuleLeadAgent::delegateTasks(
+    const std::vector<std::string>& tasks) {
   std::lock_guard<std::mutex> lock(task_mutex_);
 
   // Assign tasks to available TaskAgents in round-robin fashion
@@ -124,7 +133,8 @@ void AsyncModuleLeadAgent::delegateTasks(const std::vector<std::string>& tasks) 
     const std::string& task_agent_id = available_task_agents_[agent_index];
 
     // Create and send task message
-    auto task_msg = core::KeystoneMessage::create(agent_id_, task_agent_id, tasks[i]);
+    auto task_msg =
+        core::KeystoneMessage::create(agent_id_, task_agent_id, tasks[i]);
 
     // Track pending task
     pending_tasks_[task_msg.msg_id] = task_agent_id;
@@ -165,8 +175,10 @@ void AsyncModuleLeadAgent::synthesizeAndRespond() {
   transitionTo(State::IDLE);
 
   // Send synthesized result back to requester (ChiefArchitect/ComponentLead)
-  auto response_msg = core::KeystoneMessage::create(agent_id_, requester, "response", synthesis);
-  response_msg.msg_id = request_msg_id;  // Preserve original msg_id for correlation
+  auto response_msg = core::KeystoneMessage::create(agent_id_, requester,
+                                                    "response", synthesis);
+  response_msg.msg_id =
+      request_msg_id;  // Preserve original msg_id for correlation
 
   sendMessage(response_msg);
 }

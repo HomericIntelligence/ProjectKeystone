@@ -5,6 +5,7 @@
 **Migration Goal**: Transform ProjectKeystone from synchronous MessageBus to high-performance Work-Stealing concurrent architecture while maintaining the 4-layer hierarchy and all existing test coverage.
 
 **Key Architectural Decisions** (Confirmed):
+
 - ✅ **Queue**: `concurrentqueue` library (lock-free, header-only)
 - ✅ **Coroutines**: Custom `Task<T>` using C++20 coroutines
 - ✅ **Serialization**: Cista (zero-copy, header-only)
@@ -66,6 +67,7 @@ struct KeystoneMessage {
 ```
 
 **Test Coverage**: 17/17 tests passing
+
 - Phase 1 E2E: 3 tests
 - Phase 2 E2E: 2 tests
 - Phase 3 E2E: 1 test
@@ -140,6 +142,7 @@ struct KeystoneMessage {
 **File**: `include/concurrency/task.hpp` (Module: `Keystone.Concurrency`)
 
 **Interface**:
+
 ```cpp
 export module Keystone.Concurrency:Task;
 
@@ -211,6 +214,7 @@ class Task<void> {
 ```
 
 **Testing**:
+
 - Unit test: Create Task, suspend, resume, get result
 - Unit test: Exception propagation
 - Unit test: Move semantics
@@ -224,6 +228,7 @@ class Task<void> {
 **File**: `include/concurrency/thread_pool.hpp` (Module: `Keystone.Concurrency`)
 
 **Interface**:
+
 ```cpp
 export module Keystone.Concurrency:ThreadPool;
 
@@ -274,11 +279,13 @@ private:
 ```
 
 **Key Features**:
+
 - One worker thread per CPU core
 - Each thread has a thread-local queue
 - Worker loop: `while (!shutdown_requested_) { pullOrSteal(); execute(); }`
 
 **Testing**:
+
 - Unit test: ThreadPool creation, num threads matches `hardware_concurrency()`
 - Unit test: Submit function, verify execution
 - Unit test: Submit coroutine handle, verify resumption
@@ -293,6 +300,7 @@ private:
 **File**: `include/concurrency/work_stealing_queue.hpp` (Module: `Keystone.Concurrency`)
 
 **Interface**:
+
 ```cpp
 export module Keystone.Concurrency:WorkStealingQueue;
 
@@ -333,11 +341,13 @@ private:
 ```
 
 **Implementation Notes**:
+
 - `concurrentqueue` is MPMC (multi-producer, multi-consumer) - perfect for work-stealing
 - `push()` and `pop()` are typically called by the owning thread
 - `steal()` is called by other threads when their local queue is empty
 
 **Testing**:
+
 - Unit test: Push/pop from same thread
 - Unit test: Steal from different thread
 - Unit test: Concurrent push/steal (ThreadSanitizer)
@@ -352,6 +362,7 @@ private:
 **File**: `include/concurrency/pull_or_steal.hpp` (Module: `Keystone.Concurrency`)
 
 **Interface**:
+
 ```cpp
 export module Keystone.Concurrency:PullOrSteal;
 
@@ -380,6 +391,7 @@ private:
 ```
 
 **Behavior**:
+
 1. **await_ready()**: Try non-blocking pop from thread-local queue
    - If message available: return `true` (no suspension)
    - If queue empty: return `false` (will suspend)
@@ -394,6 +406,7 @@ private:
    - Return cached message from `await_ready()` or `await_suspend()`
 
 **Testing**:
+
 - Unit test: Local queue has message → no suspension
 - Unit test: Local queue empty, steal succeeds → no suspension
 - Unit test: All queues empty → suspend, resume when message arrives
@@ -408,6 +421,7 @@ private:
 **File**: `include/concurrency/work_stealing_scheduler.hpp` (Module: `Keystone.Concurrency`)
 
 **Interface**:
+
 ```cpp
 export module Keystone.Concurrency:WorkStealingScheduler;
 
@@ -455,12 +469,14 @@ private:
 ```
 
 **Key Responsibilities**:
+
 - Manage thread pool lifecycle
 - Route messages to appropriate thread-local queue
 - Provide pull/steal interface for coroutines
 - Coordinate graceful shutdown
 
 **Testing**:
+
 - Integration test: Scheduler + ThreadPool + WorkStealingQueue
 - Integration test: Multiple agents pulling/stealing messages
 - Integration test: Graceful shutdown with in-flight coroutines
@@ -476,6 +492,7 @@ private:
 **File**: `include/core/message.hpp` (Module: `Keystone.Core`)
 
 **Updated Structure**:
+
 ```cpp
 export module Keystone.Core:Message;
 
@@ -531,12 +548,14 @@ struct KeystoneMessage {
 ```
 
 **Backward Compatibility**:
+
 - Keep existing `create()` method, map to new fields
 - Default `action_type = ActionType::EXECUTE`
 - Default `content_type = ContentType::TEXT_PLAIN`
 - Existing tests continue to work
 
 **Testing**:
+
 - Unit test: Create message with all fields
 - Unit test: Backward compatibility (old `create()` signature)
 - Unit test: Session ID propagation
@@ -550,6 +569,7 @@ struct KeystoneMessage {
 **File**: `include/core/message_serializer.hpp` (Module: `Keystone.Core`)
 
 **Interface**:
+
 ```cpp
 export module Keystone.Core:MessageSerializer;
 
@@ -576,6 +596,7 @@ public:
 ```
 
 **Cista Usage**:
+
 ```cpp
 // Cista requires defining serializable structs
 namespace cista_data = cista::offset;
@@ -600,10 +621,12 @@ auto* msg = cista::deserialize<CistaKeystoneMessage>(buffer);
 ```
 
 **Performance Target**:
+
 - Serialization: < 0.1 ms
 - Deserialization: < 0.002 ms (zero-copy benefit)
 
 **Testing**:
+
 - Unit test: Serialize/deserialize round-trip
 - Unit test: Binary compatibility (serialize on one thread, deserialize on another)
 - Performance test: Benchmark vs. direct struct passing
@@ -616,6 +639,7 @@ auto* msg = cista::deserialize<CistaKeystoneMessage>(buffer);
 #### 3.3.1. BaseAgent Coroutine Refactor
 
 **Current BaseAgent**:
+
 ```cpp
 class BaseAgent {
 public:
@@ -631,6 +655,7 @@ private:
 ```
 
 **Target BaseAgent (Coroutine-Based)**:
+
 ```cpp
 export module Keystone.Agents:BaseAgent;
 
@@ -679,6 +704,7 @@ protected:
 ```
 
 **Key Changes**:
+
 1. **Removed**: Local `inbox_` queue (now managed by WorkStealingScheduler)
 2. **Removed**: `processMessage()` synchronous method
 3. **Added**: `run()` coroutine (agent's main execution loop)
@@ -686,10 +712,12 @@ protected:
 5. **Replaced**: `MessageBus*` → `WorkStealingScheduler*`
 
 **Migration Strategy**:
+
 - Keep `processMessage()` logic, move into `run()` loop
 - Replace `getMessage()` calls with `co_await pullOrSteal()`
 
 **Testing**:
+
 - Unit test: BaseAgent creation, scheduler assignment
 - Unit test: sendMessage enqueues to scheduler
 - Integration test: Agent coroutine pull/steal
@@ -699,6 +727,7 @@ protected:
 #### 3.3.2. TaskAgent (Leaf) Coroutine Implementation
 
 **Current TaskAgent** (synchronous):
+
 ```cpp
 Response TaskAgent::processMessage(const KeystoneMessage& msg) {
     if (msg.command.starts_with("echo ")) {
@@ -711,6 +740,7 @@ Response TaskAgent::processMessage(const KeystoneMessage& msg) {
 ```
 
 **Target TaskAgent** (coroutine):
+
 ```cpp
 export module Keystone.Agents.Leaf:TaskAgent;
 
@@ -789,15 +819,18 @@ Task<std::string> TaskAgent::executeProcess(const std::string& command) {
 ```
 
 **Key Changes**:
+
 - `run()` is infinite loop: pull message → process → send result
 - `executeProcess()` is `Task<std::string>` (can be made truly async later with `io_uring`)
 - Shutdown handled via `ActionType::SHUTDOWN` message
 
 **Future Optimization** (Phase 2+):
+
 - Replace `popen` with async process execution using `io_uring` or similar
 - This would make `executeProcess()` truly non-blocking
 
 **Testing**:
+
 - E2E test: TaskAgent receives message, executes, returns result
 - E2E test: TaskAgent handles shutdown gracefully
 - Unit test: executeProcess with various commands
@@ -807,6 +840,7 @@ Task<std::string> TaskAgent::executeProcess(const std::string& command) {
 #### 3.3.3. ModuleLead (Branch) Coroutine Implementation
 
 **Current ModuleLead** (synchronous):
+
 ```cpp
 Response ModuleLeadAgent::processMessage(const KeystoneMessage& msg) {
     if (state_ == State::IDLE) {
@@ -822,6 +856,7 @@ Response ModuleLeadAgent::processMessage(const KeystoneMessage& msg) {
 ```
 
 **Target ModuleLead** (coroutine with std::barrier):
+
 ```cpp
 export module Keystone.Agents.Branch:ModuleLeadAgent;
 
@@ -916,11 +951,13 @@ Task<void> ModuleLeadAgent::run() {
 ```
 
 **Key Changes**:
+
 - Use `std::barrier` for phase synchronization (PLANNING → WAITING → SYNTHESIZING)
 - Multiple `co_await pullOrSteal()` calls to collect all task results
 - Barrier ensures all tasks complete before synthesis
 
 **Testing**:
+
 - E2E test: ModuleLead coordinates 3 TaskAgents with barrier
 - E2E test: Shutdown propagation to subordinates
 - Integration test: Barrier synchronization
@@ -969,6 +1006,7 @@ Task<void> ComponentLeadAgent::run() {
 ```
 
 **Testing**:
+
 - E2E test: ComponentLead coordinates 2 ModuleLeads, each with 3 TaskAgents
 
 ---
@@ -1008,6 +1046,7 @@ Task<void> ChiefArchitectAgent::run() {
 ```
 
 **Testing**:
+
 - E2E test: Full 4-layer hierarchy with coroutines
 
 ---
@@ -1142,6 +1181,7 @@ target_link_libraries(keystone_agents
 **Module Interface Examples**:
 
 `src/core/message.cpp`:
+
 ```cpp
 export module Keystone.Core:Message;
 
@@ -1224,6 +1264,7 @@ private:
 7. ThreadPool joins all worker threads
 
 **Testing**:
+
 - E2E test: Send SIGTERM during execution, verify graceful shutdown
 - E2E test: In-flight tasks complete before shutdown
 
@@ -1334,6 +1375,7 @@ private:
 ```
 
 **Usage Example**:
+
 ```cpp
 // In TaskAgent::run()
 Task<void> TaskAgent::run() {
@@ -1374,16 +1416,19 @@ Task<void> TaskAgent::run() {
 #### 3.6.3. Performance Considerations
 
 **Async Logging**: Use spdlog's async mode to avoid blocking worker threads
+
 - Logs are written to a lock-free queue
 - Dedicated background thread flushes to disk
 - Worker threads never block on I/O
 
 **Log Levels**: Configurable at runtime
+
 - Production: INFO and above
 - Development: DEBUG and above
 - Performance testing: WARN and above (minimal overhead)
 
 **Structured Format**: JSON-compatible for log aggregation
+
 ```json
 {
   "timestamp": "2025-01-15T10:23:45.123Z",
@@ -1401,36 +1446,43 @@ Task<void> TaskAgent::run() {
 #### 3.6.4. Key Logging Points
 
 **Agent Lifecycle**:
+
 - Agent creation/destruction
 - State machine transitions (IDLE → PLANNING → EXECUTING → IDLE)
 - Coroutine suspension/resumption
 
 **Message Flow**:
+
 - Message sent (from, to, action_type)
 - Message received
 - Message processing started/completed
 
 **Work-Stealing**:
+
 - Local queue pull success/failure
 - Steal attempt (victim thread, success/failure)
 - Queue depth changes
 
 **Process Execution** (TaskAgent):
+
 - Process start (command, PID)
 - Process completion (exit code, duration)
 - Process errors (stderr output)
 
 **Coordination** (Branch Agents):
+
 - Task decomposition (num tasks created)
 - Barrier wait (num subordinates)
 - Result synthesis (num results aggregated)
 
 **Performance Metrics**:
+
 - Message latency (time from send to receive)
 - Agent processing time (time in EXECUTING state)
 - Queue depth warnings (>80% capacity)
 
 **Testing**:
+
 - Unit test: Logger initialization, async mode
 - Unit test: Log context propagation
 - Integration test: Logs from multiple threads (no interleaving)
@@ -1449,17 +1501,20 @@ Task<void> TaskAgent::run() {
 **Snapshot at Safe Points**: Only checkpoint when the entire hierarchy is in a consistent, quiescent state
 
 **Safe Point Definition**:
+
 1. All agents are in `IDLE` state (no in-flight work)
 2. All message queues are empty (no pending messages)
 3. No coroutines are suspended mid-execution
 4. All external process executions have completed
 
 **Checkpoint Trigger**:
+
 - Manual trigger (external signal, e.g., `SIGUSR1`)
 - Periodic checkpointing (e.g., every 5 minutes if idle)
 - Pre-shutdown checkpoint (before graceful shutdown)
 
 **Checkpoint Scope**:
+
 - Agent metadata (agent_id, type, state)
 - Hierarchy topology (parent-child relationships)
 - Session states (active sessions, their progress)
@@ -1467,6 +1522,7 @@ Task<void> TaskAgent::run() {
 - Configuration (available task agents, routing tables)
 
 **NOT Checkpointed** (ephemeral state):
+
 - Coroutine suspension points (not serializable in C++20)
 - Thread-local queues (transient, reconstructed on resume)
 - In-flight messages (not allowed at safe points)
@@ -1637,6 +1693,7 @@ Task<void> BaseAgent::run() {
    - May need to replay or re-delegate incomplete tasks
 
 **Limitations**:
+
 - **No Mid-Execution Resume**: Cannot resume from arbitrary coroutine suspension points
 - **Replay Required**: If tasks were partially completed, may need to re-execute from last safe point
 - **External State**: File system state (process outputs) must be managed separately
@@ -1676,6 +1733,7 @@ private:
 #### 3.7.5. Checkpoint File Format
 
 **File Structure** (Cista binary):
+
 ```
 ┌─────────────────────────────────┐
 │ Magic Number: "KCHK" (4 bytes) │
@@ -1699,34 +1757,41 @@ private:
 #### 3.7.6. Advanced Checkpoint Features (Future)
 
 **Incremental Checkpointing**:
+
 - Only serialize changed state since last checkpoint
 - Delta compression
 
 **Multi-Version Checkpoints**:
+
 - Keep last N checkpoints for rollback
 - Automatic cleanup of old checkpoints
 
 **Distributed Checkpointing** (if hierarchy is distributed):
+
 - Each agent writes local checkpoint
 - Coordinator merges into global checkpoint
 
 **Checkpoint Verification**:
+
 - CRC checksum for corruption detection
 - Automatic checkpoint integrity tests
 
 #### 3.7.7. Testing
 
 **Unit Tests**:
+
 - Checkpoint serialization/deserialization (round-trip)
 - Version compatibility (load old checkpoint format)
 - Checkpoint verification (detect corruption)
 
 **Integration Tests**:
+
 - Safe point detection (all agents reach IDLE)
 - Checkpoint during execution (trigger, wait, verify)
 - Resume from checkpoint (restore hierarchy)
 
 **E2E Tests**:
+
 - Full workflow checkpoint/resume:
   1. Start hierarchy, process some tasks
   2. Take checkpoint at safe point
@@ -1736,6 +1801,7 @@ private:
   6. Verify final result matches original workflow
 
 **Chaos Tests**:
+
 - Checkpoint with random agent failures (verify state consistency)
 - Resume with missing checkpoint file (graceful error)
 - Resume with corrupted checkpoint (validation catches error)
@@ -1747,6 +1813,7 @@ private:
 ### Phase A: Foundation (Weeks 1-3)
 
 **Deliverables**:
+
 - ✅ Custom `Task<T>` implementation
 - ✅ ThreadPool with coroutine support
 - ✅ WorkStealingQueue using concurrentqueue
@@ -1758,6 +1825,7 @@ private:
 - ✅ **LogContext for thread-local context propagation**
 
 **Test Coverage**:
+
 - 25+ unit tests for new components (including logging tests)
 - ThreadSanitizer clean (no data races)
 - ASan clean (no memory leaks)
@@ -1770,6 +1838,7 @@ private:
 ### Phase B: Agent Migration (Weeks 4-6)
 
 **Deliverables**:
+
 - ✅ BaseAgent coroutine refactor
 - ✅ TaskAgent coroutine implementation
 - ✅ ModuleLead coroutine with `std::barrier`
@@ -1777,11 +1846,13 @@ private:
 - ✅ ChiefArchitect coroutine
 
 **Test Coverage**:
+
 - Migrate all 17 E2E tests to use coroutine-based agents
 - All tests passing with WorkStealingScheduler
 - Remove old MessageBus code
 
 **Success Criteria**:
+
 - 17/17 tests passing
 - Work-stealing active (verified via metrics)
 - Performance equal or better than baseline
@@ -1791,11 +1862,13 @@ private:
 ### Phase C: C++20 Modules (Weeks 7-8)
 
 **Deliverables**:
+
 - ✅ Convert all headers to modules
 - ✅ Update CMakeLists.txt
 - ✅ Verify build on GCC 12+, Clang 15+
 
 **Success Criteria**:
+
 - All tests passing with modules
 - Build time reduced by 20%+
 
@@ -1804,6 +1877,7 @@ private:
 ### Phase D: Graceful Shutdown, Monitoring & Checkpointing (Weeks 9-11)
 
 **Deliverables**:
+
 - ✅ Signal handler thread
 - ✅ Shutdown protocol
 - ✅ Metrics collection (queue depth, steal rate, latency)
@@ -1813,6 +1887,7 @@ private:
 - ✅ **Checkpoint file management (versioning, integrity checks)**
 
 **Test Coverage**:
+
 - Shutdown tests (SIGTERM during execution)
 - Metrics accuracy tests
 - **Checkpoint tests (save/load/verify)**
@@ -1824,11 +1899,13 @@ private:
 ### Phase E: Performance & Load Testing (Weeks 12-13)
 
 **Deliverables**:
+
 - ✅ Load test: 100+ agents running concurrently
 - ✅ Latency benchmarks (compare to Phase 1-3 baseline)
 - ✅ Throughput benchmarks
 
 **Success Criteria**:
+
 - No performance regression
 - Latency improvements from work-stealing
 - System stable under load
@@ -1840,6 +1917,7 @@ private:
 ### Unit Tests (NEW - ~30 tests)
 
 **Concurrency**:
+
 - Task<T> creation, suspension, resumption, exceptions
 - ThreadPool submit, execution, shutdown
 - WorkStealingQueue push, pop, steal, concurrent access
@@ -1847,11 +1925,13 @@ private:
 - WorkStealingScheduler routing, steal success rate
 
 **Serialization**:
+
 - Cista round-trip (serialize → deserialize)
 - Binary compatibility
 - Performance benchmarks
 
 **Message**:
+
 - Enhanced KeystoneMessage construction
 - Session ID propagation
 
@@ -1868,15 +1948,18 @@ private:
 ### E2E Tests (MIGRATE - 17 tests)
 
 **Phase 1** (3 tests):
+
 - ChiefArchitect → TaskAgent (with work-stealing)
 - ChiefArchitect → 3 TaskAgents
 - MessageBus routes responses (now Scheduler)
 
 **Phase 2** (2 tests):
+
 - ModuleLead coordinates 3 TaskAgents (with barrier)
 - ModuleLead handles variable task counts
 
 **Phase 3** (1 test):
+
 - Full 4-layer hierarchy (coroutines + barriers)
 
 ---
@@ -1901,26 +1984,31 @@ private:
 
 ## 6. Success Criteria
 
-### Phase A (Foundation):
+### Phase A (Foundation)
+
 - ✅ All unit tests passing (20+)
 - ✅ TSan clean (no data races)
 - ✅ ASan clean (no memory leaks)
 - ✅ No impact on existing 17 E2E tests
 
-### Phase B (Agent Migration):
+### Phase B (Agent Migration)
+
 - ✅ 17/17 E2E tests passing with coroutines
 - ✅ Work-stealing verified (metrics show steals occurring)
 - ✅ Old MessageBus removed
 
-### Phase C (Modules):
+### Phase C (Modules)
+
 - ✅ All tests passing with C++20 Modules
 - ✅ Build time reduced
 
-### Phase D (Robustness):
+### Phase D (Robustness)
+
 - ✅ Graceful shutdown tests passing
 - ✅ Metrics collection working
 
-### Phase E (Performance):
+### Phase E (Performance)
+
 - ✅ No performance regression
 - ✅ Load test: 100+ agents stable
 - ✅ Latency within acceptable range
@@ -1956,10 +2044,12 @@ FetchContent_MakeAvailable(spdlog)
 ```
 
 **Compiler Requirements**:
+
 - GCC 12+ (C++20 coroutines + modules)
 - Clang 15+ (C++20 coroutines + modules)
 
 **NO Dependencies**:
+
 - ❌ Facebook libraries (folly)
 - ❌ CUDA/cuDNN
 - ❌ ONNX Runtime
@@ -1986,6 +2076,7 @@ FetchContent_MakeAvailable(spdlog)
 ## 9. Next Steps
 
 **Week 1**:
+
 1. Implement custom `Task<T>` coroutine type
 2. Implement ThreadPool
 3. Write unit tests

@@ -11,6 +11,7 @@ Phase 5 focuses on **robustness and fault tolerance** by subjecting the HMAS to 
 ### Current Status (Post-Phase 4)
 
 **What We Have**:
+
 - ✅ Complete 4-layer hierarchy (L0 ↔ L1 ↔ L2 ↔ L3)
 - ✅ Multi-component coordination with dependency resolution
 - ✅ Work-stealing scheduler with 4 workers
@@ -21,6 +22,7 @@ Phase 5 focuses on **robustness and fault tolerance** by subjecting the HMAS to 
 - ✅ **263 tests passing** in ~9 seconds
 
 **What Phase 5 Adds**:
+
 - Agent failure injection (random crashes, timeouts)
 - Network partition simulation (split-brain scenarios)
 - Message loss and duplication scenarios
@@ -96,6 +98,7 @@ Phase 5 focuses on **robustness and fault tolerance** by subjecting the HMAS to 
    - Verify: System continues processing other tasks
 
 **Deliverables**:
+
 - ✅ FailureInjector class
 - ✅ Agent failure modes implemented
 - ✅ E2E test verifying graceful degradation
@@ -130,6 +133,7 @@ Phase 5 focuses on **robustness and fault tolerance** by subjecting the HMAS to 
    - Verify: System recovers and completes work
 
 **Deliverables**:
+
 - ✅ Network partition support in SimulatedNetwork
 - ✅ Split-brain scenario implemented
 - ✅ E2E test for partition + recovery
@@ -161,6 +165,7 @@ Phase 5 focuses on **robustness and fault tolerance** by subjecting the HMAS to 
    - Measure: Average retry count, total time
 
 **Deliverables**:
+
 - ✅ Message loss simulation
 - ✅ Retry policy implementation
 - ✅ E2E test with retries
@@ -195,6 +200,7 @@ Phase 5 focuses on **robustness and fault tolerance** by subjecting the HMAS to 
    - Measure: Recovery time, throughput degradation
 
 **Deliverables**:
+
 - ✅ Heartbeat monitoring system
 - ✅ Circuit breaker implementation
 - ✅ Full chaos E2E test
@@ -206,6 +212,7 @@ Phase 5 focuses on **robustness and fault tolerance** by subjecting the HMAS to 
 ## Success Criteria
 
 ### Must Have ✅
+
 - [ ] System tolerates 10% agent failures without total failure
 - [ ] Network partitions handled gracefully (no crashes)
 - [ ] Message loss scenarios recovered via retries
@@ -213,12 +220,14 @@ Phase 5 focuses on **robustness and fault tolerance** by subjecting the HMAS to 
 - [ ] New E2E tests for chaos scenarios
 
 ### Should Have 🎯
+
 - [ ] Recovery time < 5 seconds for single agent failure
 - [ ] Retry logic succeeds for 95% of lost messages
 - [ ] Circuit breaker prevents cascading failures
 - [ ] Heartbeat monitoring detects failures within 1 second
 
 ### Nice to Have 💡
+
 - [ ] Chaos test suite runs automatically in CI/CD
 - [ ] Failure injection via configuration file
 - [ ] Real-time monitoring dashboard (ASCII art in terminal)
@@ -262,10 +271,12 @@ Phase 5 focuses on **robustness and fault tolerance** by subjecting the HMAS to 
 Based on Phase 4 results:
 
 **Baseline (No Failures)**:
+
 - 100-agent test: ~50-80ms creation time
 - All 263 tests pass in ~9 seconds
 
 **Phase 5 Targets (With Chaos)**:
+
 - **Single failure**: Recovery within 5 seconds
 - **10% failures**: System completes with ≤20% throughput degradation
 - **Message loss (20%)**: ≤3 retries average per message
@@ -276,21 +287,25 @@ Based on Phase 4 results:
 ## Risk Mitigation
 
 ### Risk 1: Cascading Failures
+
 **Impact**: High
 **Likelihood**: Medium
 **Mitigation**: Circuit breaker pattern stops propagation
 
 ### Risk 2: Infinite Retry Loops
+
 **Impact**: Medium
 **Likelihood**: High
 **Mitigation**: Max retry limit (e.g., 5 attempts) with exponential backoff
 
 ### Risk 3: Test Flakiness (Non-Deterministic)
+
 **Impact**: High
 **Likelihood**: High
 **Mitigation**: Seeded random failures, multiple test runs for verification
 
 ### Risk 4: Recovery Mechanisms Add Complexity
+
 **Impact**: Medium
 **Likelihood**: Low
 **Mitigation**: Keep recovery simple, test thoroughly, document well
@@ -377,6 +392,7 @@ private:
    - Full chaos E2E test
 
 **After Phase 5**: System is production-ready for real-world deployment
+
 - All failure modes tested
 - Recovery mechanisms validated
 - Robustness demonstrated at scale

@@ -47,12 +47,14 @@ This document describes the simulation architecture for testing NUMA-aware sched
 ### 1. SimulatedNUMANode
 
 Represents a single NUMA node with:
+
 - **WorkStealingScheduler** - Thread pool for this "node"
 - **Agent affinity** - Which agents run on this node
 - **Node ID** - Unique identifier (0-N)
 - **Statistics** - Local steals, remote steals, queue depth
 
 **Interface**:
+
 ```cpp
 class SimulatedNUMANode {
 public:
@@ -85,12 +87,14 @@ private:
 ### 2. SimulatedNetwork
 
 Handles cross-node communication with:
+
 - **Latency injection** - Configurable delay (default: 100µs-1ms)
 - **Message serialization** - Via Cista for realistic overhead
 - **Bandwidth limiting** - Optional throughput cap
 - **Packet loss** - Optional for fault testing
 
 **Interface**:
+
 ```cpp
 class SimulatedNetwork {
 public:
@@ -127,12 +131,14 @@ private:
 ### 3. SimulatedCluster
 
 Coordinates multiple nodes and network:
+
 - **Node management** - Create and configure NUMA nodes
 - **Agent placement** - Assign agents to nodes
 - **Work stealing policy** - Local-first, remote when desperate
 - **Global statistics** - Aggregate across all nodes
 
 **Interface**:
+
 ```cpp
 class SimulatedCluster {
 public:

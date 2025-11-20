@@ -1,11 +1,11 @@
-#include "agents/agent_base.hpp"
-#include "core/message.hpp"
-#include "core/message_bus.hpp"
+#include <gtest/gtest.h>
 
 #include <string>
 #include <vector>
 
-#include <gtest/gtest.h>
+#include "agents/agent_base.hpp"
+#include "core/message.hpp"
+#include "core/message_bus.hpp"
 
 using namespace keystone;
 using namespace keystone::core;
@@ -16,7 +16,8 @@ using namespace keystone::agents;
  */
 class TestPriorityAgent : public AgentBase {
  public:
-  explicit TestPriorityAgent(const std::string& agent_id) : AgentBase(agent_id) {}
+  explicit TestPriorityAgent(const std::string& agent_id)
+      : AgentBase(agent_id) {}
 
   std::vector<std::string> processed_order;
 
@@ -37,10 +38,12 @@ TEST(MessagePriorityTest, HighPriorityProcessedFirst) {
   auto agent = std::make_unique<TestPriorityAgent>("test_agent");
 
   // Send messages in NORMAL, HIGH, LOW order
-  auto normal_msg = KeystoneMessage::create("sender", "test_agent", "cmd", "NORMAL");
+  auto normal_msg =
+      KeystoneMessage::create("sender", "test_agent", "cmd", "NORMAL");
   normal_msg.priority = Priority::NORMAL;
 
-  auto high_msg = KeystoneMessage::create("sender", "test_agent", "cmd", "HIGH");
+  auto high_msg =
+      KeystoneMessage::create("sender", "test_agent", "cmd", "HIGH");
   high_msg.priority = Priority::HIGH;
 
   auto low_msg = KeystoneMessage::create("sender", "test_agent", "cmd", "LOW");
@@ -100,13 +103,15 @@ TEST(MessagePriorityTest, MixedPriorityOrdering) {
   auto low1 = KeystoneMessage::create("sender", "test_agent", "cmd", "LOW1");
   low1.priority = Priority::LOW;
 
-  auto normal1 = KeystoneMessage::create("sender", "test_agent", "cmd", "NORMAL1");
+  auto normal1 =
+      KeystoneMessage::create("sender", "test_agent", "cmd", "NORMAL1");
   normal1.priority = Priority::NORMAL;
 
   auto high1 = KeystoneMessage::create("sender", "test_agent", "cmd", "HIGH1");
   high1.priority = Priority::HIGH;
 
-  auto normal2 = KeystoneMessage::create("sender", "test_agent", "cmd", "NORMAL2");
+  auto normal2 =
+      KeystoneMessage::create("sender", "test_agent", "cmd", "NORMAL2");
   normal2.priority = Priority::NORMAL;
 
   auto high2 = KeystoneMessage::create("sender", "test_agent", "cmd", "HIGH2");
@@ -155,10 +160,12 @@ TEST(MessagePriorityTest, GetMessageRespectsPriority) {
   auto low_msg = KeystoneMessage::create("sender", "test_agent", "cmd", "LOW");
   low_msg.priority = Priority::LOW;
 
-  auto normal_msg = KeystoneMessage::create("sender", "test_agent", "cmd", "NORMAL");
+  auto normal_msg =
+      KeystoneMessage::create("sender", "test_agent", "cmd", "NORMAL");
   normal_msg.priority = Priority::NORMAL;
 
-  auto high_msg = KeystoneMessage::create("sender", "test_agent", "cmd", "HIGH");
+  auto high_msg =
+      KeystoneMessage::create("sender", "test_agent", "cmd", "HIGH");
   high_msg.priority = Priority::HIGH;
 
   agent->receiveMessage(low_msg);

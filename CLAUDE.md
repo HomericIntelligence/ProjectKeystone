@@ -2,7 +2,9 @@
 
 ## Project Overview
 
-**ProjectKeystone** is a C++20-based Hierarchical Multi-Agent System implementing a 4-layer architecture where agents coordinate to accomplish complex tasks through message passing and delegation.
+**ProjectKeystone** is a C++20-based Hierarchical Multi-Agent System implementing a
+4-layer architecture where agents coordinate to accomplish complex tasks through
+message passing and delegation.
 
 ## Language and Technology Stack
 
@@ -10,7 +12,8 @@
 
 **This project is EXCLUSIVELY C++20. Do NOT use Python, Mojo, or other languages for implementation.**
 
-#### Required Technologies:
+#### Required Technologies
+
 - **C++20** with modules support
 - **CMake** 3.20+ for build system
 - **Catch2 v3** for unit and E2E testing
@@ -19,7 +22,8 @@
 - **ThreadPool** for parallel agent execution
 - **Sanitizers** (ASan, UBSan, TSan) for runtime error detection
 
-#### Language Features Used:
+#### Language Features Used
+
 - C++20 Coroutines (`std::coroutine_handle`, `std::suspend_always`)
 - C++20 Concepts for type constraints
 - C++20 Modules (when compiler support available)
@@ -30,6 +34,7 @@
 ### Build System
 
 Use CMake with:
+
 ```cmake
 cmake_minimum_required(VERSION 3.20)
 project(ProjectKeystone CXX)
@@ -65,19 +70,24 @@ Level 0: ChiefArchitectAgent
 ### Development Phases (TDD Approach)
 
 **Phase 1** (Weeks 1-3): L0 ↔ L3 (2 agents)
+
 - Simplest hierarchy: ChiefArchitect delegates directly to TaskAgent
 - Validates core message passing
 
 **Phase 2** (Weeks 4-6): L0 ↔ L2 ↔ L3 (3 layers)
+
 - Add ModuleLead for task coordination and result synthesis
 
 **Phase 3** (Weeks 7-9): L0 ↔ L1 ↔ L2 ↔ L3 (4 layers, single component)
+
 - Add ComponentLead for module coordination
 
 **Phase 4** (Weeks 10-12): Full system (multiple components)
+
 - Complete 4-layer hierarchy with parallel execution
 
 **Phase 5** (Weeks 13-14): Performance & robustness
+
 - Scale testing, chaos engineering
 
 See [TDD_FOUR_LAYER_ROADMAP.md](docs/plan/TDD_FOUR_LAYER_ROADMAP.md) for detailed phase descriptions.
@@ -113,6 +123,7 @@ public:
 ```
 
 **Key Features**:
+
 - **Decoupled Communication**: Agents send messages by agent ID, not direct pointers
 - **Dynamic Discovery**: Agents can be registered/unregistered at runtime
 - **Thread-Safe**: Mutex-protected agent registry
@@ -120,6 +131,7 @@ public:
 - **Automatic Response Routing**: Messages automatically routed back to sender
 
 **Usage**:
+
 ```cpp
 // Setup
 auto bus = std::make_unique<MessageBus>();
@@ -264,22 +276,26 @@ These replace the ml-odyssey agents:
 ### Agent Responsibilities
 
 #### Chief Architect (Level 0)
+
 - Strategic decisions for HMAS
 - Select which components to build
 - Coordinate across all levels
 - C++20 architecture decisions
 
 #### Component Lead (Level 1)
+
 - Component-level architecture
 - Module coordination
 - Cross-module dependencies
 
 #### Module Lead (Level 2)
+
 - Module-level design
 - Task decomposition
 - Result synthesis from tasks
 
 #### Task Agent (Level 3)
+
 - Concrete code implementation in C++20
 - Unit test execution
 - Result reporting
@@ -289,15 +305,18 @@ These replace the ml-odyssey agents:
 ### Where to Document
 
 **Planning Phase**:
+
 - Architecture decisions → `docs/plan/`
 - E2E test specifications → `tests/e2e/README.md`
 
 **Implementation Phase**:
+
 - Code comments (Doxygen style)
 - Header documentation
 - Test documentation
 
 **Do NOT**:
+
 - Create documentation outside project structure
 - Duplicate information across files
 - Write verbose READMEs unless requested
@@ -309,6 +328,7 @@ These replace the ml-odyssey agents:
 E2E tests drive development. Each phase has specific E2E tests:
 
 **Phase 1**: Basic delegation (L0 → L3)
+
 ```cpp
 TEST_CASE("ChiefArchitect delegates to TaskAgent", "[e2e][phase1]")
 TEST_CASE("ChiefArchitect coordinates three TaskAgents", "[e2e][phase1]")
@@ -319,12 +339,14 @@ See [testing-strategy.md](docs/plan/testing-strategy.md) for complete test catal
 ### Sanitizers
 
 Run tests with sanitizers to catch runtime errors:
+
 - **AddressSanitizer (ASan)**: Detects memory errors (use-after-free, buffer overflows)
 - **UndefinedBehaviorSanitizer (UBSan)**: Detects undefined behavior
 - **ThreadSanitizer (TSan)**: Detects data races and threading issues
 - **MemorySanitizer (MSan)**: Detects uninitialized memory reads
 
 Enable in CMake with:
+
 ```cmake
 # For ASan + UBSan
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address,undefined -fno-omit-frame-pointer")
@@ -336,6 +358,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=thread")
 ### Unit Tests
 
 Write unit tests for:
+
 - MessageQueue operations
 - ThreadPool functionality
 - Message serialization/deserialization
@@ -389,6 +412,7 @@ cd build && cmake -G Ninja .. && ninja
 ### Docker Commands
 
 #### Build and Test (Production)
+
 ```bash
 # Build the runtime image and run tests
 docker-compose up test
@@ -399,6 +423,7 @@ docker run --rm projectkeystone:latest
 ```
 
 #### Development Environment
+
 ```bash
 # Start development container with mounted source
 docker-compose up -d dev
@@ -420,6 +445,7 @@ docker-compose down
 ```
 
 #### Clean Build
+
 ```bash
 # Remove build cache and rebuild
 docker-compose down -v
@@ -498,6 +524,7 @@ Task<void> processMessageAsync(const KeystoneMessage& msg) {
 ## Success Criteria
 
 ### Phase 1 Success
+
 - ✅ ChiefArchitect sends command to TaskAgent
 - ✅ TaskAgent executes bash command (add two numbers)
 - ✅ TaskAgent returns result to ChiefArchitect
@@ -510,6 +537,7 @@ Task<void> processMessageAsync(const KeystoneMessage& msg) {
 - ✅ RAII resource management (PipeHandle for popen/pclose)
 
 ### Phase 2 Success (L0 ↔ L2 ↔ L3)
+
 - ✅ ModuleLeadAgent decomposes module goals into tasks
 - ✅ ModuleLeadAgent coordinates 3 TaskAgents
 - ✅ ModuleLeadAgent synthesizes results from all TaskAgents
@@ -521,6 +549,7 @@ Task<void> processMessageAsync(const KeystoneMessage& msg) {
 - ✅ 16/16 total tests passing (100%)
 
 ### Phase 3 Success (L0 ↔ L1 ↔ L2 ↔ L3) - Full 4-Layer Hierarchy
+
 - ✅ ComponentLeadAgent decomposes component goals into modules
 - ✅ ComponentLeadAgent coordinates 2 ModuleLeadAgents
 - ✅ Each ModuleLead coordinates 3 TaskAgents (6 total)
@@ -533,6 +562,7 @@ Task<void> processMessageAsync(const KeystoneMessage& msg) {
 - ✅ Complete hierarchical architecture working end-to-end
 
 ### Overall Success
+
 - All 4 layers implemented
 - E2E tests for all phases passing
 - Performance benchmarks met (100+ agents)
@@ -541,6 +571,7 @@ Task<void> processMessageAsync(const KeystoneMessage& msg) {
 ## Common Pitfalls
 
 ### ❌ DO NOT
+
 - Use Python or other languages for implementation
 - Skip E2E tests
 - Implement all layers at once (violates TDD approach)
@@ -548,6 +579,7 @@ Task<void> processMessageAsync(const KeystoneMessage& msg) {
 - Block threads unnecessarily
 
 ### ✅ DO
+
 - Follow TDD: test first, then implement
 - Use C++20 coroutines for async operations
 - Keep commits focused and tests passing
@@ -557,9 +589,11 @@ Task<void> processMessageAsync(const KeystoneMessage& msg) {
 ## Quick Reference
 
 ### Current Phase
+
 **Phase 3 COMPLETE**: Full 4-layer hierarchy (L0 ↔ L1 ↔ L2 ↔ L3) ✅
 
 ### Current Achievement
+
 ✅ Complete hierarchical agent system with ComponentLead coordinating ModuleLeads and TaskAgents
 
 ### Quick Commands
@@ -577,6 +611,7 @@ docker-compose build --no-cache
 ```
 
 ### Current Branch
+
 `claude/first-agent-test-<session-id>`
 
 ---

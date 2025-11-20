@@ -134,15 +134,15 @@ tolerations: []
 affinity:
   podAntiAffinity:
     preferredDuringSchedulingIgnoredDuringExecution:
-    - weight: 100
-      podAffinityTerm:
-        labelSelector:
-          matchExpressions:
-          - key: app.kubernetes.io/name
-            operator: In
-            values:
-            - projectkeystone
-        topologyKey: kubernetes.io/hostname
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - projectkeystone
+          topologyKey: kubernetes.io/hostname
 
 # Termination grace period
 terminationGracePeriodSeconds: 30
@@ -198,18 +198,18 @@ config:
 
 # Additional environment variables (merged with config)
 extraEnv: []
-  # - name: CUSTOM_VAR
-  #   value: "custom_value"
+# - name: CUSTOM_VAR
+#   value: "custom_value"
 
 # Additional volumes
 extraVolumes: []
-  # - name: custom-volume
-  #   emptyDir: {}
+# - name: custom-volume
+#   emptyDir: {}
 
 # Additional volume mounts
 extraVolumeMounts: []
-  # - name: custom-volume
-  #   mountPath: /custom
+# - name: custom-volume
+#   mountPath: /custom
 
 # Pod labels
 podLabels: {}

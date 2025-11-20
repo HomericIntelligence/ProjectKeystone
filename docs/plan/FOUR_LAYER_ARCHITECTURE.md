@@ -45,6 +45,7 @@ Level 0: Chief Architect Agent
 ### Level 0: Chief Architect Agent
 
 **Responsibilities:**
+
 - Strategic architecture decisions
 - System-wide coordination
 - Technology selection
@@ -57,11 +58,13 @@ Level 0: Chief Architect Agent
 **Corresponds To (in dev agents):** `chief-architect` orchestrator
 
 **Example Decisions:**
+
 - "Use C++20 modules for the build system"
 - "Implement Actor Model for concurrency"
 - "Prioritize Core infrastructure before Agents"
 
 **Communication:**
+
 - Receives: User goals, system-wide requests
 - Sends: Component-level directives to Level 1 agents
 
@@ -70,6 +73,7 @@ Level 0: Chief Architect Agent
 ### Level 1: Component Lead Agent
 
 **Responsibilities:**
+
 - Component-level architecture
 - Module coordination within component
 - Technology implementation for component
@@ -80,6 +84,7 @@ Level 0: Chief Architect Agent
 **Analogy:** VP of Engineering for a product area
 
 **Corresponds To (in dev agents):**
+
 - `foundation-orchestrator`
 - `shared-library-orchestrator`
 - `agentic-workflows-orchestrator`
@@ -87,12 +92,14 @@ Level 0: Chief Architect Agent
 - `tooling-orchestrator`
 
 **Examples:**
+
 - **Core Component Lead**: Manages Messaging + Concurrency + Utilities modules
 - **Protocol Component Lead**: Manages KIM + Serialization + GRPC modules
 - **Agents Component Lead**: Manages agent implementations
 - **Integration Component Lead**: Manages external integrations
 
 **Communication:**
+
 - Receives: Component directives from Level 0
 - Sends: Module specifications to Level 2 agents
 
@@ -101,6 +108,7 @@ Level 0: Chief Architect Agent
 ### Level 2: Module Lead Agent
 
 **Responsibilities:**
+
 - Module-level design
 - Task decomposition within module
 - Task coordination
@@ -111,6 +119,7 @@ Level 0: Chief Architect Agent
 **Analogy:** Tech Lead for a specific feature
 
 **Corresponds To (in dev agents):**
+
 - `implementation-specialist`
 - `architecture-design`
 - `test-specialist`
@@ -118,11 +127,13 @@ Level 0: Chief Architect Agent
 - `performance-specialist`
 
 **Examples:**
+
 - **Messaging Module Lead**: Manages MessageQueue, MessageBus, Routing tasks
 - **Concurrency Module Lead**: Manages ThreadPool, Coroutines, Barriers tasks
 - **KIM Module Lead**: Manages message structure, builders, validation tasks
 
 **Communication:**
+
 - Receives: Module specifications from Level 1
 - Sends: Specific task assignments to Level 3 agents
 
@@ -131,6 +142,7 @@ Level 0: Chief Architect Agent
 ### Level 3: Task Agent
 
 **Responsibilities:**
+
 - Concrete task execution
 - Code implementation
 - Unit test execution
@@ -141,6 +153,7 @@ Level 0: Chief Architect Agent
 **Analogy:** Individual contributor engineer
 
 **Corresponds To (in dev agents):**
+
 - `senior-implementation-engineer`
 - `implementation-engineer`
 - `junior-implementation-engineer`
@@ -149,12 +162,14 @@ Level 0: Chief Architect Agent
 - `documentation-engineer`
 
 **Examples:**
+
 - Implement `MessageQueue::push()` method
 - Write unit tests for `AsyncQueuePop`
 - Implement `ThreadPool::submit()` method
 - Create gRPC client for AI service
 
 **Communication:**
+
 - Receives: Task specifications from Level 2
 - Sends: Task results and completion status to Level 2
 
@@ -238,6 +253,7 @@ Level 0: Chief Architect (simple orchestrator)
 **Justification**: Validates message passing without intermediate layers
 
 **E2E Test:**
+
 ```cpp
 TEST(E2E_TwoAgent, ChiefArchitectDelegatesToTaskAgent) {
     auto chief = std::make_unique<ChiefArchitectAgent>();
@@ -268,6 +284,7 @@ Level 0: Chief Architect
 **Justification**: Validates result synthesis and multi-task coordination
 
 **E2E Test:**
+
 ```cpp
 TEST(E2E_ThreeLayer, ModuleLeadCoordinatesMultipleTasks) {
     auto chief = std::make_unique<ChiefArchitectAgent>();
@@ -306,6 +323,7 @@ Level 0: Chief Architect
 **Justification**: Validates component-level coordination and cross-module dependencies
 
 **E2E Test:**
+
 ```cpp
 TEST(E2E_FourLayer, ComponentLeadManagesMultipleModules) {
     auto hierarchy = createFullHierarchy(
@@ -347,6 +365,7 @@ Level 0: Chief Architect
 ```
 
 **E2E Test:**
+
 ```cpp
 TEST(E2E_FullSystem, ChiefArchitectOrchestratesAllComponents) {
     auto system = createFullHierarchy(
@@ -468,6 +487,7 @@ private:
 ## Advantages of 4-Layer Architecture
 
 ### 1. Self-Similarity
+
 The system structure mirrors the development process, making it intuitive for developers familiar with the agent orchestration system.
 
 ### 2. Clear Separation of Concerns
@@ -480,20 +500,26 @@ The system structure mirrors the development process, making it intuitive for de
 | L3 | Execution | Task |
 
 ### 3. Scalability
+
 Each layer can be scaled independently:
+
 - L0: Single instance (one chief architect)
 - L1: Multiple components (3-5)
 - L2: Multiple modules per component (3-10)
 - L3: Multiple tasks per module (5-20)
 
 ### 4. Failure Isolation
+
 Failures at lower layers don't cascade to higher layers:
+
 - Task failure → Module Lead retries or delegates to different Task Agent
 - Module failure → Component Lead reorganizes or restarts module
 - Component failure → Chief Architect re-architects component
 
 ### 5. Parallel Execution
+
 Maximum parallelism at each layer:
+
 - L1: Components execute in parallel
 - L2: Modules within component execute in parallel
 - L3: Tasks within module execute in parallel
@@ -503,11 +529,13 @@ Maximum parallelism at each layer:
 ## Mapping to Original 3-Layer Plan
 
 The original plan had:
+
 - **Root** (L1) → Now **Chief Architect** (L0)
 - **Branch** (L2) → Split into **Component Lead** (L1) + **Module Lead** (L2)
 - **Leaf** (L3) → Now **Task Agent** (L3)
 
 **Key insight**: The original "Branch" layer was doing two jobs:
+
 1. Component coordination (now L1)
 2. Module/task coordination (now L2)
 

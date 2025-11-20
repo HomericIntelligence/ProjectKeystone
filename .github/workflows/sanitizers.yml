@@ -13,7 +13,7 @@ permissions:
 jobs:
   asan-ubsan:
     name: AddressSanitizer + UndefinedBehaviorSanitizer
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - name: Checkout code
@@ -76,7 +76,7 @@ jobs:
 
   tsan:
     name: ThreadSanitizer
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
       - name: Checkout code
@@ -128,7 +128,7 @@ jobs:
 
   msan:
     name: MemorySanitizer
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     if: github.event_name == 'workflow_dispatch'  # Only run on manual trigger
     steps:
@@ -171,7 +171,7 @@ jobs:
 
   sanitizer-report:
     name: Sanitizer Report
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     needs: [asan-ubsan, tsan]
     if: always()

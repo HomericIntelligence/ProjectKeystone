@@ -20,6 +20,7 @@ The scheduler manages a pool of worker threads, each with its own lock-free work
 4. Repeat until shutdown
 
 **Key Features**:
+
 - **Lock-free queues**: Uses `moodycamel::ConcurrentQueue` for MPMC operations
 - **Work-stealing**: Idle workers steal from busy workers for load balancing
 - **Round-robin submission**: `submit()` distributes work evenly across workers
@@ -27,6 +28,7 @@ The scheduler manages a pool of worker threads, each with its own lock-free work
 - **Graceful shutdown**: Drains all pending work before terminating workers
 
 **Usage**:
+
 ```cpp
 // Create scheduler with 4 workers
 WorkStealingScheduler scheduler(4);
@@ -57,7 +59,9 @@ scheduler.shutdown();
 The MessageBus now supports two routing modes:
 
 #### Synchronous Mode (Default)
+
 When no scheduler is set, MessageBus routes messages synchronously:
+
 ```cpp
 MessageBus bus;
 // No scheduler - sync routing
@@ -65,7 +69,9 @@ bus.routeMessage(msg);  // Delivers immediately via agent->receiveMessage()
 ```
 
 #### Asynchronous Mode
+
 When a scheduler is set, MessageBus routes messages asynchronously:
+
 ```cpp
 WorkStealingScheduler scheduler(4);
 scheduler.start();
@@ -78,6 +84,7 @@ bus.routeMessage(msg);  // Submits to scheduler, returns immediately
 ```
 
 **Implementation Details**:
+
 ```cpp
 bool MessageBus::routeMessage(const KeystoneMessage& msg) {
     std::lock_guard<std::mutex> lock(registry_mutex_);
@@ -128,6 +135,7 @@ Task<std::optional<WorkItem>> workerLoop(size_t worker_index) {
 ```
 
 **Algorithm**:
+
 1. Try `my_queue.pop()` (LIFO - own work first)
 2. If empty, iterate through other queues in round-robin order
 3. Try `victim_queue.steal()` (FIFO - oldest work first)
@@ -156,6 +164,7 @@ void workerLoop(size_t worker_index) {
 ## Message Flow
 
 ### Synchronous Flow (Phase 1-3)
+
 ```
 ChiefArchitect → MessageBus → TaskAgent
                       ↓ (synchronous)
@@ -165,6 +174,7 @@ ChiefArchitect → MessageBus → TaskAgent
 ```
 
 ### Asynchronous Flow (Phase A)
+
 ```
 ChiefArchitect → MessageBus → WorkStealingScheduler
                       ↓              ↓
@@ -178,6 +188,7 @@ ChiefArchitect → MessageBus → WorkStealingScheduler
 ```
 
 **Key Differences**:
+
 - **Synchronous**: Caller blocks until message delivered to agent's inbox
 - **Asynchronous**: Caller returns immediately, delivery happens on worker thread
 - **Ordering**: Async mode does NOT guarantee FIFO delivery (work-stealing reorders)
@@ -300,11 +311,13 @@ public:
 ### From Sync to Async
 
 **Step 1**: Ensure all tests pass in sync mode
+
 ```bash
 cmake --build build && ctest --test-dir build
 ```
 
 **Step 2**: Add scheduler to MessageBus
+
 ```cpp
 WorkStealingScheduler scheduler(std::thread::hardware_concurrency());
 scheduler.start();
@@ -312,6 +325,7 @@ bus->setScheduler(&scheduler);
 ```
 
 **Step 3**: Adjust timing-sensitive code
+
 ```cpp
 // BEFORE (sync mode)
 agent->sendMessage(msg);
@@ -324,6 +338,7 @@ auto response = sender->getMessage();
 ```
 
 **Step 4**: Use msg_id for correlation
+
 ```cpp
 // BEFORE (ordered, sync)
 std::vector<int> expected_results = {42, 17, 99};
@@ -357,6 +372,7 @@ for (size_t i = 0; i < 3; ++i) {
 ### Test Coverage
 
 **Unit Tests** (`tests/unit/test_message_bus_async.cpp`):
+
 - Synchronous routing without scheduler
 - Asynchronous routing with scheduler
 - High load (1000 messages)
@@ -365,6 +381,7 @@ for (size_t i = 0; i < 3; ++i) {
 - Scheduler lifecycle
 
 **E2E Tests** (`tests/e2e/phase_a_async_delegation.cpp`):
+
 - Full async workflow: Chief → 3 TaskAgents via work-stealing
 - Load balancing: 100 messages across 10 agents
 - Mixed mode: Runtime switching between sync and async
@@ -391,11 +408,13 @@ cmake --build build && ctest --test-dir build
 ## Implementation Timeline
 
 ### Week 1: Core Concurrency Components
+
 - ✅ Task<T> coroutine type
 - ✅ ThreadPool with work queues
 - ✅ WorkStealingQueue (lock-free)
 
 ### Week 2: Work-Stealing Infrastructure
+
 - ✅ Enhanced KeystoneMessage with action types
 - ✅ Cista serialization with cista::offset::hash_map
 - ✅ Logger with thread-local LogContext
@@ -403,6 +422,7 @@ cmake --build build && ctest --test-dir build
 - ✅ WorkStealingScheduler
 
 ### Week 3: MessageBus Integration
+
 - ✅ MessageBus async routing support
 - ✅ Backward-compatible dual-mode routing
 - ✅ Async MessageBus tests (6 tests)
@@ -412,17 +432,20 @@ cmake --build build && ctest --test-dir build
 ## Future Work (Phase B+)
 
 ### Phase B: Agent Coroutine Migration
+
 - Migrate agent `processMessage()` to coroutines
 - Enable `co_await` for async operations within agents
 - Agent-level work-stealing (agents as work items)
 
 ### Phase C: Advanced Features
+
 - Message priority queues
 - Deadline scheduling
 - Agent affinity policies
 - Distributed work-stealing (multi-node)
 
 ### Phase D: Performance Optimization
+
 - NUMA-aware scheduling
 - Lock-free agent inboxes
 - Zero-copy message passing

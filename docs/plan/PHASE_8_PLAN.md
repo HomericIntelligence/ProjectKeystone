@@ -12,6 +12,7 @@ Phase 8 transforms ProjectKeystone from a **single-node multi-threaded system** 
 ### Current Status (Post-Phase 7)
 
 **What We Have**:
+
 - ✅ Production deployment on Kubernetes (Phase 6)
 - ✅ AI-powered agents with LLM integration (Phase 7)
 - ✅ Simulated distributed work-stealing (Phase D.3)
@@ -20,6 +21,7 @@ Phase 8 transforms ProjectKeystone from a **single-node multi-threaded system** 
 - ✅ Message serialization with Cista (ready for network transport)
 
 **What Phase 8 Adds**:
+
 - Real network communication using gRPC/Protobuf
 - Multi-node HMAS cluster (3-5 nodes)
 - Distributed work-stealing across network
@@ -63,6 +65,7 @@ Phase 8 transforms ProjectKeystone from a **single-node multi-threaded system** 
 ```
 
 **Key Features**:
+
 - **gRPC communication**: Inter-node message passing
 - **Raft consensus**: Leader election, log replication
 - **Distributed work-stealing**: Cross-node task migration
@@ -121,6 +124,7 @@ Phase 8 transforms ProjectKeystone from a **single-node multi-threaded system** 
    - Test connection pooling
 
 **Deliverables**:
+
 - ✅ Protobuf schema for all messages
 - ✅ gRPC server and client
 - ✅ NetworkTransport abstraction
@@ -175,6 +179,7 @@ Phase 8 transforms ProjectKeystone from a **single-node multi-threaded system** 
    - Simulate node failure, verify registry update
 
 **Deliverables**:
+
 - ✅ Distributed agent registry
 - ✅ Raft-based replication
 - ✅ Agent lookup API
@@ -231,6 +236,7 @@ Phase 8 transforms ProjectKeystone from a **single-node multi-threaded system** 
    - Measure load balancing (each node processes ~33 tasks)
 
 **Deliverables**:
+
 - ✅ Distributed work-stealing scheduler
 - ✅ Agent-level migration
 - ✅ Load balancing algorithm
@@ -292,6 +298,7 @@ Phase 8 transforms ProjectKeystone from a **single-node multi-threaded system** 
    - Restart Node 2, verify rejoin
 
 **Deliverables**:
+
 - ✅ Heartbeat-based failure detection
 - ✅ Agent replication (standby agents)
 - ✅ Work redistribution on failure
@@ -355,6 +362,7 @@ Phase 8 transforms ProjectKeystone from a **single-node multi-threaded system** 
    - Performance tuning tips
 
 **Deliverables**:
+
 - ✅ Distributed tracing with Jaeger
 - ✅ Cross-node Prometheus metrics
 - ✅ Distributed Grafana dashboard
@@ -410,6 +418,7 @@ Phase 8 transforms ProjectKeystone from a **single-node multi-threaded system** 
    - Benchmark impact on throughput
 
 **Deliverables**:
+
 - ✅ Connection pooling
 - ✅ Async RPC with futures
 - ✅ Message batching
@@ -457,27 +466,32 @@ Phase 8 transforms ProjectKeystone from a **single-node multi-threaded system** 
 ## Technology Stack
 
 ### Network Communication
+
 - **gRPC**: Fast, efficient RPC framework
 - **Protobuf**: Binary serialization
 - **C++ gRPC**: Official C++ implementation
 - **HTTP/2**: Underlying protocol for gRPC
 
 ### Consensus Algorithm
+
 - **Raft**: Understandable consensus algorithm
 - **Library**: braft (Baidu's C++ Raft implementation) or logcabin
 - **Features**: Leader election, log replication, snapshots
 
 ### Serialization
+
 - **Protobuf**: For gRPC messages
 - **Cista**: Zero-copy deserialization for large payloads
 - **JSON**: For configuration and monitoring
 
 ### Distributed Tracing
+
 - **OpenTelemetry**: Standard tracing SDK
 - **Jaeger**: Distributed tracing backend
 - **Zipkin**: Alternative to Jaeger
 
 ### Deployment
+
 - **Kubernetes**: Multi-node orchestration
 - **Helm**: Templated deployments
 - **StatefulSet**: For Raft nodes (persistent identity)
@@ -487,44 +501,54 @@ Phase 8 transforms ProjectKeystone from a **single-node multi-threaded system** 
 ## Risk Mitigation
 
 ### Risk 1: Network Latency
+
 **Impact**: High (affects performance)
 **Likelihood**: Medium
 **Mitigation**:
+
 - Network-aware scheduling (prefer local)
 - Batch messages to reduce round-trips
 - Compression for large payloads
 - Deploy nodes in same datacenter initially
 
 ### Risk 2: Raft Complexity
+
 **Impact**: High (correctness critical)
 **Likelihood**: Medium
 **Mitigation**:
+
 - Use battle-tested Raft library (braft)
 - Extensive testing (Jepsen-style chaos tests)
 - Start with simple use case (agent registry only)
 - Read Raft paper thoroughly
 
 ### Risk 3: Network Partitions
+
 **Impact**: Critical (split-brain risk)
 **Likelihood**: Low
 **Mitigation**:
+
 - Raft quorum prevents split-brain
 - Minority partition cannot make progress
 - Monitor partition events, alert operators
 
 ### Risk 4: Message Loss
+
 **Impact**: High (correctness)
 **Likelihood**: Low (gRPC is reliable)
 **Mitigation**:
+
 - Retry logic with exponential backoff
 - At-least-once delivery guarantee
 - Idempotent message processing
 - Message deduplication via msg_id
 
 ### Risk 5: Performance Overhead
+
 **Impact**: Medium
 **Likelihood**: High
 **Mitigation**:
+
 - Benchmark early and often
 - Optimize hot paths (serialization, RPC)
 - Use profiling to identify bottlenecks
@@ -535,21 +559,25 @@ Phase 8 transforms ProjectKeystone from a **single-node multi-threaded system** 
 ## Performance Expectations
 
 **Latency**:
+
 - **Local message**: <100ns (in-memory)
 - **Cross-node message (same datacenter)**: 1-10ms (network + serialization)
 - **Cross-node message (different datacenter)**: 50-200ms
 
 **Throughput**:
+
 - **Single node**: 20k messages/sec (Phase D baseline)
 - **3-node cluster**: 50-60k messages/sec (parallel processing, network overhead)
 - **5-node cluster**: 80-100k messages/sec
 
 **Scalability**:
+
 - **Linear scaling**: Up to network bandwidth limits
 - **Bottleneck**: Raft leader (all writes go through leader)
 - **Mitigation**: Shard agents across multiple Raft groups
 
 **Resource Usage** (per node):
+
 - **CPU**: 1-2 cores (same as single node)
 - **Memory**: 1-2 GB (same as single node)
 - **Network**: 10-50 Mbps (depends on message volume)
@@ -559,24 +587,28 @@ Phase 8 transforms ProjectKeystone from a **single-node multi-threaded system** 
 ## Testing Strategy
 
 ### Unit Tests
+
 1. **gRPC Transport**: Mock server/client, test RPCs
 2. **Protobuf Serialization**: Round-trip tests
 3. **Distributed Registry**: CRUD operations
 4. **Raft Integration**: Log append, leader election (using Raft test harness)
 
 ### Integration Tests
+
 1. **3-Node Cluster**: Deploy locally, test communication
 2. **Agent Migration**: Move agent from Node 1 to Node 2
 3. **Cross-Node Work-Stealing**: Verify load balancing
 4. **Heartbeat Monitoring**: Detect node failure
 
 ### E2E Tests
+
 1. **Full Distributed Workflow**: User goal → 3 nodes → result
 2. **Node Failure Recovery**: Kill node, verify recovery
 3. **Network Partition**: Partition cluster, verify majority continues
 4. **Raft Leader Election**: Kill leader, verify new leader elected
 
 ### Chaos Tests (Jepsen-style)
+
 1. **Random node failures**: Kill random nodes during execution
 2. **Network partitions**: Split cluster randomly
 3. **Clock skew**: Simulate time drift between nodes
@@ -587,6 +619,7 @@ Phase 8 transforms ProjectKeystone from a **single-node multi-threaded system** 
 ## Documentation Plan
 
 ### Required Documentation
+
 1. **DISTRIBUTED_SYSTEM.md** - Architecture overview
 2. **GRPC_NETWORK.md** - gRPC setup and usage
 3. **RAFT_CONSENSUS.md** - Raft integration guide
@@ -595,6 +628,7 @@ Phase 8 transforms ProjectKeystone from a **single-node multi-threaded system** 
 6. **DISTRIBUTED_MONITORING.md** - Observability for distributed system
 
 ### README Updates
+
 - Add "Distributed System" section
 - Describe multi-node architecture
 - Link to deployment guide
@@ -612,6 +646,7 @@ Phase 8 transforms ProjectKeystone from a **single-node multi-threaded system** 
 **Week 6-8**: Performance optimization
 
 **After Phase 8**: Move to **Phase 10: Production Hardening**
+
 - Security hardening (TLS, authentication, authorization)
 - Performance tuning at scale (1000+ agents)
 - Operational runbooks

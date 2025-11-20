@@ -369,7 +369,8 @@ Import and use.
 
 # ML Odyssey
 
-A Mojo-based AI research platform for reproducing classic machine learning research papers with a focus on performance and reproducibility.
+A Mojo-based AI research platform for reproducing classic machine learning research papers with a
+focus on performance and reproducibility.
 
 ## Features
 
@@ -658,7 +659,8 @@ def process_data(data: np.ndarray, normalize: bool = True) -> np.ndarray:
 
 ## Pull Request Creation
 
-See [CLAUDE.md](../../CLAUDE.md#git-workflow) for complete PR creation instructions including linking to issues, verification steps, and requirements.
+See [CLAUDE.md](../../CLAUDE.md#git-workflow) for complete PR creation instructions including
+linking to issues, verification steps, and requirements.
 
 **Quick Summary**: Commit changes, push branch, create PR with `gh pr create --issue `issue-number``, verify issue is linked.
 

@@ -1,7 +1,5 @@
 #include "agents/async_task_agent.hpp"
 
-#include "core/metrics.hpp"
-
 #include <array>
 #include <chrono>
 #include <cstdio>
@@ -10,12 +8,16 @@
 #include <stdexcept>
 #include <thread>
 
+#include "core/metrics.hpp"
+
 namespace keystone {
 namespace agents {
 
-AsyncTaskAgent::AsyncTaskAgent(const std::string& agent_id) : AsyncBaseAgent(agent_id) {}
+AsyncTaskAgent::AsyncTaskAgent(const std::string& agent_id)
+    : AsyncBaseAgent(agent_id) {}
 
-concurrency::Task<core::Response> AsyncTaskAgent::processMessage(const core::KeystoneMessage& msg) {
+concurrency::Task<core::Response> AsyncTaskAgent::processMessage(
+    const core::KeystoneMessage& msg) {
   // FIX: Record message processed for metrics tracking
   core::Metrics::getInstance().recordMessageProcessed(msg.msg_id);
 
@@ -24,7 +26,8 @@ concurrency::Task<core::Response> AsyncTaskAgent::processMessage(const core::Key
     auto time_remaining = msg.getTimeUntilDeadline();
     (void)time_remaining;  // Suppress unused warning - reserved for future use
     // Deadline passed - time_remaining will be 0, we want the absolute value
-    // For now, record as 0ms late (we don't track when it was supposed to be processed)
+    // For now, record as 0ms late (we don't track when it was supposed to be
+    // processed)
     core::Metrics::getInstance().recordDeadlineMiss(msg.msg_id, 0);
   }
 
@@ -32,7 +35,8 @@ concurrency::Task<core::Response> AsyncTaskAgent::processMessage(const core::Key
     // Skip response messages (avoid infinite loop)
     if (msg.command == "response") {
       // Just create a success response without executing
-      auto response = core::Response::createSuccess(msg, agent_id_, "response received");
+      auto response =
+          core::Response::createSuccess(msg, agent_id_, "response received");
       co_return response;
     }
 
@@ -46,11 +50,10 @@ concurrency::Task<core::Response> AsyncTaskAgent::processMessage(const core::Key
     auto response = core::Response::createSuccess(msg, agent_id_, result);
 
     // Send response back to sender via MessageBus
-    auto response_msg =
-        core::KeystoneMessage::create(agent_id_,
-                                      msg.sender_id,  // Route back to original sender
-                                      "response",
-                                      result);
+    auto response_msg = core::KeystoneMessage::create(
+        agent_id_,
+        msg.sender_id,  // Route back to original sender
+        "response", result);
     response_msg.msg_id = msg.msg_id;  // Keep same msg_id for tracking
 
     // MessageBus routes it automatically
@@ -63,10 +66,9 @@ concurrency::Task<core::Response> AsyncTaskAgent::processMessage(const core::Key
     auto response = core::Response::createError(msg, agent_id_, e.what());
 
     // Send error response back via MessageBus
-    auto response_msg = core::KeystoneMessage::create(agent_id_,
-                                                      msg.sender_id,
-                                                      "response",
-                                                      std::string("ERROR: ") + e.what());
+    auto response_msg =
+        core::KeystoneMessage::create(agent_id_, msg.sender_id, "response",
+                                      std::string("ERROR: ") + e.what());
     response_msg.msg_id = msg.msg_id;
 
     sendMessage(response_msg);
@@ -75,10 +77,11 @@ concurrency::Task<core::Response> AsyncTaskAgent::processMessage(const core::Key
   }
 }
 
-concurrency::Task<std::string> AsyncTaskAgent::executeBashAsync(const std::string& command) {
-  // For Phase B initial implementation, execute synchronously within the coroutine
-  // This still prevents blocking the calling thread (MessageBus) since we're already
-  // running on a worker thread from the scheduler
+concurrency::Task<std::string> AsyncTaskAgent::executeBashAsync(
+    const std::string& command) {
+  // For Phase B initial implementation, execute synchronously within the
+  // coroutine This still prevents blocking the calling thread (MessageBus)
+  // since we're already running on a worker thread from the scheduler
   //
   // The key benefit: The MessageBus thread returns immediately after submit(),
   // and the actual bash execution happens on a worker thread

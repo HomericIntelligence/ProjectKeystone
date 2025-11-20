@@ -1,12 +1,12 @@
 #pragma once
 
+#include <concurrentqueue.h>
+
 #include <coroutine>
 #include <functional>
 #include <memory>
 #include <optional>
 #include <variant>
-
-#include <concurrentqueue.h>
 
 namespace keystone {
 namespace concurrency {
@@ -55,7 +55,8 @@ struct WorkItem {
  * @brief WorkStealingQueue - Lock-free queue for work-stealing scheduler
  *
  * This queue is designed for work-stealing thread pools where:
- * - The owner thread pushes and pops work items from one end (LIFO for locality)
+ * - The owner thread pushes and pops work items from one end (LIFO for
+ * locality)
  * - Other threads can steal work items from the other end (FIFO)
  *
  * Uses moodycamel::ConcurrentQueue for lock-free MPMC operations.

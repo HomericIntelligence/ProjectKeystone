@@ -1,9 +1,9 @@
-#include "simulation/simulated_network.hpp"
+#include <gtest/gtest.h>
 
 #include <chrono>
 #include <thread>
 
-#include <gtest/gtest.h>
+#include "simulation/simulated_network.hpp"
 
 using namespace keystone::simulation;
 using namespace std::chrono_literals;
@@ -199,7 +199,8 @@ TEST_F(SimulatedNetworkTest, LatencyTracking) {
   auto work = network.receive(1);
   EXPECT_TRUE(work.has_value());
 
-  // Average latency should be at least 100µs (upper bound relaxed for scheduler variance)
+  // Average latency should be at least 100µs (upper bound relaxed for scheduler
+  // variance)
   double avg_latency = network.getAverageLatencyUs();
   EXPECT_GE(avg_latency, 100.0);
   EXPECT_LE(avg_latency, 5000.0);  // Relaxed for timing variance
@@ -262,7 +263,8 @@ TEST_F(SimulatedNetworkTest, QueueOrdering) {
 
   // Send messages with identifiable work
   for (int i = 0; i < 5; ++i) {
-    network.send(0, 1, [&execution_order, i]() { execution_order.push_back(i); });
+    network.send(0, 1,
+                 [&execution_order, i]() { execution_order.push_back(i); });
   }
 
   std::this_thread::sleep_for(50us);

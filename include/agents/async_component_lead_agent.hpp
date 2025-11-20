@@ -1,12 +1,12 @@
 #pragma once
 
-#include "async_base_agent.hpp"
-#include "concurrency/task.hpp"
-
 #include <map>
 #include <mutex>
 #include <string>
 #include <vector>
+
+#include "async_base_agent.hpp"
+#include "concurrency/task.hpp"
 
 namespace keystone {
 namespace agents {
@@ -15,7 +15,8 @@ namespace agents {
  * @brief Level 1 Async Component Lead Agent
  *
  * Async version of ComponentLeadAgent using coroutines.
- * Coordinates multiple async ModuleLeadAgents to accomplish component-level goals.
+ * Coordinates multiple async ModuleLeadAgents to accomplish component-level
+ * goals.
  *
  * Responsibilities:
  * - Decompose component goals into module goals
@@ -46,12 +47,14 @@ class AsyncComponentLeadAgent : public AsyncBaseAgent {
   explicit AsyncComponentLeadAgent(const std::string& agent_id);
 
   /**
-   * @brief Process incoming message asynchronously (component goals or module results)
+   * @brief Process incoming message asynchronously (component goals or module
+   * results)
    *
    * @param msg Message to process
    * @return concurrency::Task<core::Response> Coroutine producing response
    */
-  concurrency::Task<core::Response> processMessage(const core::KeystoneMessage& msg) override;
+  concurrency::Task<core::Response> processMessage(
+      const core::KeystoneMessage& msg) override;
 
   /**
    * @brief Configure available ModuleLeadAgents for delegation
@@ -65,7 +68,9 @@ class AsyncComponentLeadAgent : public AsyncBaseAgent {
    *
    * @return const std::vector<std::string>& State transition history
    */
-  const std::vector<std::string>& getExecutionTrace() const { return execution_trace_; }
+  const std::vector<std::string>& getExecutionTrace() const {
+    return execution_trace_;
+  }
 
   /**
    * @brief Get current state
@@ -84,7 +89,8 @@ class AsyncComponentLeadAgent : public AsyncBaseAgent {
    * @param result_msg Message containing module result
    * @return concurrency::Task<void> Coroutine for async processing
    */
-  concurrency::Task<void> processModuleResult(const core::KeystoneMessage& result_msg);
+  concurrency::Task<void> processModuleResult(
+      const core::KeystoneMessage& result_msg);
 
   /**
    * @brief Decompose component goal into module goals
@@ -131,8 +137,9 @@ class AsyncComponentLeadAgent : public AsyncBaseAgent {
   // Module coordination (thread-safe)
   std::mutex module_mutex_;
   std::vector<std::string> available_module_leads_;
-  std::map<std::string, std::string> pending_modules_;  // msg_id → module_lead_id
-  std::vector<std::string> module_results_;             // Collected module results
+  std::map<std::string, std::string>
+      pending_modules_;                      // msg_id → module_lead_id
+  std::vector<std::string> module_results_;  // Collected module results
   std::string current_component_goal_;
   std::string requester_id_;            // Who sent the component goal
   std::string current_request_msg_id_;  // For response correlation

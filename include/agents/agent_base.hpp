@@ -1,14 +1,13 @@
 #pragma once
 
-#include "core/config.hpp"  // FIX m3: Centralized configuration
-#include "core/message.hpp"
-
 #include <atomic>
 #include <chrono>  // FIX M2: For time-based priority fairness
 #include <optional>
 #include <string>
 
 #include "concurrentqueue.h"
+#include "core/config.hpp"  // FIX m3: Centralized configuration
+#include "core/message.hpp"
 
 namespace keystone {
 
@@ -83,15 +82,16 @@ class AgentBase {
   /**
    * @brief Update queue depth metrics
    *
-   * Calculates total messages across all priority queues and reports to Metrics.
-   * Called after each getMessage() operation.
+   * Calculates total messages across all priority queues and reports to
+   * Metrics. Called after each getMessage() operation.
    */
   void updateQueueDepthMetrics();
   std::string agent_id_;
   core::MessageBus* message_bus_{nullptr};
 
   // Phase C: Priority-based lock-free inboxes
-  // Messages are routed to queues by priority and processed HIGH -> NORMAL -> LOW
+  // Messages are routed to queues by priority and processed HIGH -> NORMAL ->
+  // LOW
   moodycamel::ConcurrentQueue<core::KeystoneMessage> high_priority_inbox_;
   moodycamel::ConcurrentQueue<core::KeystoneMessage> normal_priority_inbox_;
   moodycamel::ConcurrentQueue<core::KeystoneMessage> low_priority_inbox_;
@@ -102,7 +102,8 @@ class AgentBase {
   std::chrono::steady_clock::time_point last_low_priority_check_;
 
   // FIX M1: Backpressure - Queue size limits to prevent memory exhaustion
-  std::atomic<bool> backpressure_applied_{false};  ///< Flag when backpressure is active
+  std::atomic<bool> backpressure_applied_{
+      false};  ///< Flag when backpressure is active
 };
 
 }  // namespace agents

@@ -1,10 +1,10 @@
 #include "core/message_bus.hpp"
 
+#include <stdexcept>
+
 #include "agents/agent_base.hpp"
 #include "concurrency/work_stealing_scheduler.hpp"
 #include "core/metrics.hpp"
-
-#include <stdexcept>
 
 namespace keystone {
 namespace core {
@@ -19,7 +19,8 @@ concurrency::WorkStealingScheduler* MessageBus::getScheduler() const {
   return scheduler_;
 }
 
-void MessageBus::registerAgent(const std::string& agent_id, agents::AgentBase* agent) {
+void MessageBus::registerAgent(const std::string& agent_id,
+                               agents::AgentBase* agent) {
   if (!agent) {
     throw std::invalid_argument("Cannot register null agent");
   }

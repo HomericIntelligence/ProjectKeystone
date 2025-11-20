@@ -12,12 +12,14 @@ Phase A establishes the foundation for scalable asynchronous agent processing in
 ## Objectives Achieved
 
 ### Week 1: Core Concurrency Components ✅
+
 - [x] Task<T> coroutine type with promise and awaitable support
 - [x] ThreadPool with per-worker queues
 - [x] WorkStealingQueue (lock-free MPMC)
 - [x] Comprehensive unit tests (15 Task, 11 ThreadPool, 11 WorkStealingQueue)
 
 ### Week 2: Work-Stealing Infrastructure ✅
+
 - [x] Enhanced KeystoneMessage with ActionType enumeration
 - [x] Cista serialization with cista::offset::hash_map (fixed metadata)
 - [x] Logger with thread-local LogContext for distributed tracing
@@ -26,6 +28,7 @@ Phase A establishes the foundation for scalable asynchronous agent processing in
 - [x] 56 concurrency unit tests passing
 
 ### Week 3: MessageBus Integration ✅
+
 - [x] Dual-mode MessageBus routing (sync/async)
 - [x] Backward-compatible scheduler integration
 - [x] MessageBusAsync unit tests (6 tests)
@@ -36,11 +39,13 @@ Phase A establishes the foundation for scalable asynchronous agent processing in
 ## Components Delivered
 
 ### 1. WorkStealingScheduler
+
 **File**: `include/concurrency/work_stealing_scheduler.hpp`
 
 A production-ready work-stealing scheduler managing worker threads with lock-free queues:
 
 **Features**:
+
 - Configurable worker count (default: hardware_concurrency)
 - Round-robin work submission for load balancing
 - Targeted submission for affinity-based scheduling
@@ -48,6 +53,7 @@ A production-ready work-stealing scheduler managing worker threads with lock-fre
 - Support for both function and coroutine work items
 
 **API**:
+
 ```cpp
 WorkStealingScheduler scheduler(4);
 scheduler.start();
@@ -66,22 +72,26 @@ scheduler.shutdown();
 ```
 
 **Performance**:
+
 - Heavy load: 1000 work items processed successfully
 - Parallel execution: Verified concurrent execution across workers
 - Work stealing: Confirmed load distribution across idle workers
 
 ### 2. MessageBus Async Integration
+
 **Files**: `include/core/message_bus.hpp`, `src/core/message_bus.cpp`
 
 Dual-mode message routing supporting both synchronous and asynchronous delivery:
 
 **Synchronous Mode** (default, backward compatible):
+
 ```cpp
 MessageBus bus;  // No scheduler
 bus.routeMessage(msg);  // Immediate delivery
 ```
 
 **Asynchronous Mode** (opt-in):
+
 ```cpp
 WorkStealingScheduler scheduler(4);
 scheduler.start();
@@ -90,23 +100,27 @@ bus.routeMessage(msg);  // Async delivery via work-stealing
 ```
 
 **Backward Compatibility**:
+
 - ✅ All 106 Phase 1-3 tests pass without modification
 - ✅ Default behavior unchanged (sync mode)
 - ✅ Runtime mode switching supported
 - ✅ Same agent and message APIs
 
 ### 3. PullOrSteal Awaitable
+
 **Files**: `include/concurrency/pull_or_steal.hpp`, `src/concurrency/pull_or_steal.cpp`
 
 C++20 coroutine awaitable implementing the work-stealing algorithm:
 
 **Algorithm**:
+
 1. Try own queue (LIFO - cache locality)
 2. If empty, steal from other queues (FIFO - fairness)
 3. Round-robin stealing order (load balancing)
 4. Return work item or std::nullopt if shutdown
 
 **Usage**:
+
 ```cpp
 Task<void> workerLoop() {
     while (!shutdown) {
@@ -117,6 +131,7 @@ Task<void> workerLoop() {
 ```
 
 **Tested Scenarios**:
+
 - Pull from own queue (immediate)
 - Steal from victim queue
 - Multiple victim queues
@@ -125,11 +140,13 @@ Task<void> workerLoop() {
 - Timeout variants
 
 ### 4. Logger with Thread-Local Context
+
 **Files**: `include/concurrency/logger.hpp`, `src/concurrency/logger.cpp`
 
 Thread-safe logging with distributed tracing support:
 
 **Features**:
+
 - Built on spdlog for performance
 - Thread-local context (worker_id, agent_id, etc.)
 - Context automatically included in all log messages
@@ -137,6 +154,7 @@ Thread-safe logging with distributed tracing support:
 - Graceful initialization and shutdown
 
 **Usage**:
+
 ```cpp
 Logger::init(spdlog::level::info);
 
@@ -151,16 +169,19 @@ Logger::shutdown();
 ```
 
 ### 5. Enhanced KeystoneMessage
+
 **Files**: `include/core/message.hpp`, `src/core/message.cpp`
 
 Extended message protocol with action types and metadata:
 
 **New Fields**:
+
 - `ActionType action_type` - Categorize messages (Command, Query, Event, Response)
 - `cista::offset::hash_map<...> metadata` - Zero-copy serialization-friendly metadata
 - Factory methods for different action types
 
 **Serialization**:
+
 - Cista offset mode for zero-copy deserialization
 - Fixed hash_map serialization (was using map incorrectly)
 - Binary-compatible message format
@@ -168,6 +189,7 @@ Extended message protocol with action types and metadata:
 ## Test Coverage
 
 ### Test Summary
+
 | Category | Tests | Status |
 |----------|-------|--------|
 | **E2E Tests** | | |
@@ -188,6 +210,7 @@ Extended message protocol with action types and metadata:
 | **Total** | **115** | **✅ 100%** |
 
 ### Phase A E2E Tests
+
 **File**: `tests/e2e/phase_a_async_delegation.cpp`
 
 1. **AsyncDelegationWithWorkStealing**
@@ -207,6 +230,7 @@ Extended message protocol with action types and metadata:
    - Verifies both modes work correctly
 
 ### Phase A Unit Tests
+
 **File**: `tests/unit/test_message_bus_async.cpp`
 
 1. **SynchronousRoutingWithoutScheduler** - Default behavior unchanged
@@ -219,6 +243,7 @@ Extended message protocol with action types and metadata:
 ## Files Modified
 
 ### New Files Created (13 files)
+
 1. `include/concurrency/task.hpp` - Task<T> coroutine type
 2. `src/concurrency/task.cpp` - Task implementation
 3. `include/concurrency/thread_pool.hpp` - ThreadPool header
@@ -234,6 +259,7 @@ Extended message protocol with action types and metadata:
 13. `tests/unit/test_message_bus_async.cpp` - Async routing tests
 
 ### Modified Files (8 files)
+
 1. `include/core/message.hpp` - Added ActionType, metadata
 2. `src/core/message.cpp` - Enhanced message creation
 3. `include/core/message_bus.hpp` - Added scheduler support
@@ -244,12 +270,14 @@ Extended message protocol with action types and metadata:
 8. `tests/e2e/phase_a_async_delegation.cpp` - Phase A E2E tests
 
 ### Documentation Created (2 files)
+
 1. `docs/plan/ASYNC_WORK_STEALING_ARCHITECTURE.md` - Architecture guide
 2. `docs/plan/PHASE_A_SUMMARY.md` - This summary
 
 ## Performance Results
 
 ### Benchmarks
+
 | Test | Configuration | Result | Time |
 |------|---------------|--------|------|
 | Heavy Load | 1000 work items, 2 workers | 100% success | 0.52s |
@@ -260,6 +288,7 @@ Extended message protocol with action types and metadata:
 | Shutdown | 20 pending items, immediate shutdown | All complete | <100ms |
 
 ### Scalability
+
 - **Tested**: 4 workers, 10 agents, 1000 messages
 - **Lock-free**: No contention in work queues
 - **Expected**: Linear scaling with worker count
@@ -268,30 +297,35 @@ Extended message protocol with action types and metadata:
 ## Technical Achievements
 
 ### 1. 100% Backward Compatibility ✅
+
 - All 106 Phase 1-3 tests pass without modification
 - Default behavior unchanged (sync mode)
 - Opt-in async via single `setScheduler()` call
 - No breaking API changes
 
 ### 2. Lock-Free Work Stealing ✅
+
 - `moodycamel::ConcurrentQueue` for MPMC operations
 - No contention in scheduler hot paths
 - Cache-friendly LIFO for own queue
 - Fair FIFO for stealing
 
 ### 3. C++20 Coroutines ✅
+
 - Task<T> with proper promise_type
 - PullOrSteal awaitable for work-stealing
 - Coroutine work items in scheduler
 - Symmetric transfer support (ready for future)
 
 ### 4. Production-Ready Logging ✅
+
 - spdlog integration for performance
 - Thread-local context for distributed tracing
 - Graceful initialization and shutdown
 - Empty string handling for context values
 
 ### 5. Zero-Copy Serialization ✅
+
 - Cista offset mode for KeystoneMessage
 - Fixed hash_map serialization (was using map)
 - Binary-compatible message format
@@ -300,21 +334,25 @@ Extended message protocol with action types and metadata:
 ## Known Limitations
 
 ### 1. Agent Inbox Synchronization
+
 **Issue**: Agent inboxes use per-agent mutexes
 **Impact**: Potential contention with many workers
 **Future**: Migrate to lock-free inbox queues (Phase B)
 
 ### 2. Message Ordering
+
 **Issue**: Async mode does not guarantee FIFO delivery
 **Impact**: Must use msg_id for response correlation
 **Mitigation**: Documentation and test examples provided
 
 ### 3. Worker Affinity
+
 **Issue**: No built-in agent-to-worker affinity
 **Impact**: Cache thrashing if agents migrate across workers
 **Future**: Affinity policies and consistent hashing (Phase C)
 
 ### 4. Network Transport
+
 **Issue**: Cista serialization ready but not used yet
 **Impact**: No inter-node communication
 **Future**: Distributed work-stealing (Phase D)
@@ -322,9 +360,11 @@ Extended message protocol with action types and metadata:
 ## Migration Path Forward
 
 ### Phase B (Weeks 4-6): Agent Coroutine Migration
+
 **Goal**: Convert agents to use coroutines for async operations
 
 **Tasks**:
+
 - [ ] Migrate `BaseAgent::processMessage()` to `Task<Response>`
 - [ ] Enable `co_await` for async operations within agents
 - [ ] Implement agent-level work-stealing (agents as work items)
@@ -332,14 +372,17 @@ Extended message protocol with action types and metadata:
 - [ ] Maintain backward compatibility with sync agents
 
 **Expected Benefits**:
+
 - Agents can suspend while waiting for I/O
 - Higher throughput with same worker count
 - Better resource utilization (no blocking threads)
 
 ### Phase C (Weeks 7-9): Advanced Scheduling
+
 **Goal**: Production-ready scheduling features
 
 **Tasks**:
+
 - [ ] Message priority queues (high/normal/low)
 - [ ] Deadline scheduling (time-sensitive messages)
 - [ ] Agent affinity policies (cache locality)
@@ -347,9 +390,11 @@ Extended message protocol with action types and metadata:
 - [ ] Adaptive worker pool sizing
 
 ### Phase D (Weeks 10-12): Distributed Work-Stealing
+
 **Goal**: Multi-node agent system
 
 **Tasks**:
+
 - [ ] Network transport using Cista serialization
 - [ ] Cross-node work-stealing protocol
 - [ ] Distributed agent registry
@@ -359,6 +404,7 @@ Extended message protocol with action types and metadata:
 ## Success Criteria Met ✅
 
 ### Phase A Requirements
+
 - [x] WorkStealingScheduler with configurable workers ✅
 - [x] Lock-free work-stealing queues ✅
 - [x] C++20 coroutines (Task<T>, PullOrSteal) ✅
@@ -369,6 +415,7 @@ Extended message protocol with action types and metadata:
 - [x] Complete documentation ✅
 
 ### Quality Metrics
+
 - [x] Test pass rate: 100% (115/115) ✅
 - [x] No memory leaks (valgrind clean) ✅
 - [x] Thread-safe (no data races) ✅
@@ -378,26 +425,31 @@ Extended message protocol with action types and metadata:
 ## Lessons Learned
 
 ### 1. Coroutine Lifetime Management
+
 **Issue**: Early tests crashed due to Task<T> destruction before completion
 **Solution**: Keep Task objects alive until after scheduler shutdown
 **Learning**: Coroutine handles become invalid when Task is destroyed
 
 ### 2. Async Message Correlation
+
 **Issue**: FIFO assumption broke in async mode
 **Solution**: Use msg_id for response matching
 **Learning**: Cannot assume message ordering in work-stealing systems
 
 ### 3. Cista Serialization Types
+
 **Issue**: Used `cista::offset::map` (wrong type)
 **Solution**: Use `cista::offset::hash_map` for metadata
 **Learning**: Offset mode requires offset-compatible containers
 
 ### 4. Logger Empty Strings
+
 **Issue**: spdlog format string error with empty context values
 **Solution**: Use `fmt::runtime()` for runtime format strings
 **Learning**: Always handle empty/null values in logging infrastructure
 
 ### 5. Build Dependencies
+
 **Issue**: Missing concurrentqueue includes in keystone_core
 **Solution**: Add transitive dependencies to all consuming targets
 **Learning**: CMake dependency chains must be explicit

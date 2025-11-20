@@ -16,8 +16,9 @@ namespace concurrency {
 /**
  * @brief ThreadPool - Fixed-size thread pool with coroutine support
  *
- * This thread pool manages a fixed number of worker threads (typically one per CPU core)
- * and provides the ability to submit both regular functions and coroutine handles for execution.
+ * This thread pool manages a fixed number of worker threads (typically one per
+ * CPU core) and provides the ability to submit both regular functions and
+ * coroutine handles for execution.
  *
  * Features:
  * - Fixed-size worker pool

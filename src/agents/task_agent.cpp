@@ -1,11 +1,11 @@
 #include "agents/task_agent.hpp"
 
-#include "core/metrics.hpp"
-
 #include <array>
 #include <cstdio>
 #include <sstream>
 #include <stdexcept>
+
+#include "core/metrics.hpp"
 
 namespace keystone {
 namespace agents {
@@ -21,7 +21,8 @@ core::Response TaskAgent::processMessage(const core::KeystoneMessage& msg) {
     auto time_remaining = msg.getTimeUntilDeadline();
     (void)time_remaining;  // Suppress unused warning - reserved for future use
     // Deadline passed - time_remaining will be 0, we want the absolute value
-    // For now, record as 0ms late (we don't track when it was supposed to be processed)
+    // For now, record as 0ms late (we don't track when it was supposed to be
+    // processed)
     core::Metrics::getInstance().recordDeadlineMiss(msg.msg_id, 0);
   }
 
@@ -36,11 +37,10 @@ core::Response TaskAgent::processMessage(const core::KeystoneMessage& msg) {
     auto response = core::Response::createSuccess(msg, agent_id_, result);
 
     // Send response back to sender via MessageBus
-    auto response_msg =
-        core::KeystoneMessage::create(agent_id_,
-                                      msg.sender_id,  // Route back to original sender
-                                      "response",
-                                      result);
+    auto response_msg = core::KeystoneMessage::create(
+        agent_id_,
+        msg.sender_id,  // Route back to original sender
+        "response", result);
     response_msg.msg_id = msg.msg_id;  // Keep same msg_id for tracking
 
     // MessageBus routes it automatically
@@ -53,10 +53,9 @@ core::Response TaskAgent::processMessage(const core::KeystoneMessage& msg) {
     auto response = core::Response::createError(msg, agent_id_, e.what());
 
     // Send error response back via MessageBus
-    auto response_msg = core::KeystoneMessage::create(agent_id_,
-                                                      msg.sender_id,
-                                                      "response",
-                                                      std::string("ERROR: ") + e.what());
+    auto response_msg =
+        core::KeystoneMessage::create(agent_id_, msg.sender_id, "response",
+                                      std::string("ERROR: ") + e.what());
     response_msg.msg_id = msg.msg_id;
 
     sendMessage(response_msg);

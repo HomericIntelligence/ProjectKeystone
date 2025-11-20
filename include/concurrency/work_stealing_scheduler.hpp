@@ -1,20 +1,21 @@
 #pragma once
 
-#include "concurrency/logger.hpp"
-#include "concurrency/pull_or_steal.hpp"
-#include "concurrency/work_stealing_queue.hpp"
-
 #include <atomic>
 #include <functional>
 #include <memory>
 #include <thread>
 #include <vector>
 
+#include "concurrency/logger.hpp"
+#include "concurrency/pull_or_steal.hpp"
+#include "concurrency/work_stealing_queue.hpp"
+
 namespace keystone {
 namespace concurrency {
 
 /**
- * @brief WorkStealingScheduler - Orchestrates work-stealing across worker threads
+ * @brief WorkStealingScheduler - Orchestrates work-stealing across worker
+ * threads
  *
  * This scheduler manages a fixed pool of worker threads, each with its own
  * work-stealing queue. Workers try to pop from their own queue first (LIFO),
@@ -48,11 +49,12 @@ class WorkStealingScheduler {
    * @param num_workers Number of worker threads (default: hardware_concurrency)
    * @param enable_cpu_affinity Pin worker threads to CPU cores (default: false)
    *
-   * Phase D: CPU affinity improves cache locality by preventing thread migration.
-   * When enabled, worker i is pinned to CPU core (i % num_cores).
+   * Phase D: CPU affinity improves cache locality by preventing thread
+   * migration. When enabled, worker i is pinned to CPU core (i % num_cores).
    */
-  explicit WorkStealingScheduler(size_t num_workers = std::thread::hardware_concurrency(),
-                                 bool enable_cpu_affinity = false);
+  explicit WorkStealingScheduler(
+      size_t num_workers = std::thread::hardware_concurrency(),
+      bool enable_cpu_affinity = false);
 
   /**
    * @brief Destructor - ensures graceful shutdown

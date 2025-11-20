@@ -1,7 +1,8 @@
 #include "monitoring/prometheus_exporter.hpp"
 
-#include "core/config.hpp"  // FIX m3: Centralized configuration
-#include "core/metrics.hpp"
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
 #include <array>
 #include <cstring>
@@ -9,9 +10,8 @@
 #include <sstream>
 #include <utility>  // FIX: For std::exchange
 
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <unistd.h>
+#include "core/config.hpp"  // FIX m3: Centralized configuration
+#include "core/metrics.hpp"
 
 namespace keystone {
 namespace monitoring {
@@ -35,7 +35,8 @@ class SocketHandle {
   SocketHandle(const SocketHandle&) = delete;
   SocketHandle& operator=(const SocketHandle&) = delete;
 
-  SocketHandle(SocketHandle&& other) noexcept : fd_(std::exchange(other.fd_, -1)) {}
+  SocketHandle(SocketHandle&& other) noexcept
+      : fd_(std::exchange(other.fd_, -1)) {}
 
   SocketHandle& operator=(SocketHandle&& other) noexcept {
     if (this != &other) {
@@ -56,9 +57,7 @@ class SocketHandle {
 
 PrometheusExporter::PrometheusExporter(int port) : port_(port) {}
 
-PrometheusExporter::~PrometheusExporter() {
-  stop();
-}
+PrometheusExporter::~PrometheusExporter() { stop(); }
 
 bool PrometheusExporter::start() {
   if (running_.load()) {
@@ -105,7 +104,8 @@ bool PrometheusExporter::start() {
 
   // Start server thread
   running_.store(true);
-  server_thread_ = std::make_unique<std::thread>(&PrometheusExporter::serverLoop, this);
+  server_thread_ =
+      std::make_unique<std::thread>(&PrometheusExporter::serverLoop, this);
 
   std::cout << "Prometheus exporter started on port " << port_ << std::endl;
   return true;
@@ -132,13 +132,9 @@ void PrometheusExporter::stop() {
   std::cout << "Prometheus exporter stopped" << std::endl;
 }
 
-bool PrometheusExporter::isRunning() const {
-  return running_.load();
-}
+bool PrometheusExporter::isRunning() const { return running_.load(); }
 
-int PrometheusExporter::getPort() const {
-  return port_;
-}
+int PrometheusExporter::getPort() const { return port_; }
 
 void PrometheusExporter::serverLoop() {
   while (running_.load()) {
@@ -146,7 +142,8 @@ void PrometheusExporter::serverLoop() {
     socklen_t client_len = sizeof(client_address);
 
     // Accept connection
-    int client_fd = accept(server_fd_, (struct sockaddr*)&client_address, &client_len);
+    int client_fd =
+        accept(server_fd_, (struct sockaddr*)&client_address, &client_len);
     if (client_fd < 0) {
       if (running_.load()) {
         std::cerr << "Accept failed" << std::endl;
@@ -159,11 +156,13 @@ void PrometheusExporter::serverLoop() {
 
     // FIX m4: Set socket read timeout to prevent slowloris attacks
     struct timeval timeout;
-    timeout.tv_sec =
-        std::chrono::duration_cast<std::chrono::seconds>(core::Config::HTTP_READ_TIMEOUT).count();
+    timeout.tv_sec = std::chrono::duration_cast<std::chrono::seconds>(
+                         core::Config::HTTP_READ_TIMEOUT)
+                         .count();
     timeout.tv_usec = 0;
 
-    if (setsockopt(client_socket.get(), SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
+    if (setsockopt(client_socket.get(), SOL_SOCKET, SO_RCVTIMEO, &timeout,
+                   sizeof(timeout)) < 0) {
       std::cerr << "Failed to set socket read timeout" << std::endl;
       continue;  // Still try to handle request without timeout
     }
@@ -193,8 +192,10 @@ void PrometheusExporter::handleRequest(int client_fd) {
 
   // FIX m4: Validate minimum request size (at least "GET /")
   if (bytes_read < 5) {
-    std::string bad_request = "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n";
-    [[maybe_unused]] auto result = write(client_fd, bad_request.c_str(), bad_request.size());
+    std::string bad_request =
+        "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n";
+    [[maybe_unused]] auto result =
+        write(client_fd, bad_request.c_str(), bad_request.size());
     return;
   }
 
@@ -204,7 +205,8 @@ void PrometheusExporter::handleRequest(int client_fd) {
   }
 
   // Check if this is a GET request to /metrics
-  buffer[bytes_read] = '\0';  // ✅ Safe: bytes_read is guaranteed < buffer.size()
+  buffer[bytes_read] =
+      '\0';  // ✅ Safe: bytes_read is guaranteed < buffer.size()
   std::string request(buffer.data());
 
   // FIX m4: Validate HTTP method (only accept GET)
@@ -213,9 +215,8 @@ void PrometheusExporter::handleRequest(int client_fd) {
         "HTTP/1.1 405 Method Not Allowed\r\n"
         "Allow: GET\r\n"
         "Content-Length: 0\r\n\r\n";
-    [[maybe_unused]] auto result = write(client_fd,
-                                         method_not_allowed.c_str(),
-                                         method_not_allowed.size());
+    [[maybe_unused]] auto result =
+        write(client_fd, method_not_allowed.c_str(), method_not_allowed.size());
     return;
   }
 
@@ -234,11 +235,14 @@ void PrometheusExporter::handleRequest(int client_fd) {
     response << metrics;
 
     std::string response_str = response.str();
-    [[maybe_unused]] auto result = write(client_fd, response_str.c_str(), response_str.size());
+    [[maybe_unused]] auto result =
+        write(client_fd, response_str.c_str(), response_str.size());
   } else {
     // Send 404 for other paths
-    std::string not_found = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n";
-    [[maybe_unused]] auto result = write(client_fd, not_found.c_str(), not_found.size());
+    std::string not_found =
+        "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n";
+    [[maybe_unused]] auto result =
+        write(client_fd, not_found.c_str(), not_found.size());
   }
 }
 
@@ -250,21 +254,28 @@ std::string PrometheusExporter::generateMetrics() {
 
   // Messages sent (counters by priority)
   auto priority_stats = metrics.getPriorityStats();
-  ss << "# HELP hmas_messages_total Total number of messages sent by priority\n";
+  ss << "# HELP hmas_messages_total Total number of messages sent by "
+        "priority\n";
   ss << "# TYPE hmas_messages_total counter\n";
-  ss << "hmas_messages_total{priority=\"high\"} " << priority_stats.high_count << "\n";
-  ss << "hmas_messages_total{priority=\"normal\"} " << priority_stats.normal_count << "\n";
-  ss << "hmas_messages_total{priority=\"low\"} " << priority_stats.low_count << "\n";
+  ss << "hmas_messages_total{priority=\"high\"} " << priority_stats.high_count
+     << "\n";
+  ss << "hmas_messages_total{priority=\"normal\"} "
+     << priority_stats.normal_count << "\n";
+  ss << "hmas_messages_total{priority=\"low\"} " << priority_stats.low_count
+     << "\n";
 
   // Messages processed (counter)
-  ss << "# HELP hmas_messages_processed_total Total number of messages processed\n";
+  ss << "# HELP hmas_messages_processed_total Total number of messages "
+        "processed\n";
   ss << "# TYPE hmas_messages_processed_total counter\n";
-  ss << "hmas_messages_processed_total " << metrics.getTotalMessagesProcessed() << "\n";
+  ss << "hmas_messages_processed_total " << metrics.getTotalMessagesProcessed()
+     << "\n";
 
   // Message latency (gauge - average)
   auto avg_latency = metrics.getAverageLatencyUs();
   if (avg_latency.has_value()) {
-    ss << "# HELP hmas_message_latency_microseconds Average message processing latency\n";
+    ss << "# HELP hmas_message_latency_microseconds Average message processing "
+          "latency\n";
     ss << "# TYPE hmas_message_latency_microseconds gauge\n";
     ss << "hmas_message_latency_microseconds " << avg_latency.value() << "\n";
   }
@@ -275,9 +286,11 @@ std::string PrometheusExporter::generateMetrics() {
   ss << "hmas_queue_depth_max " << metrics.getMaxQueueDepth() << "\n";
 
   // Worker utilization (gauge - percentage)
-  ss << "# HELP hmas_worker_utilization_percent Worker utilization percentage\n";
+  ss << "# HELP hmas_worker_utilization_percent Worker utilization "
+        "percentage\n";
   ss << "# TYPE hmas_worker_utilization_percent gauge\n";
-  ss << "hmas_worker_utilization_percent " << metrics.getWorkerUtilization() << "\n";
+  ss << "hmas_worker_utilization_percent " << metrics.getWorkerUtilization()
+     << "\n";
 
   // Messages per second (gauge)
   ss << "# HELP hmas_messages_per_second Message throughput\n";
@@ -287,7 +300,8 @@ std::string PrometheusExporter::generateMetrics() {
   // Deadline misses (counter)
   ss << "# HELP hmas_deadline_misses_total Total number of deadline misses\n";
   ss << "# TYPE hmas_deadline_misses_total counter\n";
-  ss << "hmas_deadline_misses_total " << metrics.getTotalDeadlineMisses() << "\n";
+  ss << "hmas_deadline_misses_total " << metrics.getTotalDeadlineMisses()
+     << "\n";
 
   // Deadline miss time (gauge - average)
   auto avg_miss = metrics.getAverageDeadlineMissMs();
@@ -300,7 +314,9 @@ std::string PrometheusExporter::generateMetrics() {
   // Uptime (gauge - seconds since start)
   static auto start_time = std::chrono::steady_clock::now();
   auto now = std::chrono::steady_clock::now();
-  auto uptime_seconds = std::chrono::duration_cast<std::chrono::seconds>(now - start_time).count();
+  auto uptime_seconds =
+      std::chrono::duration_cast<std::chrono::seconds>(now - start_time)
+          .count();
   ss << "# HELP hmas_uptime_seconds HMAS uptime in seconds\n";
   ss << "# TYPE hmas_uptime_seconds gauge\n";
   ss << "hmas_uptime_seconds " << uptime_seconds << "\n";

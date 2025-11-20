@@ -1,9 +1,9 @@
 #pragma once
 
-#include "core/message.hpp"
-
 #include <optional>
 #include <vector>
+
+#include "core/message.hpp"
 
 namespace keystone {
 namespace core {
@@ -11,8 +11,9 @@ namespace core {
 /**
  * @brief Thread-local message pool for reducing allocation overhead (Phase D.2)
  *
- * Reuses KeystoneMessage objects to reduce allocation pressure in high-throughput
- * scenarios. Each thread has its own pool, avoiding synchronization overhead.
+ * Reuses KeystoneMessage objects to reduce allocation pressure in
+ * high-throughput scenarios. Each thread has its own pool, avoiding
+ * synchronization overhead.
  *
  * Design:
  * - Thread-local storage (no mutex needed)

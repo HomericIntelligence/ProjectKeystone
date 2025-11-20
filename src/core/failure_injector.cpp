@@ -40,7 +40,8 @@ void FailureInjector::injectAgentTimeout(const std::string& agent_id,
   total_failures_++;
 }
 
-std::chrono::milliseconds FailureInjector::getAgentTimeout(const std::string& agent_id) const {
+std::chrono::milliseconds FailureInjector::getAgentTimeout(
+    const std::string& agent_id) const {
   std::lock_guard<std::mutex> lock(timeout_mutex_);
   auto it = timeout_agents_.find(agent_id);
   if (it != timeout_agents_.end()) {
@@ -85,9 +86,7 @@ bool FailureInjector::shouldAgentFail(const std::string& agent_id) {
 // Statistics
 // ============================================================================
 
-int FailureInjector::getTotalFailures() const {
-  return total_failures_.load();
-}
+int FailureInjector::getTotalFailures() const { return total_failures_.load(); }
 
 std::vector<std::string> FailureInjector::getFailedAgents() const {
   std::lock_guard<std::mutex> lock(crashed_mutex_);

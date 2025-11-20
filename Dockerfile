@@ -11,17 +11,24 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y \
     build-essential \
     cmake \
-    g++-12 \
-    gcc-12 \
+    clang-18 \
+    clang++-18 \
+    libc++-18-dev \
+    libc++abi-18-dev \
     git \
     libgtest-dev \
     ninja-build \
-    && update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 100 \
-    && update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 100 \
+    lcov \
+    bc \
+    gcovr \
+    && update-alternatives --install /usr/bin/clang clang /usr/bin/clang-18 100 \
+    && update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-18 100 \
+    && update-alternatives --install /usr/bin/cc cc /usr/bin/clang-18 100 \
+    && update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++-18 100 \
     && rm -rf /var/lib/apt/lists/*
 
 # Verify C++20 support
-RUN g++ --version && cmake --version
+RUN clang++ --version && cmake --version
 
 # Set working directory
 WORKDIR /workspace
@@ -47,14 +54,16 @@ RUN apt-get update && apt-get install -y \
     libstdc++6 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy built executables from builder
-COPY --from=builder /workspace/build/phase1_e2e_tests /usr/local/bin/
+# Copy built test executables from builder
+COPY --from=builder /workspace/build/basic_delegation_tests /usr/local/bin/
+COPY --from=builder /workspace/build/module_coordination_tests /usr/local/bin/
+COPY --from=builder /workspace/build/component_coordination_tests /usr/local/bin/
 
 # Set working directory
 WORKDIR /app
 
-# Default command: run tests
-CMD ["phase1_e2e_tests"]
+# Default command: run all tests
+CMD ["sh", "-c", "basic_delegation_tests && module_coordination_tests && component_coordination_tests"]
 
 # Stage 3: Production environment (Kubernetes deployment)
 FROM ubuntu:24.04 AS production
@@ -72,14 +81,15 @@ RUN groupadd -g 1000 hmas && \
     mkdir -p /app && \
     chown -R hmas:hmas /app
 
-# Copy built executables from builder
-COPY --from=builder /workspace/build/phase1_e2e_tests /usr/local/bin/
-COPY --from=builder /workspace/build/phase2_e2e_tests /usr/local/bin/
-COPY --from=builder /workspace/build/phase3_e2e_tests /usr/local/bin/
-COPY --from=builder /workspace/build/phase_a_e2e_tests /usr/local/bin/
-COPY --from=builder /workspace/build/phase_4_e2e_tests /usr/local/bin/
-COPY --from=builder /workspace/build/phase_5_e2e_tests /usr/local/bin/
-COPY --from=builder /workspace/build/phase_d3_e2e_tests /usr/local/bin/
+# Copy built test executables from builder
+COPY --from=builder /workspace/build/basic_delegation_tests /usr/local/bin/
+COPY --from=builder /workspace/build/module_coordination_tests /usr/local/bin/
+COPY --from=builder /workspace/build/component_coordination_tests /usr/local/bin/
+COPY --from=builder /workspace/build/async_delegation_tests /usr/local/bin/
+COPY --from=builder /workspace/build/async_agents_tests /usr/local/bin/
+COPY --from=builder /workspace/build/distributed_hierarchy_tests /usr/local/bin/
+COPY --from=builder /workspace/build/multi_component_tests /usr/local/bin/
+COPY --from=builder /workspace/build/chaos_engineering_tests /usr/local/bin/
 
 # Copy server wrapper script
 COPY scripts/hmas-server.sh /usr/local/bin/hmas-server.sh

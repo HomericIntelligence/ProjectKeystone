@@ -1,13 +1,13 @@
 #pragma once
 
-#include "async_base_agent.hpp"
-#include "concurrency/task.hpp"
-
 #include <cstdio>
 #include <future>
 #include <memory>
 #include <utility>
 #include <vector>
+
+#include "async_base_agent.hpp"
+#include "concurrency/task.hpp"
 
 namespace keystone {
 namespace agents {
@@ -36,15 +36,17 @@ class AsyncTaskAgent : public AsyncBaseAgent {
    * @param msg Message containing command to execute
    * @return concurrency::Task<core::Response> Coroutine producing response
    */
-  concurrency::Task<core::Response> processMessage(const core::KeystoneMessage& msg) override;
+  concurrency::Task<core::Response> processMessage(
+      const core::KeystoneMessage& msg) override;
 
   /**
    * @brief Get command execution history
    *
-   * @return const std::vector<std::pair<std::string, std::string>>& History of (command, result)
-   * pairs
+   * @return const std::vector<std::pair<std::string, std::string>>& History of
+   * (command, result) pairs
    */
-  const std::vector<std::pair<std::string, std::string>>& getCommandHistory() const {
+  const std::vector<std::pair<std::string, std::string>>& getCommandHistory()
+      const {
     return command_log_;
   }
 

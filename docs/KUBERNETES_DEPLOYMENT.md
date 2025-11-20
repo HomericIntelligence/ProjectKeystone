@@ -11,6 +11,7 @@ This guide covers deploying ProjectKeystone HMAS to Kubernetes with production-r
 ## Prerequisites
 
 ### Required Tools
+
 - **Docker** 20.10+ - For building container images
 - **kubectl** 1.24+ - Kubernetes command-line tool
 - **Kubernetes cluster** - One of:
@@ -102,15 +103,18 @@ projectkeystone namespace
 **Image**: `projectkeystone:latest` (production stage)
 
 **Ports**:
+
 - `8080`: HTTP health checks (`/healthz`, `/ready`)
 - `9090`: Prometheus metrics (`/metrics`)
 - `50051`: gRPC (for distributed deployment in Phase 8)
 
 **Resource Limits**:
+
 - **Requests**: 500m CPU, 512Mi memory
 - **Limits**: 2000m CPU (2 cores), 2Gi memory
 
 **Security**:
+
 - Runs as non-root user (UID 1000)
 - Read-only root filesystem (future enhancement)
 - Minimal capabilities
@@ -122,6 +126,7 @@ projectkeystone namespace
 ### 1. Namespace (`k8s/namespace.yaml`)
 
 Creates `projectkeystone` namespace with resource quotas:
+
 - Max 8 CPU cores (requests)
 - Max 16 CPU cores (limits)
 - Max 16 GB memory (requests)
@@ -132,6 +137,7 @@ Creates `projectkeystone` namespace with resource quotas:
 ### 2. ConfigMap (`k8s/configmap.yaml`)
 
 Configuration for HMAS agents:
+
 - Worker count (default: 4)
 - Heartbeat intervals
 - Circuit breaker settings
@@ -139,6 +145,7 @@ Configuration for HMAS agents:
 - Feature flags
 
 **Environment Variables**:
+
 ```yaml
 WORKER_COUNT: "4"
 LOG_LEVEL: "info"
@@ -149,6 +156,7 @@ METRICS_ENABLED: "true"
 ### 3. Deployment (`k8s/deployment.yaml`)
 
 **Key Features**:
+
 - **2 replicas** for high availability
 - **Rolling update strategy** (maxSurge: 1, maxUnavailable: 0)
 - **Pod anti-affinity** (spread across nodes)
@@ -160,11 +168,13 @@ METRICS_ENABLED: "true"
 ### 4. Service (`k8s/service.yaml`)
 
 **hmas Service** (ClusterIP):
+
 - Exposes pods within cluster
 - Load balances across replicas
 - Prometheus annotations for scraping
 
 **hmas-headless Service**:
+
 - Direct pod-to-pod communication
 - Used for distributed work-stealing (Phase 8)
 
@@ -181,6 +191,7 @@ METRICS_ENABLED: "true"
 **Failure Threshold**: 3 (restart after 3 failures)
 
 **Success Response**:
+
 ```json
 {"status":"healthy"}
 ```
@@ -194,6 +205,7 @@ METRICS_ENABLED: "true"
 **Failure Threshold**: 3 (remove from service after 3 failures)
 
 **Success Response**:
+
 ```json
 {"status":"ready"}
 ```
@@ -216,6 +228,7 @@ METRICS_ENABLED: "true"
 **Format**: Prometheus text format
 
 **Available Metrics** (Phase 6.1 placeholder):
+
 ```
 # HELP hmas_uptime_seconds HMAS uptime in seconds
 # TYPE hmas_uptime_seconds counter
@@ -247,16 +260,19 @@ kubectl rollout restart deployment/hmas -n projectkeystone
 ### Common Configurations
 
 **Increase workers** (more parallelism):
+
 ```yaml
 WORKER_COUNT: "8"
 ```
 
 **Enable debug logging**:
+
 ```yaml
 LOG_LEVEL: "debug"
 ```
 
 **Adjust heartbeat sensitivity**:
+
 ```yaml
 HEARTBEAT_INTERVAL_MS: "500"
 HEARTBEAT_TIMEOUT_MS: "2000"
@@ -279,6 +295,7 @@ kubectl get pods -n projectkeystone
 ### Vertical Scaling (More Resources)
 
 Edit `k8s/deployment.yaml`:
+
 ```yaml
 resources:
   requests:
@@ -290,6 +307,7 @@ resources:
 ```
 
 Apply changes:
+
 ```bash
 kubectl apply -f k8s/deployment.yaml
 kubectl rollout restart deployment/hmas -n projectkeystone
@@ -313,6 +331,7 @@ kubectl logs -n projectkeystone <pod-name> --tail=50
 ```
 
 **Common Issues**:
+
 - **ImagePullBackOff**: Image not found (build and tag correctly)
 - **CrashLoopBackOff**: Container crashes on startup (check logs)
 - **Pending**: Insufficient resources (check node capacity)
@@ -470,16 +489,19 @@ kubectl rollout status deployment/hmas -n projectkeystone
 ## Next Steps
 
 ### Phase 6.2: Helm Chart
+
 - Template Kubernetes manifests
 - Version management
 - Easy upgrades
 
 ### Phase 6.3: Prometheus Monitoring
+
 - Full metrics implementation
 - Prometheus integration
 - Grafana dashboards
 
 ### Phase 6.4: Centralized Logging
+
 - Loki log aggregation
 - Structured logging
 - Log retention policies
@@ -507,6 +529,7 @@ kubectl rollout status deployment/hmas -n projectkeystone
 ## Support
 
 For issues or questions:
+
 - Check logs: `kubectl logs -n projectkeystone deployment/hmas`
 - Check events: `kubectl get events -n projectkeystone`
 - Refer to Phase 6 plan: `docs/plan/PHASE_6_PLAN.md`

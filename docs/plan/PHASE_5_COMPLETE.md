@@ -9,7 +9,8 @@
 
 ## Executive Summary
 
-Phase 5 successfully implemented a comprehensive **Chaos Engineering infrastructure** for the ProjectKeystone HMAS. The system can now:
+Phase 5 successfully implemented a comprehensive **Chaos Engineering infrastructure** for the
+ProjectKeystone HMAS. The system can now:
 
 - **Simulate agent failures** with recovery mechanisms
 - **Create network partitions** (split-brain scenarios)
@@ -45,6 +46,7 @@ All components are **thread-safe**, fully tested, and integrated into the existi
    - Modified `receiveMessage()` to reject messages when failed
 
 **Test Coverage**:
+
 - **8 E2E tests** in `phase_5_chaos_engineering.cpp`
   - `FailedAgentRejectsMessages`
   - `FailedAgentCanRecover`
@@ -57,6 +59,7 @@ All components are **thread-safe**, fully tested, and integrated into the existi
 - **17 unit tests** in `test_failure_injector.cpp`
 
 **Key Learnings**:
+
 - Failed agents return error responses instead of silently failing
 - System continues operating with healthy agents (graceful degradation)
 - Atomic flags (`std::atomic<bool>`) ensure thread-safe failure state
@@ -77,6 +80,7 @@ All components are **thread-safe**, fully tested, and integrated into the existi
    - Modified `send()` to drop messages across partition boundaries
 
 **Test Coverage**:
+
 - **5 E2E tests** in `phase_5_chaos_engineering.cpp`
   - `CreateAndHealPartition`
   - `MessagesDroppedAcrossPartition`
@@ -85,6 +89,7 @@ All components are **thread-safe**, fully tested, and integrated into the existi
   - `AsymmetricPartition` (3 nodes in partition A, 1 in partition B)
 
 **Key Learnings**:
+
 - Partitions are bidirectional: A→B and B→A both blocked
 - Nodes within same partition can still communicate
 - Partition healing restores full connectivity
@@ -108,6 +113,7 @@ All components are **thread-safe**, fully tested, and integrated into the existi
    - Statistics: total retries, successes, failures
 
 **Test Coverage**:
+
 - **6 E2E tests** in `phase_5_chaos_engineering.cpp`
   - `BasicRetryPolicy`
   - `MessageLossWithSimulatedNetwork`
@@ -118,11 +124,13 @@ All components are **thread-safe**, fully tested, and integrated into the existi
 - **16 unit tests** in `test_retry_policy.cpp`
 
 **Key Metrics**:
+
 - Default: 3 max attempts, 100ms initial delay, 2.0 backoff multiplier
 - Retry sequence: 100ms → 200ms → 400ms → 800ms (exponential growth)
 - Max delay cap prevents excessive wait times
 
 **Key Learnings**:
+
 - First attempt doesn't count as a retry (retry count starts at second attempt)
 - Each message ID tracked independently
 - Thread-safe with mutex-protected state
@@ -157,6 +165,7 @@ All components are **thread-safe**, fully tested, and integrated into the existi
    - Automatic transition to HALF_OPEN after timeout
 
 **Test Coverage**:
+
 - **6 unit tests** in `test_heartbeat_monitor.cpp`
   - `RecordHeartbeat`
   - `DetectFailure`
@@ -173,6 +182,7 @@ All components are **thread-safe**, fully tested, and integrated into the existi
   - `ManualReset`
 
 **Circuit Breaker State Machine**:
+
 ```
 CLOSED (normal operation)
    │
@@ -189,6 +199,7 @@ HALF_OPEN (testing recovery)
 ```
 
 **Key Learnings**:
+
 - HeartbeatMonitor detects failures passively (no active polling)
 - CircuitBreaker prevents cascading failures by fast-failing
 - Both components track per-target state independently
@@ -199,6 +210,7 @@ HALF_OPEN (testing recovery)
 ## Test Results
 
 ### Overall Test Counts
+
 ```
 Total Tests: 329/329 passing (100%)
 
@@ -215,6 +227,7 @@ Test Breakdown:
 ```
 
 ### Phase 5 Test Breakdown
+
 ```
 E2E Tests: 19
   - Phase 5.1: 8 tests (agent failures)
@@ -230,6 +243,7 @@ Unit Tests: 47
 ```
 
 ### Test Execution Time
+
 ```
 Total Test time (real) = 39.37 sec
 
@@ -243,18 +257,21 @@ Skipped Tests: 5 (ProfilingTest suite - intentionally disabled)
 ### Files Created
 
 **Headers**:
+
 - `include/core/failure_injector.hpp` (193 lines)
 - `include/core/retry_policy.hpp` (173 lines)
 - `include/core/heartbeat_monitor.hpp` (161 lines)
 - `include/core/circuit_breaker.hpp` (202 lines)
 
 **Implementation**:
+
 - `src/core/failure_injector.cpp` (177 lines)
 - `src/core/retry_policy.cpp` (148 lines)
 - `src/core/heartbeat_monitor.cpp` (144 lines)
 - `src/core/circuit_breaker.cpp` (226 lines)
 
 **Tests**:
+
 - `tests/e2e/phase_5_chaos_engineering.cpp` (927 lines total)
 - `tests/unit/test_failure_injector.cpp` (254 lines)
 - `tests/unit/test_retry_policy.cpp` (246 lines)
@@ -268,21 +285,25 @@ Skipped Tests: 5 (ProfilingTest suite - intentionally disabled)
 ## Key Design Patterns
 
 ### 1. Chaos Engineering Pattern
+
 - **FailureInjector**: Centralized failure injection
 - **Seeded RNG**: Reproducible failure scenarios
 - **Statistics Tracking**: Observable failure patterns
 
 ### 2. Exponential Backoff Pattern
+
 - **RetryPolicy**: Retry delays grow exponentially
 - **Max Delay Cap**: Prevents excessive wait times
 - **Per-Message Tracking**: Independent retry state
 
 ### 3. Circuit Breaker Pattern (Martin Fowler)
+
 - **Three-State Machine**: CLOSED → OPEN → HALF_OPEN → CLOSED
 - **Fast Fail**: Reject requests when circuit open
 - **Automatic Recovery Testing**: HALF_OPEN state tests service health
 
 ### 4. Heartbeat Pattern
+
 - **Passive Monitoring**: Agents send periodic heartbeats
 - **Timeout Detection**: Missing heartbeats indicate failure
 - **Automatic Recovery**: Heartbeat resumption detected
@@ -294,16 +315,19 @@ Skipped Tests: 5 (ProfilingTest suite - intentionally disabled)
 All Phase 5 components are **thread-safe**:
 
 ### Atomic Operations
+
 - `std::atomic<bool>` for simple flags (failed state, partitioned state)
 - `std::atomic<int>` for counters (total failures, total retries)
 - `std::atomic<size_t>` for statistics (dropped messages)
 
 ### Mutex-Protected State
+
 - `std::mutex` for complex state (retry attempts map, circuit status map)
 - `std::lock_guard<std::mutex>` for RAII-based locking
 - No raw lock/unlock (prevents deadlocks)
 
 ### Concurrent Access Testing
+
 - All components tested with concurrent access
 - No data races detected (verified via TSan in previous phases)
 
@@ -312,16 +336,19 @@ All Phase 5 components are **thread-safe**:
 ## Integration Points
 
 ### MessageBus Integration
+
 - FailureInjector can be attached to AsyncBaseAgent
 - Failed agents reject messages via MessageBus
 - Circuit breaker can wrap message sending
 
 ### SimulatedNetwork Integration
+
 - Network partitions drop messages in `send()`
 - Partition statistics tracked separately
 - Compatible with existing packet loss simulation
 
 ### Agent Hierarchy Integration
+
 - All async agents inherit failure modes from AsyncBaseAgent
 - ChiefArchitect, ComponentLead, ModuleLead, TaskAgent all support failure injection
 - Graceful degradation tested across all hierarchy levels
@@ -331,21 +358,25 @@ All Phase 5 components are **thread-safe**:
 ## Performance Characteristics
 
 ### FailureInjector
+
 - O(1) crash check (hash map lookup)
 - O(1) timeout check (hash map lookup)
 - O(n) for getFailedAgents() where n = number of crashed agents
 
 ### RetryPolicy
+
 - O(1) shouldRetry check (hash map lookup)
 - O(1) delay calculation (exponential formula)
 - O(log n) attempt tracking (map insertion)
 
 ### HeartbeatMonitor
+
 - O(1) recordHeartbeat (map update)
 - O(n) checkAgents where n = number of registered agents
 - O(1) isAlive check (map lookup + time comparison)
 
 ### CircuitBreaker
+
 - O(1) allowRequest (map lookup + state check)
 - O(1) recordSuccess/recordFailure (map update)
 - O(n) getOpenCircuitCount where n = number of tracked targets
@@ -355,6 +386,7 @@ All Phase 5 components are **thread-safe**:
 ## Chaos Engineering Scenarios Tested
 
 ### Agent Failures
+
 - ✅ Single agent crash
 - ✅ Multiple concurrent crashes
 - ✅ Agent recovery after crash
@@ -362,6 +394,7 @@ All Phase 5 components are **thread-safe**:
 - ✅ Graceful degradation with partial failures
 
 ### Network Failures
+
 - ✅ Symmetric partition (2 nodes vs 2 nodes)
 - ✅ Asymmetric partition (3 nodes vs 1 node)
 - ✅ Partition healing
@@ -369,6 +402,7 @@ All Phase 5 components are **thread-safe**:
 - ✅ Work distribution in partitioned cluster
 
 ### Message Loss
+
 - ✅ Random packet loss (20% loss rate)
 - ✅ Exponential backoff retries
 - ✅ Retry success after transient failures
@@ -376,6 +410,7 @@ All Phase 5 components are **thread-safe**:
 - ✅ Combined partition + packet loss
 
 ### Recovery Mechanisms
+
 - ✅ Heartbeat timeout detection
 - ✅ Heartbeat-based recovery detection
 - ✅ Circuit breaker opening after failures
@@ -388,16 +423,19 @@ All Phase 5 components are **thread-safe**:
 ## Documentation
 
 ### Code Documentation
+
 - All classes fully documented with Doxygen comments
 - Usage examples in header files
 - State machine diagrams in comments
 
 ### Test Documentation
+
 - Each test has descriptive name
 - Test comments explain failure scenarios
 - E2E tests grouped by sub-phase
 
 ### Architecture Documentation
+
 - This document (PHASE_5_COMPLETE.md)
 - Updated TDD_FOUR_LAYER_ROADMAP.md
 - ADR documents (if needed)
@@ -407,16 +445,20 @@ All Phase 5 components are **thread-safe**:
 ## Commits
 
 ### Phase 5.1 Commits
+
 - `c3128dd` - feat: Phase 5.1 - Agent failure modes and graceful degradation
 - `c38b82c` - fix: Add missing <atomic> include to failure_injector.hpp
 
 ### Phase 5.2 Commits
+
 - `e78128d` - feat: Phase 5.2 - Network partition simulation (split-brain scenarios)
 
 ### Phase 5.3 Commits
+
 - `f5bd9ec` - feat: Phase 5.3 - Message loss scenarios with retry logic
 
 ### Phase 5.4 Commits
+
 - `5d27887` - feat: Phase 5.4 - Recovery mechanisms (heartbeat monitoring & circuit breaker)
 
 ---
@@ -424,18 +466,21 @@ All Phase 5 components are **thread-safe**:
 ## Lessons Learned
 
 ### What Went Well
+
 1. **TDD Approach**: Writing tests first caught design issues early
 2. **Thread Safety**: Atomic operations and mutexes prevented race conditions
 3. **Modular Design**: Each chaos component is independent and reusable
 4. **Statistics Tracking**: Observable metrics helped verify behavior
 
 ### Challenges Overcome
+
 1. **Exponential Backoff Math**: Correctly implementing `delay = initial * (multiplier ^ attempts)`
 2. **Circuit Breaker State Transitions**: Ensuring correct state machine behavior
 3. **Partition Logic**: Handling bidirectional partition checks efficiently
 4. **Test Timing**: Heartbeat tests with 300ms+ delays (handled with proper sleep)
 
 ### Best Practices Established
+
 1. **Per-Target Tracking**: Independent state per agent/message/target
 2. **Configurable Thresholds**: All timeouts and limits configurable
 3. **Comprehensive Testing**: Both unit and E2E tests for each component
@@ -446,11 +491,13 @@ All Phase 5 components are **thread-safe**:
 ## Next Steps (Post-Phase 5)
 
 Phase 5 is **COMPLETE**. The ProjectKeystone HMAS now has:
+
 - ✅ Full 4-layer hierarchy (Phases 1-3)
 - ✅ Multi-component coordination (Phase 4)
 - ✅ Chaos engineering infrastructure (Phase 5)
 
 **Potential Future Work**:
+
 1. **Phase 6: Production Deployment**
    - Docker containerization
    - Kubernetes orchestration
@@ -470,7 +517,8 @@ Phase 5 is **COMPLETE**. The ProjectKeystone HMAS now has:
 
 ## Conclusion
 
-Phase 5 successfully implemented a **production-ready chaos engineering infrastructure** for the ProjectKeystone HMAS. The system can now:
+Phase 5 successfully implemented a **production-ready chaos engineering infrastructure** for the
+ProjectKeystone HMAS. The system can now:
 
 - **Survive agent failures** with graceful degradation
 - **Tolerate network partitions** without data loss

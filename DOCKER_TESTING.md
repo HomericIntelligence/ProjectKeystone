@@ -5,6 +5,7 @@ This document provides instructions for testing the Docker setup for ProjectKeys
 ## Prerequisites
 
 Ensure you have Docker installed:
+
 ```bash
 docker --version    # Should be 20.10+
 docker-compose --version  # Should be 1.29+
@@ -112,16 +113,21 @@ Test: Adding X + Y = Z
 ## Troubleshooting
 
 ### Issue: "docker: command not found"
-**Solution**: Install Docker from https://docs.docker.com/get-docker/
+
+**Solution**: Install Docker from <https://docs.docker.com/get-docker/>
 
 ### Issue: "permission denied while trying to connect to the Docker daemon socket"
+
 **Solution**: Add user to docker group: `sudo usermod -aG docker $USER`
 
 ### Issue: Build fails with CMake errors
+
 **Solution**: Check CMakeLists.txt syntax and ensure all source files exist
 
 ### Issue: Tests fail to run
+
 **Solution**:
+
 - Check that executables are copied correctly in Dockerfile COPY command
 - Verify source files compile without errors
 - Check that Google Test is properly fetched and linked

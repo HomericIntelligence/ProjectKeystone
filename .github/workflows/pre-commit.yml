@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   pre-commit:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Checkout code
@@ -22,6 +22,12 @@ jobs:
         with:
           python-version: '3.11'
           cache: 'pip'
+
+      - name: Install clang-format-18 for pre-commit
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format-18
+          sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-18 100
 
       - name: Install pre-commit
         run: pip install pre-commit
@@ -49,49 +55,3 @@ jobs:
           echo "  3. Run hooks: pre-commit run --all-files"
           echo "  4. Commit the fixes and push"
           exit 1
-
-  formatting:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-
-      - name: Install clang-format
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang-format-14
-
-      - name: Check C++ formatting
-        run: |
-          find include src tests -name '*.cpp' -o -name '*.hpp' | xargs clang-format-14 --dry-run --Werror
-
-  linting:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang-tidy-14 cppcheck
-
-      - name: Run cppcheck
-        run: |
-          cppcheck --enable=all --error-exitcode=1 --suppress=missingIncludeSystem \
-            --inline-suppr --quiet \
-            -I include \
-            src/ tests/ || true
-
-      - name: Create compile_commands.json placeholder
-        run: |
-          mkdir -p build
-          echo '[]' > build/compile_commands.json
-
-      - name: Run clang-tidy (informational)
-        run: |
-          find src include -name '*.cpp' -o -name '*.hpp' | head -10 | \
-          xargs -I {} clang-tidy-14 {} -- -std=c++20 -I include || true
-        continue-on-error: true

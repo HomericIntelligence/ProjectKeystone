@@ -5,20 +5,21 @@
 
 #include "concurrency/work_stealing_scheduler.hpp"
 
-#include "core/config.hpp"  // FIX m3: Centralized configuration
-
 #include <sstream>
+
+#include "core/config.hpp"  // FIX m3: Centralized configuration
 
 // Phase D: CPU affinity support (Linux-specific)
 #ifdef __linux__
-#  include <pthread.h>
-#  include <sched.h>
+#include <pthread.h>
+#include <sched.h>
 #endif
 
 namespace keystone {
 namespace concurrency {
 
-WorkStealingScheduler::WorkStealingScheduler(size_t num_workers, bool enable_cpu_affinity)
+WorkStealingScheduler::WorkStealingScheduler(size_t num_workers,
+                                             bool enable_cpu_affinity)
     : num_workers_(num_workers), enable_cpu_affinity_(enable_cpu_affinity) {
   if (num_workers_ == 0) {
     num_workers_ = 1;  // At least one worker
@@ -69,18 +70,22 @@ void WorkStealingScheduler::submit(std::coroutine_handle<> handle) {
   submitTo(worker_idx, handle);
 }
 
-void WorkStealingScheduler::submitTo(size_t worker_index, std::function<void()> func) {
+void WorkStealingScheduler::submitTo(size_t worker_index,
+                                     std::function<void()> func) {
   if (worker_index >= num_workers_) {
-    Logger::error("Invalid worker index: {} (max: {})", worker_index, num_workers_ - 1);
+    Logger::error("Invalid worker index: {} (max: {})", worker_index,
+                  num_workers_ - 1);
     return;
   }
 
   worker_queues_[worker_index]->push(WorkItem::makeFunction(std::move(func)));
 }
 
-void WorkStealingScheduler::submitTo(size_t worker_index, std::coroutine_handle<> handle) {
+void WorkStealingScheduler::submitTo(size_t worker_index,
+                                     std::coroutine_handle<> handle) {
   if (worker_index >= num_workers_) {
-    Logger::error("Invalid worker index: {} (max: {})", worker_index, num_workers_ - 1);
+    Logger::error("Invalid worker index: {} (max: {})", worker_index,
+                  num_workers_ - 1);
     return;
   }
 
@@ -110,13 +115,9 @@ void WorkStealingScheduler::shutdown() {
   Logger::info("WorkStealingScheduler shutdown complete");
 }
 
-bool WorkStealingScheduler::isRunning() const {
-  return running_.load();
-}
+bool WorkStealingScheduler::isRunning() const { return running_.load(); }
 
-size_t WorkStealingScheduler::getNumWorkers() const {
-  return num_workers_;
-}
+size_t WorkStealingScheduler::getNumWorkers() const { return num_workers_; }
 
 size_t WorkStealingScheduler::getApproximateWorkCount() const {
   size_t total = 0;
@@ -162,7 +163,8 @@ void WorkStealingScheduler::workerLoop(size_t worker_index) {
         work = worker_queues_[victim_idx]->steal();
 
         if (work.has_value()) {
-          Logger::trace("Worker {} stole work from worker {}", worker_index, victim_idx);
+          Logger::trace("Worker {} stole work from worker {}", worker_index,
+                        victim_idx);
           break;
         }
       }
@@ -175,12 +177,15 @@ void WorkStealingScheduler::workerLoop(size_t worker_index) {
       idle_count = 0;  // Reset backoff on successful work
     } else {
       // FIX M5: Adaptive exponential backoff
-      // Start with 1μs, double each iteration up to Config::SCHEDULER_MAX_BACKOFF_MICROSECONDS
-      // This reduces CPU waste while maintaining low latency
+      // Start with 1μs, double each iteration up to
+      // Config::SCHEDULER_MAX_BACKOFF_MICROSECONDS This reduces CPU waste while
+      // maintaining low latency
       idle_count++;
-      size_t backoff_shift = std::min(idle_count, static_cast<size_t>(10));  // Max 2^10 = 1024
-      size_t sleep_us = std::min(1UL << backoff_shift,
-                                 core::Config::SCHEDULER_MAX_BACKOFF_MICROSECONDS);
+      size_t backoff_shift =
+          std::min(idle_count, static_cast<size_t>(10));  // Max 2^10 = 1024
+      size_t sleep_us =
+          std::min(1UL << backoff_shift,
+                   core::Config::SCHEDULER_MAX_BACKOFF_MICROSECONDS);
       std::this_thread::sleep_for(std::chrono::microseconds(sleep_us));
     }
   }
@@ -212,15 +217,14 @@ void WorkStealingScheduler::setCPUAffinity(size_t worker_index) {
 
   if (result != 0) {
     Logger::warn("Worker {} failed to set CPU affinity to core {}: error {}",
-                 worker_index,
-                 cpu_id,
-                 result);
+                 worker_index, cpu_id, result);
   } else {
     Logger::debug("Worker {} pinned to CPU core {}", worker_index, cpu_id);
   }
 #else
   // Other platforms: No-op (affinity not supported or not implemented)
-  Logger::debug("Worker {}: CPU affinity not supported on this platform", worker_index);
+  Logger::debug("Worker {}: CPU affinity not supported on this platform",
+                worker_index);
   (void)worker_index;  // Suppress unused parameter warning
 #endif
 }

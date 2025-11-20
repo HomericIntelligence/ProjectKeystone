@@ -88,6 +88,7 @@ Measures performance of sync vs async agent hierarchies:
 ```
 
 **Benchmarks:**
+
 - `BM_Sync4LayerHierarchy` - Synchronous 4-layer message flow
 - `BM_Async4LayerHierarchy_4Workers` - Async with 4 worker threads
 - `BM_Async4LayerHierarchy_8Workers` - Async with 8 worker threads
@@ -95,6 +96,7 @@ Measures performance of sync vs async agent hierarchies:
 - `BM_SchedulerSubmissionRate` - Work-stealing scheduler submission rate
 
 **Key Metrics:**
+
 - Messages/second throughput
 - Latency per message
 - Scalability with worker count
@@ -108,6 +110,7 @@ Measures message pooling effectiveness:
 ```
 
 **Benchmarks:**
+
 - `BM_MessageCreation_NoPooling` - Baseline allocation overhead
 - `BM_MessageCreation_WithPooling` - Pooled allocation
 - `BM_MessageBurst_*` - Burst traffic patterns
@@ -117,6 +120,7 @@ Measures message pooling effectiveness:
 - `BM_ThreadLocalPooling` - Thread-local pool performance
 
 **Key Metrics:**
+
 - Allocation speed (allocations/sec)
 - Pool hit rate (%)
 - Memory reuse efficiency
@@ -130,6 +134,7 @@ Measures distributed work-stealing performance across simulated NUMA nodes:
 ```
 
 **Benchmarks:**
+
 - `BM_WorkStealing_LocalOnly` - Single-node baseline
 - `BM_WorkStealing_TwoNodes_*` - Cross-node stealing with varying latencies
 - `BM_LoadBalancing_Imbalanced` - Load balancing effectiveness
@@ -138,6 +143,7 @@ Measures distributed work-stealing performance across simulated NUMA nodes:
 - `BM_PacketLoss_Impact` - Packet loss resilience
 
 **Key Metrics:**
+
 - Work stealing latency
 - Load balance ratio
 - Network overhead (%)
@@ -152,6 +158,7 @@ Measures MessageBus routing and delivery performance:
 ```
 
 **Benchmarks:**
+
 - `BM_MessageRouting_SingleAgent` - Single agent routing latency
 - `BM_MessageRouting_FanOut` - Fan-out to N agents (8-512)
 - `BM_AgentRegistration` - Agent registration overhead
@@ -164,6 +171,7 @@ Measures MessageBus routing and delivery performance:
 - `BM_MessageBroadcast` - Broadcast to N agents (8-256)
 
 **Key Metrics:**
+
 - Routing latency (ns/message)
 - Throughput (messages/sec)
 - Scalability with agent count
@@ -180,6 +188,7 @@ Measures retry policy, circuit breaker, and heartbeat monitor performance:
 **Benchmarks:**
 
 **Retry Policy (8 benchmarks):**
+
 - `BM_RetryPolicy_Creation` - Policy creation overhead
 - `BM_RetryPolicy_ShouldRetry` - shouldRetry() latency
 - `BM_RetryPolicy_BackoffCalculation` - Backoff delay calculation
@@ -187,6 +196,7 @@ Measures retry policy, circuit breaker, and heartbeat monitor performance:
 - `BM_RetryPolicy_VaryingMultiplier` - Multiplier impact (1.0-5.0)
 
 **Circuit Breaker (8 benchmarks):**
+
 - `BM_CircuitBreaker_Creation` - CB creation overhead
 - `BM_CircuitBreaker_AllowRequest_Closed` - Request check latency
 - `BM_CircuitBreaker_RecordSuccess` - Success recording
@@ -196,6 +206,7 @@ Measures retry policy, circuit breaker, and heartbeat monitor performance:
 - `BM_CircuitBreaker_Concurrent` - Multi-threaded access (1-8 threads)
 
 **Heartbeat Monitor (6 benchmarks):**
+
 - `BM_HeartbeatMonitor_Creation` - Monitor creation
 - `BM_HeartbeatMonitor_RegisterAgent` - Agent registration
 - `BM_HeartbeatMonitor_RecordHeartbeat` - Heartbeat recording
@@ -204,6 +215,7 @@ Measures retry policy, circuit breaker, and heartbeat monitor performance:
 - `BM_HeartbeatMonitor_ConcurrentHeartbeat` - Concurrent heartbeat (1-8 threads)
 
 **Key Metrics:**
+
 - Retry policy overhead (ns)
 - Circuit breaker latency (ns)
 - Heartbeat recording speed
@@ -237,6 +249,7 @@ BENCHMARK(BM_MessageRouting)
 ```
 
 This reports:
+
 - **p50** (median) - Typical latency
 - **p95** - 95th percentile
 - **p99** - 99th percentile (tail latency)

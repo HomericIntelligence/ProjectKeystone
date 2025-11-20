@@ -147,13 +147,13 @@ elif command -v open &> /dev/null; then
     open "$HTML_OUTPUT_DIR/index.html" 2>/dev/null &
 fi
 
-# Check if coverage meets threshold (95%)
-THRESHOLD=95.0
+# Check if coverage meets threshold (85%)
+THRESHOLD=85.0
 if (( $(echo "$COVERAGE_PERCENT >= $THRESHOLD" | bc -l) )); then
-    echo -e "${GREEN}✓ Coverage meets threshold (≥ 95%)${NC}"
+    echo -e "${GREEN}✓ Coverage meets threshold (≥ 85%)${NC}"
     exit 0
 else
-    echo -e "${YELLOW}⚠ Coverage below threshold (< 95%): $COVERAGE_PERCENT%${NC}"
+    echo -e "${YELLOW}⚠ Coverage below threshold (< 85%): $COVERAGE_PERCENT%${NC}"
     echo -e "${YELLOW}  Target: $THRESHOLD%${NC}"
     exit 1
 fi

@@ -2,7 +2,9 @@
 
 ## Overview
 
-ProjectKeystone adopts a comprehensive, multi-tiered testing approach to ensure correctness, performance, and reliability of the hierarchical multi-agent system. The testing strategy emphasizes test-driven development (TDD), continuous integration, and automated validation.
+ProjectKeystone adopts a comprehensive, multi-tiered testing approach to ensure correctness,
+performance, and reliability of the hierarchical multi-agent system. The testing strategy emphasizes
+test-driven development (TDD), continuous integration, and automated validation.
 
 ## Testing Philosophy
 
@@ -202,6 +204,7 @@ TEST_CASE_METHOD(AgentHierarchyFixture, "Hierarchical agent delegation", "[integ
 **Framework**: Google Benchmark
 
 **Targets**:
+
 - Message throughput: >1M messages/second
 - Internal latency: <1ms p99
 - gRPC latency: <10ms p99
@@ -302,6 +305,7 @@ BENCHMARK_MAIN();
 **Framework**: Custom chaos framework + Catch2 v3
 
 **Targets**:
+
 - Stability: 24+ hour continuous operation
 - Recovery: <100ms failure detection and recovery
 - No memory leaks (verified by AddressSanitizer)
@@ -535,6 +539,7 @@ export UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1
 ### CI Integration
 
 All pull requests automatically run tests with sanitizers:
+
 - **Fast checks**: ASan + UBSan (combined)
 - **Concurrency checks**: TSan (separate job)
 - **Optional**: MSan (on-demand for critical code)

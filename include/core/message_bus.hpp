@@ -1,12 +1,12 @@
 #pragma once
 
-#include "message.hpp"
-
 #include <memory>
 #include <mutex>
 #include <string>
 #include <unordered_map>
 #include <vector>
+
+#include "message.hpp"
 
 namespace keystone {
 
@@ -84,7 +84,8 @@ class MessageBus {
    * - With scheduler: Async delivery via scheduler->submit()
    *
    * @param msg Message to route (uses msg.receiver_id for routing)
-   * @return true if message was delivered/submitted, false if receiver not found
+   * @return true if message was delivered/submitted, false if receiver not
+   * found
    */
   bool routeMessage(const KeystoneMessage& msg);
 

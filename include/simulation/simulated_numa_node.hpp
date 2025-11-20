@@ -1,7 +1,5 @@
 #pragma once
 
-#include "concurrency/work_stealing_scheduler.hpp"
-
 #include <atomic>
 #include <cstddef>
 #include <functional>
@@ -9,6 +7,8 @@
 #include <optional>
 #include <string>
 #include <unordered_set>
+
+#include "concurrency/work_stealing_scheduler.hpp"
 
 namespace keystone {
 namespace simulation {
@@ -46,9 +46,9 @@ class SimulatedNUMANode {
   SimulatedNUMANode(const SimulatedNUMANode&) = delete;
   SimulatedNUMANode& operator=(const SimulatedNUMANode&) = delete;
 
-  // Allow moving
-  SimulatedNUMANode(SimulatedNUMANode&&) noexcept = default;
-  SimulatedNUMANode& operator=(SimulatedNUMANode&&) noexcept = default;
+  // Prevent moving (contains atomic members which cannot be moved)
+  SimulatedNUMANode(SimulatedNUMANode&&) noexcept = delete;
+  SimulatedNUMANode& operator=(SimulatedNUMANode&&) noexcept = delete;
 
   /**
    * @brief Start the scheduler for this node
@@ -149,9 +149,11 @@ class SimulatedNUMANode {
   void resetStats();
 
  private:
-  size_t node_id_;                                                 ///< Unique node identifier
-  std::unique_ptr<concurrency::WorkStealingScheduler> scheduler_;  ///< Thread pool for this node
-  std::unordered_set<std::string> local_agents_;  ///< Agents with affinity to this node
+  size_t node_id_;  ///< Unique node identifier
+  std::unique_ptr<concurrency::WorkStealingScheduler>
+      scheduler_;  ///< Thread pool for this node
+  std::unordered_set<std::string>
+      local_agents_;  ///< Agents with affinity to this node
 
   std::atomic<size_t> local_steals_{0};   ///< Count of intra-node steals
   std::atomic<size_t> remote_steals_{0};  ///< Count of cross-node steals

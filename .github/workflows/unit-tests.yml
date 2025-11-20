@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   test-cpp:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - name: Checkout code
@@ -65,7 +65,7 @@ jobs:
           retention-days: 7
 
   coverage-report:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     needs: [test-cpp]
     if: always()

@@ -7,11 +7,13 @@
 
 ## Overview
 
-Phase 4 extends the proven 4-layer hierarchy (Phase 3) to a **full multi-component system** with parallel execution, testing the HMAS architecture at scale.
+Phase 4 extends the proven 4-layer hierarchy (Phase 3) to a **full multi-component system** with
+parallel execution, testing the HMAS architecture at scale.
 
 ### Current Status (Post-Phase D)
 
 **What We Have**:
+
 - ✅ Complete 4-layer hierarchy (L0 ↔ L1 ↔ L2 ↔ L3)
 - ✅ Async work-stealing scheduler (Phase A)
 - ✅ Coroutine-based async agents (Phase B)
@@ -21,6 +23,7 @@ Phase 4 extends the proven 4-layer hierarchy (Phase 3) to a **full multi-compone
 - ✅ **255 tests passing** in 30 seconds
 
 **What Phase 4 Adds**:
+
 - Multiple component leads executing in parallel
 - Cross-component dependency resolution
 - Scale to 100+ agents
@@ -77,8 +80,10 @@ Phase 4 extends the proven 4-layer hierarchy (Phase 3) to a **full multi-compone
 ## Component Breakdown
 
 ### Component 1: Core
+
 **Purpose**: Foundational infrastructure
 **Modules**:
+
 - **Messaging**: MessageBus, MessageQueue, KeystoneMessage
 - **Concurrency**: ThreadPool, WorkStealingScheduler, Task
 - **Utilities**: Logger, Metrics, Profiling
@@ -88,8 +93,10 @@ Phase 4 extends the proven 4-layer hierarchy (Phase 3) to a **full multi-compone
 ---
 
 ### Component 2: Protocol
+
 **Purpose**: Communication and serialization
 **Modules**:
+
 - **Serialization**: MessageSerializer, Cista integration
 - **Network**: SimulatedNetwork, cross-node messaging
 - **Validation**: Message format validation, schema
@@ -99,8 +106,10 @@ Phase 4 extends the proven 4-layer hierarchy (Phase 3) to a **full multi-compone
 ---
 
 ### Component 3: Agents
+
 **Purpose**: Agent implementations
 **Modules**:
+
 - **Base**: AgentBase, BaseAgent, lifecycle management
 - **Hierarchy**: ChiefArchitect, ComponentLead, ModuleLead, TaskAgent
 - **Async**: AsyncBaseAgent, async task execution
@@ -110,8 +119,10 @@ Phase 4 extends the proven 4-layer hierarchy (Phase 3) to a **full multi-compone
 ---
 
 ### Component 4: Integration
+
 **Purpose**: Testing and integration
 **Modules**:
+
 - **Testing**: E2E tests, unit tests, benchmarks
 - **Monitoring**: Metrics collection, statistics
 - **Simulation**: Simulated cluster, NUMA nodes
@@ -127,6 +138,7 @@ Phase 4 extends the proven 4-layer hierarchy (Phase 3) to a **full multi-compone
 **Goal**: ChiefArchitect coordinates 4 ComponentLeads in parallel
 
 **Tasks**:
+
 1. **Enhance ChiefArchitectAgent** (4 hours)
    - Add component registry (map component name → ComponentLead)
    - Parallel component submission via work-stealing scheduler
@@ -145,6 +157,7 @@ Phase 4 extends the proven 4-layer hierarchy (Phase 3) to a **full multi-compone
    - Verify all components complete successfully
 
 **Deliverables**:
+
 - ✅ ChiefArchitect manages 4 components
 - ✅ Component dependency resolution
 - ✅ E2E test with 80 agents passing
@@ -158,6 +171,7 @@ Phase 4 extends the proven 4-layer hierarchy (Phase 3) to a **full multi-compone
 **Goal**: Independent components execute in parallel
 
 **Tasks**:
+
 1. **Parallel component submission** (4 hours)
    - Submit independent components to scheduler simultaneously
    - Work-stealing distributes across workers
@@ -174,6 +188,7 @@ Phase 4 extends the proven 4-layer hierarchy (Phase 3) to a **full multi-compone
    - Verify both components complete
 
 **Deliverables**:
+
 - ✅ Components execute in parallel
 - ✅ Work-stealing balances load
 - ✅ Parallelism speedup measured
@@ -187,6 +202,7 @@ Phase 4 extends the proven 4-layer hierarchy (Phase 3) to a **full multi-compone
 **Goal**: Test system with 100+ agents
 
 **Tasks**:
+
 1. **Stress test: 100 agents** (4 hours)
    - 4 components × 4 modules × 6 tasks = 96 + 4 ComponentLeads = 100
    - All agents executing concurrently
@@ -203,6 +219,7 @@ Phase 4 extends the proven 4-layer hierarchy (Phase 3) to a **full multi-compone
    - Identify bottlenecks (if any)
 
 **Deliverables**:
+
 - ✅ 100-agent system runs successfully
 - ✅ 150-agent system runs successfully
 - ✅ Performance benchmarks collected
@@ -214,6 +231,7 @@ Phase 4 extends the proven 4-layer hierarchy (Phase 3) to a **full multi-compone
 ## Success Criteria
 
 ### Must Have ✅
+
 - [x] **DONE** - ChiefArchitect coordinates 4 ComponentLeads
 - [x] **DONE** - Cross-component dependencies resolved correctly (topological sort + cycle detection)
 - [x] **DONE** - Independent components execute in parallel (level-based execution)
@@ -222,12 +240,14 @@ Phase 4 extends the proven 4-layer hierarchy (Phase 3) to a **full multi-compone
 - [x] **DONE** - New E2E tests for multi-component scenarios (8 Phase 4 tests)
 
 ### Should Have 🎯
+
 - [ ] Parallelism speedup ≥1.8x for independent components (deferred - structure verified)
 - [ ] Work-stealing balances load (max queue depth < 2x avg) (deferred - handled by Phase D.2)
 - [x] **DONE** - Throughput scales linearly to ~100 agents (101-agent test passes)
 - [x] **DONE** - Stress tests with 150 agents pass (145-agent test passes)
 
 ### Nice to Have 💡
+
 - [x] **DONE** - Dynamic component discovery (registry pattern implemented)
 - [ ] Component-level metrics (completion time, task count) (deferred to Phase 5)
 - [ ] Dependency visualization (DOT graph of components) (not implemented)
@@ -276,10 +296,12 @@ Phase 4 extends the proven 4-layer hierarchy (Phase 3) to a **full multi-compone
 Based on Phase D results:
 
 **Baseline (Phase 3 - Single Component)**:
+
 - Sync 4-layer: 41.2 µs/op, 24.3k items/sec
 - Async 4 workers: 10.1 ms/op, 20k items/sec
 
 **Phase 4 Targets (4 Components)**:
+
 - With 4 components executing in parallel:
   - **Throughput**: ~80k items/sec total (4x baseline with parallelism)
   - **Latency**: ~50-100 µs/op per task (slight overhead from coordination)
@@ -292,21 +314,25 @@ Based on Phase D results:
 ## Risk Mitigation
 
 ### Risk 1: Message Bus Contention
+
 **Impact**: High
 **Likelihood**: Medium
 **Mitigation**: MessageBus already lock-free (Phase C). Monitor contention via metrics.
 
 ### Risk 2: Scheduler Overload (100+ agents)
+
 **Impact**: High
 **Likelihood**: Low
 **Mitigation**: Work-stealing designed for high concurrency. Stress test incrementally (50 → 100 → 150).
 
 ### Risk 3: Deadlocks in Dependency Resolution
+
 **Impact**: Critical
 **Likelihood**: Low
 **Mitigation**: Use DAG + topological sort (proven algorithm). Add cycle detection.
 
 ### Risk 4: Memory Overhead (100+ agents)
+
 **Impact**: Medium
 **Likelihood**: Low
 **Mitigation**: Each agent is lightweight (~KB). 100 agents = ~MB. Monitor with profiling.
@@ -382,6 +408,7 @@ for (auto& future : component_futures) {
    - Performance benchmarking
 
 **After Phase 4**: Move to **Phase 5: Robustness & Chaos Engineering**
+
 - Random agent failures
 - Network partition simulation
 - Message loss scenarios
@@ -400,6 +427,7 @@ for (auto& future : component_futures) {
 ### Achievements
 
 **Phase 4.1: Multi-Component Coordination** ✅
+
 - Enhanced `AsyncChiefArchitectAgent` with component registry
 - Implemented DAG-based dependency resolution (topological sort)
 - Added circular dependency detection
@@ -407,6 +435,7 @@ for (auto& future : component_futures) {
 - **Result**: ChiefArchitect successfully coordinates 4+ ComponentLeads
 
 **Phase 4.2: Parallel Component Execution** ✅
+
 - Implemented `getComponentDependencyLevels()` using Kahn's algorithm variant
 - Enhanced `executeAllComponents()` for level-based parallel execution
 - Components at same dependency level execute concurrently
@@ -414,6 +443,7 @@ for (auto& future : component_futures) {
 - **Result**: Independent components execute in parallel while respecting dependencies
 
 **Phase 4.3: Scale Testing** ✅
+
 - Created 100-agent stress test (101 total: 1 Chief + 4 Components + 12 Modules + 84 Tasks)
 - Created 150-agent stress test (145 total: 1 Chief + 4 Components + 20 Modules + 120 Tasks)
 - Both tests pass without crashes, deadlocks, or memory issues
@@ -422,6 +452,7 @@ for (auto& future : component_futures) {
 ### Test Results
 
 **Total Tests**: 263 tests (100% passing)
+
 - **Phase 4 E2E Tests**: 8/8 passing
   - RegisterFourComponents
   - ComponentDependencyResolution
@@ -436,18 +467,21 @@ for (auto& future : component_futures) {
 ### Key Technical Implementations
 
 1. **Component Registry Pattern**
+
    ```cpp
    std::unordered_map<std::string, AsyncComponentLeadAgent*> component_registry_;
    void registerComponent(const std::string& name, AsyncComponentLeadAgent* lead);
    ```
 
 2. **Dependency Resolution (Topological Sort)**
+
    ```cpp
    std::vector<std::string> getComponentExecutionOrder() const;
    bool topologicalSortUtil(...) const;  // DFS-based with cycle detection
    ```
 
 3. **Level-Based Parallel Execution**
+
    ```cpp
    std::vector<std::vector<std::string>> getComponentDependencyLevels() const;
    Task<std::vector<ComponentResult>> executeAllComponents(const std::string& goal);
@@ -476,6 +510,7 @@ for (auto& future : component_futures) {
 ### Next Steps
 
 **Recommendation**: Move to **Phase 5: Robustness & Chaos Engineering**
+
 - Random agent failures
 - Network partition simulation
 - Message loss scenarios

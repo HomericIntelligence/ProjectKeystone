@@ -38,6 +38,7 @@ Priority files needing additional tests:
 ## Test Status
 
 **Tests Run**: 329 total
+
 - **Passed**: 325 (98.8%)
 - **Failed**: 4 (1.2%)
   - `Phase5MessageLossTest.CombinedPartitionAndLoss`
@@ -55,21 +56,25 @@ Priority files needing additional tests:
 ### Phase 9.1 Continued: Increase Coverage to 95%
 
 **Priority 1: Agent Base Classes** (~185 lines)
+
 - [ ] Add tests for `agent_base.cpp` error paths
 - [ ] Add tests for `async_base_agent.cpp` lifecycle methods
 - [ ] Add tests for `async_chief_architect_agent.cpp` orchestration logic
 - [ ] Add tests for `async_component_lead_agent.cpp` module coordination
 
 **Priority 2: Core Infrastructure** (~95 lines)
+
 - [ ] Add tests for `message.hpp` utility methods
 - [ ] Add tests for `profiling.cpp` profiling logic (currently skipped)
 - [ ] Add tests for error handling in core components
 
 **Priority 3: Concurrency** (~35 lines)
+
 - [ ] Add tests for `work_stealing_queue.hpp` edge cases
 - [ ] Add tests for `thread_pool.hpp` shutdown scenarios
 
 **Priority 4: Fix Failing Tests** (may add coverage)
+
 - [ ] Fix `ThreadPoolTest.SubmitCoroutineHandle` segfault
 - [ ] Fix `WorkStealingSchedulerTest.SubmitCoroutine`
 - [ ] Fix `Phase5MessageLossTest.CombinedPartitionAndLoss`
@@ -80,16 +85,19 @@ Priority files needing additional tests:
 ## Coverage Report Generation
 
 ### Command
+
 ```bash
 ./scripts/generate_coverage.sh
 ```
 
 ### Output Location
+
 ```
 build/coverage/html/index.html
 ```
 
 ### Manual Coverage Check
+
 ```bash
 # Capture coverage
 lcov --capture --directory build --output-file coverage.info --ignore-errors negative,mismatch
@@ -108,13 +116,19 @@ lcov --summary coverage_filtered.info
 
 ## Notes
 
-1. **Multi-threaded Coverage**: We use `--ignore-errors negative,mismatch` due to race conditions in gcov with multithreaded tests. This is expected and does not affect accuracy.
+1. **Multi-threaded Coverage**: We use `--ignore-errors negative,mismatch` due to race
+   conditions in gcov with multithreaded tests. This is expected and does not affect
+   accuracy.
 
-2. **Skipped Tests**: ProfilingTest suite is intentionally skipped (5 tests). These could be re-enabled to potentially increase coverage.
+2. **Skipped Tests**: ProfilingTest suite is intentionally skipped (5 tests). These
+   could be re-enabled to potentially increase coverage.
 
-3. **Function Coverage**: At 88.5%, function coverage is higher than line coverage, suggesting that tested functions have some untested code paths (edge cases, error handling).
+3. **Function Coverage**: At 88.5%, function coverage is higher than line coverage,
+   suggesting that tested functions have some untested code paths (edge cases, error
+   handling).
 
-4. **Branch Coverage**: Not currently tracked. Consider enabling with `--rc lcov_branch_coverage=1` for more detailed coverage.
+4. **Branch Coverage**: Not currently tracked. Consider enabling with
+   `--rc lcov_branch_coverage=1` for more detailed coverage.
 
 ---
 

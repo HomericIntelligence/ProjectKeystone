@@ -1,9 +1,9 @@
 #pragma once
 
+#include <string>
+
 #include "agent_base.hpp"
 #include "core/message.hpp"
-
-#include <string>
 
 namespace keystone {
 namespace agents {

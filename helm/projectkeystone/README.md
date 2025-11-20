@@ -395,6 +395,7 @@ kubectl describe pod -n projectkeystone <pod-name>
 ```
 
 Common causes:
+
 - Insufficient resources (check resource quotas)
 - Image not found
 - ConfigMap not created

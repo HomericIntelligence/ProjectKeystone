@@ -1,20 +1,22 @@
 #include "agents/async_base_agent.hpp"
 
-#include "concurrency/work_stealing_scheduler.hpp"
-
 #include <stdexcept>
+
+#include "concurrency/work_stealing_scheduler.hpp"
 
 namespace keystone {
 namespace agents {
 
 AsyncBaseAgent::AsyncBaseAgent(const std::string& agent_id)
-    : AgentBase(agent_id), is_destroyed_(std::make_shared<std::atomic<bool>>(false)) {
+    : AgentBase(agent_id),
+      is_destroyed_(std::make_shared<std::atomic<bool>>(false)) {
   // FIX C2: Initialize lifetime tracking flag
 }
 
 AsyncBaseAgent::~AsyncBaseAgent() {
   // FIX C2: Mark agent as destroyed to prevent use-after-free in async lambdas
-  // Any lambdas that captured is_destroyed_ will see this flag and skip processing
+  // Any lambdas that captured is_destroyed_ will see this flag and skip
+  // processing
   is_destroyed_->store(true, std::memory_order_release);
 }
 
@@ -28,14 +30,13 @@ void AsyncBaseAgent::receiveMessage(const core::KeystoneMessage& msg) {
       error_msg = failure_reason_.empty() ? "agent failed" : failure_reason_;
     }
 
-    auto error_response = core::Response::createError(msg, agent_id_, error_msg);
+    auto error_response =
+        core::Response::createError(msg, agent_id_, error_msg);
 
     // Send error response back if MessageBus is available
     if (message_bus_) {
-      auto response_msg = core::KeystoneMessage::create(agent_id_,
-                                                        msg.sender_id,
-                                                        "response",
-                                                        error_response.result);
+      auto response_msg = core::KeystoneMessage::create(
+          agent_id_, msg.sender_id, "response", error_response.result);
       sendMessage(response_msg);
     }
     return;  // Don't process message
@@ -73,7 +74,8 @@ void AsyncBaseAgent::receiveMessage(const core::KeystoneMessage& msg) {
   }
 }
 
-void AsyncBaseAgent::setScheduler(concurrency::WorkStealingScheduler* scheduler) {
+void AsyncBaseAgent::setScheduler(
+    concurrency::WorkStealingScheduler* scheduler) {
   scheduler_ = scheduler;
 }
 
@@ -129,9 +131,7 @@ void AsyncBaseAgent::recover() {
   failure_reason_.clear();
 }
 
-bool AsyncBaseAgent::isFailed() const {
-  return is_failed_.load();
-}
+bool AsyncBaseAgent::isFailed() const { return is_failed_.load(); }
 
 std::string AsyncBaseAgent::getFailureReason() const {
   std::lock_guard<std::mutex> lock(failure_mutex_);

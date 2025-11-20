@@ -3,12 +3,12 @@
  * @brief Unit tests for Logger and LogContext
  */
 
-#include "concurrency/logger.hpp"
+#include <gtest/gtest.h>
 
 #include <thread>
 #include <vector>
 
-#include <gtest/gtest.h>
+#include "concurrency/logger.hpp"
 
 using namespace keystone::concurrency;
 

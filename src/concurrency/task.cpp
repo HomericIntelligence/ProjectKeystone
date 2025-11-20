@@ -16,7 +16,8 @@ namespace concurrency {
 // Common instantiations to reduce compile time
 template class Task<int>;
 template class Task<std::string>;
-template class Task<void>;
+// Note: Task<void> is a full specialization in the header, no explicit
+// instantiation needed
 
 }  // namespace concurrency
 }  // namespace keystone

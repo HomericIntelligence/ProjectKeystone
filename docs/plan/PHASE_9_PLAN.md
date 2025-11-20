@@ -7,11 +7,15 @@
 
 ## Overview
 
-Phase 9 elevates the ProjectKeystone HMAS to **production-grade quality** through comprehensive testing, code coverage analysis, fuzz testing, static analysis, and performance benchmarking. The goal is to achieve 95%+ code coverage and establish continuous quality assurance practices.
+Phase 9 elevates the ProjectKeystone HMAS to **production-grade quality** through
+comprehensive testing, code coverage analysis, fuzz testing, static analysis, and
+performance benchmarking. The goal is to achieve 95%+ code coverage and establish
+continuous quality assurance practices.
 
 ### Current Status (Post-Phase 5)
 
 **What We Have**:
+
 - ✅ 329/329 tests passing (59 E2E + 270 unit tests)
 - ✅ Full 4-layer async hierarchy
 - ✅ Chaos engineering infrastructure
@@ -19,6 +23,7 @@ Phase 9 elevates the ProjectKeystone HMAS to **production-grade quality** throug
 - ✅ Docker-based test execution
 
 **What Phase 9 Adds**:
+
 - Code coverage analysis (gcov/lcov)
 - Fuzz testing infrastructure (libFuzzer/AFL)
 - Static analysis integration (clang-tidy, cppcheck, SonarQube)
@@ -92,6 +97,7 @@ Phase 9 elevates the ProjectKeystone HMAS to **production-grade quality** throug
 **Tasks**:
 
 1. **Integrate gcov/lcov into CMake** (4 hours)
+
    ```cmake
    # CMakeLists.txt
    option(ENABLE_COVERAGE "Enable code coverage" OFF)
@@ -103,6 +109,7 @@ Phase 9 elevates the ProjectKeystone HMAS to **production-grade quality** throug
    ```
 
 2. **Generate Coverage Reports** (4 hours)
+
    ```bash
    # Build with coverage
    cmake -DENABLE_COVERAGE=ON -G Ninja ..
@@ -137,6 +144,7 @@ Phase 9 elevates the ProjectKeystone HMAS to **production-grade quality** throug
    - Set coverage threshold in CI (fail if < 95%)
 
 **Deliverables**:
+
 - ✅ gcov/lcov integration in CMake
 - ✅ Coverage report generation script
 - ✅ 95%+ line coverage achieved
@@ -153,6 +161,7 @@ Phase 9 elevates the ProjectKeystone HMAS to **production-grade quality** throug
 **Tasks**:
 
 1. **libFuzzer Integration** (6 hours)
+
    ```cpp
    // fuzz/fuzz_message_serialization.cpp
    #include "core/message.hpp"
@@ -192,6 +201,7 @@ Phase 9 elevates the ProjectKeystone HMAS to **production-grade quality** throug
    - CI: Run fuzzing for 1 hour per build
 
 **Deliverables**:
+
 - ✅ libFuzzer integration (4 fuzz targets)
 - ✅ AFL integration with seed corpus
 - ✅ Fuzz-induced crash fixes
@@ -208,6 +218,7 @@ Phase 9 elevates the ProjectKeystone HMAS to **production-grade quality** throug
 **Tasks**:
 
 1. **clang-tidy Integration** (6 hours)
+
    ```cmake
    # CMakeLists.txt
    option(ENABLE_CLANG_TIDY "Enable clang-tidy" OFF)
@@ -224,6 +235,7 @@ Phase 9 elevates the ProjectKeystone HMAS to **production-grade quality** throug
    - `readability-*`: Code style issues
 
 2. **cppcheck Integration** (4 hours)
+
    ```bash
    cppcheck --enable=all --inconclusive --xml --xml-version=2 \
             --suppress=missingIncludeSystem \
@@ -242,6 +254,7 @@ Phase 9 elevates the ProjectKeystone HMAS to **production-grade quality** throug
    - Suppress false positives with justification
 
 **Deliverables**:
+
 - ✅ clang-tidy integration in CMake
 - ✅ cppcheck CI integration
 - ✅ SonarQube dashboard
@@ -258,6 +271,7 @@ Phase 9 elevates the ProjectKeystone HMAS to **production-grade quality** throug
 **Tasks**:
 
 1. **Google Benchmark Integration** (6 hours)
+
    ```cmake
    # CMakeLists.txt
    find_package(benchmark REQUIRED)
@@ -273,6 +287,7 @@ Phase 9 elevates the ProjectKeystone HMAS to **production-grade quality** throug
 2. **Benchmark Suites** (12 hours)
 
    **A. Message Bus Benchmarks**
+
    ```cpp
    static void BM_MessageBusRouting(benchmark::State& state) {
        MessageBus bus;
@@ -316,6 +331,7 @@ Phase 9 elevates the ProjectKeystone HMAS to **production-grade quality** throug
    - Generate comparison reports
 
 **Deliverables**:
+
 - ✅ Google Benchmark integration
 - ✅ 10+ benchmark suites
 - ✅ Latency percentile measurements
@@ -333,6 +349,7 @@ Phase 9 elevates the ProjectKeystone HMAS to **production-grade quality** throug
 **Tasks**:
 
 1. **GitHub Actions Workflow** (8 hours)
+
    ```yaml
    # .github/workflows/quality.yml
    name: Quality Assurance
@@ -395,6 +412,7 @@ Phase 9 elevates the ProjectKeystone HMAS to **production-grade quality** throug
    - Fuzz testing: No crashes in 1 hour
 
 3. **Badge Integration** (2 hours)
+
    ```markdown
    # README.md
    ![Coverage](https://codecov.io/gh/user/ProjectKeystone/branch/main/graph/badge.svg)
@@ -403,6 +421,7 @@ Phase 9 elevates the ProjectKeystone HMAS to **production-grade quality** throug
    ```
 
 **Deliverables**:
+
 - ✅ GitHub Actions workflows (coverage, analysis, benchmarks, fuzz)
 - ✅ Quality gates enforced
 - ✅ Badges in README
@@ -414,6 +433,7 @@ Phase 9 elevates the ProjectKeystone HMAS to **production-grade quality** throug
 ## Success Criteria
 
 ### Must Have ✅
+
 - [ ] Code coverage ≥ 95%
 - [ ] All critical SonarQube issues fixed
 - [ ] No sanitizer errors (ASan, UBSan, TSan)
@@ -422,6 +442,7 @@ Phase 9 elevates the ProjectKeystone HMAS to **production-grade quality** throug
 - [ ] CI/CD quality gates working
 
 ### Should Have 🎯
+
 - [ ] Coverage dashboard (Codecov/Coveralls)
 - [ ] Static analysis CI integration (clang-tidy, cppcheck)
 - [ ] SonarQube dashboard with A rating
@@ -429,6 +450,7 @@ Phase 9 elevates the ProjectKeystone HMAS to **production-grade quality** throug
 - [ ] Latency percentiles measured (p50, p95, p99)
 
 ### Nice to Have 💡
+
 - [ ] Mutation testing (e.g., mutate++ for C++)
 - [ ] Memory leak detection (valgrind in CI)
 - [ ] Security scanning (Snyk, Dependabot)
@@ -444,6 +466,7 @@ Phase 9 elevates the ProjectKeystone HMAS to **production-grade quality** throug
 **Target**: 95%+ line coverage
 
 **Approach**:
+
 1. Run initial coverage report (current baseline: unknown)
 2. Identify uncovered code paths
 3. Add tests for uncovered paths:
@@ -454,6 +477,7 @@ Phase 9 elevates the ProjectKeystone HMAS to **production-grade quality** throug
 4. Verify coverage ≥ 95% in CI
 
 **Deliverables**:
+
 - ✅ Coverage report (HTML, XML)
 - ✅ 95%+ coverage achieved
 - ✅ CI fails if coverage drops below 95%
@@ -463,18 +487,21 @@ Phase 9 elevates the ProjectKeystone HMAS to **production-grade quality** throug
 ### Fuzz Tests
 
 **Targets**:
+
 1. `fuzz_message_serialization` - KeystoneMessage parsing
 2. `fuzz_message_bus_routing` - MessageBus routing logic
 3. `fuzz_work_stealing` - Work-stealing scheduler
 4. `fuzz_retry_policy` - Exponential backoff calculation
 
 **Approach**:
+
 - Build with `-fsanitize=fuzzer,address`
 - Run each target for 1 hour in CI
 - Store crash-inducing inputs as regression tests
 - Fix all crashes and add tests
 
 **Deliverables**:
+
 - ✅ 4 fuzz targets
 - ✅ No crashes after 1-hour fuzzing
 - ✅ Fuzz corpus stored in repo
@@ -484,17 +511,20 @@ Phase 9 elevates the ProjectKeystone HMAS to **production-grade quality** throug
 ### Static Analysis
 
 **Tools**:
+
 1. **clang-tidy** - Linting and modernization
 2. **cppcheck** - Bug detection
 3. **SonarQube** - Code quality and security
 
 **Approach**:
+
 - Run all tools in CI
 - Fix critical and blocker issues
 - Suppress false positives with justification
 - Fail CI on new critical issues
 
 **Deliverables**:
+
 - ✅ Zero critical/blocker issues
 - ✅ SonarQube A rating
 - ✅ Clean clang-tidy and cppcheck reports
@@ -504,6 +534,7 @@ Phase 9 elevates the ProjectKeystone HMAS to **production-grade quality** throug
 ### Performance Benchmarks
 
 **Benchmarks**:
+
 1. Message routing latency (p50, p95, p99)
 2. Work-stealing scheduler throughput
 3. 4-layer delegation end-to-end latency
@@ -511,12 +542,14 @@ Phase 9 elevates the ProjectKeystone HMAS to **production-grade quality** throug
 5. Task execution time distribution
 
 **Approach**:
+
 - Use Google Benchmark
 - Run benchmarks in CI
 - Compare with baseline (fail if regression > 5%)
 - Generate performance reports
 
 **Deliverables**:
+
 - ✅ 10+ benchmarks
 - ✅ Latency percentiles
 - ✅ Throughput measurements
@@ -527,23 +560,27 @@ Phase 9 elevates the ProjectKeystone HMAS to **production-grade quality** throug
 ## Performance Expectations
 
 **Coverage Targets**:
+
 - Line coverage: ≥ 95%
 - Branch coverage: ≥ 90%
 - Function coverage: ≥ 98%
 
 **Static Analysis Targets**:
+
 - SonarQube rating: A
 - Critical bugs: 0
 - Code smells: < 10
 - Technical debt ratio: < 5%
 
 **Benchmark Baselines** (to be established):
+
 - Message routing latency: < 10 µs (p99)
 - Work-stealing task submission: < 50 µs (p99)
 - 4-layer delegation: < 500 µs (p99)
 - 100-agent system throughput: > 10k tasks/sec
 
 **Regression Tolerance**:
+
 - Latency regression: < 5% allowed
 - Throughput regression: < 5% allowed
 
@@ -552,21 +589,25 @@ Phase 9 elevates the ProjectKeystone HMAS to **production-grade quality** throug
 ## Risk Mitigation
 
 ### Risk 1: Coverage Target Too Ambitious (95%)
+
 **Impact**: High
 **Likelihood**: Medium
 **Mitigation**: Start with 90%, incrementally reach 95%. Focus on critical paths first.
 
 ### Risk 2: Fuzz Testing Finds Critical Bugs
+
 **Impact**: Medium
 **Likelihood**: Medium
 **Mitigation**: Expected outcome. Fix bugs and add regression tests. Good for quality.
 
 ### Risk 3: Static Analysis Tool Noise
+
 **Impact**: Low
 **Likelihood**: High
 **Mitigation**: Configure tools to reduce false positives. Suppress with justification.
 
 ### Risk 4: Benchmark Variability in CI
+
 **Impact**: Low
 **Likelihood**: Medium
 **Mitigation**: Run benchmarks multiple times, use median. Allow 5% tolerance.

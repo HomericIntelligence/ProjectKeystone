@@ -15,6 +15,7 @@ Phase D focuses on **practical performance optimizations** that provide measurab
 ## Current System Status
 
 ### What We Have (Phases A-C Complete)
+
 - ✅ Work-stealing scheduler with configurable workers
 - ✅ **Lock-free priority queues** (HIGH/NORMAL/LOW) - Already implemented in Phase C!
 - ✅ Lock-free work-stealing queues (moodycamel::ConcurrentQueue)
@@ -25,11 +26,13 @@ Phase D focuses on **practical performance optimizations** that provide measurab
 - ✅ Async coroutine-based agents
 
 ### Performance Baseline (from partial benchmarks)
+
 - **Sync 4-Layer**: 41.2 µs/op, **24.3k items/sec**
 - **Async 4 Workers**: 10.1 ms/op, 20k items/sec
 - **Async 8 Workers**: 10.1 ms/op, 14.3k items/sec
 
 **Observation**: Async mode is **245x slower** than sync mode (10.1ms vs 41µs). This suggests significant overhead from:
+
 - Scheduler startup/shutdown in benchmark loop
 - 10ms sleep for async completion
 - Context switching overhead
@@ -41,6 +44,7 @@ Phase D focuses on **practical performance optimizations** that provide measurab
 **Status**: ❌ NOT NEEDED - Already implemented in Phase C!
 
 **Details**:
+
 - Phase C implemented lock-free priority inboxes using `moodycamel::ConcurrentQueue`
 - Each agent has 3 lock-free queues: `high_priority_inbox_`, `normal_priority_inbox_`, `low_priority_inbox_`
 - No mutex contention in message delivery path
@@ -55,12 +59,14 @@ Phase D focuses on **practical performance optimizations** that provide measurab
 **Status**: 🔄 DEFER - Premature optimization for current needs
 
 **Rationale**:
+
 - Requires multi-socket hardware with NUMA topology
 - Current testing environment: 16-core single CPU (no NUMA zones)
 - Complexity: High (requires libnuma, topology detection, worker pinning)
 - Benefit: Only measurable on multi-socket systems (not our target)
 
 **When to Reconsider**:
+
 - When deploying on multi-socket servers (2+ CPUs)
 - When profiling shows cross-NUMA memory access latency
 - When scaling to 32+ cores across multiple sockets
@@ -74,17 +80,20 @@ Phase D focuses on **practical performance optimizations** that provide measurab
 **Status**: 🔄 DEFER - Requires network transport first
 
 **Current State**:
+
 - Messages passed by value: `KeystoneMessage msg` copied into queues
 - Cista serialization ready but not used (no network transport)
 - Copy cost: Small (KeystoneMessage is ~200 bytes with small payloads)
 
 **Why Defer**:
+
 - **No network layer yet**: Zero-copy is for inter-process/inter-node communication
 - **Intra-process**: Shared memory is already "zero-copy" conceptually
 - **Complexity**: Requires shared_ptr or custom refcounting, lifetime management
 - **Current bottleneck**: Not message copying (see benchmark - async overhead dominates)
 
 **When to Implement**:
+
 - When adding distributed work-stealing (Phase D-Distributed)
 - When network transport layer is added
 - When profiling shows message copy overhead >10% of total time
@@ -98,17 +107,20 @@ Phase D focuses on **practical performance optimizations** that provide measurab
 **Status**: 🔄 DEFER - Need allocation profiling first
 
 **Proposed Optimization**:
+
 - Pool allocator for WorkItem objects
 - Arena allocator for message payloads
 - Thread-local allocators to reduce contention
 
 **Why Defer**:
+
 - **No evidence of allocator bottleneck**: Benchmarks don't show malloc as hotspot
 - **Complexity**: High (custom allocators, thread-safety, fragmentation)
 - **Modern allocators**: jemalloc/tcmalloc already very fast for small objects
 - **Premature**: Should profile first with `perf` or `heaptrack`
 
 **How to Measure First**:
+
 ```bash
 # Profile allocations
 heaptrack ./hierarchy_benchmarks
@@ -120,6 +132,7 @@ perf report
 ```
 
 **When to Implement**:
+
 - After profiling shows >15% time in malloc/free
 - When processing >1M messages/sec (high allocation rate)
 - When memory fragmentation becomes measurable issue
@@ -133,12 +146,14 @@ perf report
 **Status**: ✅ IMPLEMENT NOW - Low complexity, clear benefit
 
 **Rationale**:
+
 - Reduce allocation pressure for high-frequency message creation
 - Simple object pool pattern (lock-free if per-thread)
 - Immediate benefit for high-throughput scenarios
 - Low implementation complexity
 
 **Design**:
+
 ```cpp
 class MessagePool {
 public:
@@ -159,6 +174,7 @@ private:
 ```
 
 **Benefits**:
+
 - Reduces allocation count under load
 - Amortizes allocation cost over message lifetime
 - Thread-local pool avoids contention
@@ -174,11 +190,13 @@ private:
 **Status**: ✅ IMPLEMENT NOW - Builds on existing metrics
 
 **Current State**:
+
 - Phase C has `recordQueueDepth()` collecting data
 - No alerting or threshold monitoring
 - No dashboard or real-time visibility
 
 **What to Add**:
+
 1. **Queue depth thresholds**:
    - Warning: depth > 1000 messages
    - Critical: depth > 10000 messages
@@ -190,6 +208,7 @@ private:
    - Flag potential message processing bottlenecks
 
 **Design**:
+
 ```cpp
 class Metrics {
 public:
@@ -223,12 +242,14 @@ private:
 **Status**: ✅ IMPLEMENT NOW - Simple, measurable benefit
 
 **Rationale**:
+
 - Pin worker threads to specific CPU cores
 - Reduces context switching and cache thrashing
 - Much simpler than full NUMA-aware scheduling
 - Works on single-socket systems (our target)
 
 **Design**:
+
 ```cpp
 class WorkStealingScheduler {
 public:
@@ -256,6 +277,7 @@ private:
 ```
 
 **Benefits**:
+
 - Better cache locality (L1/L2 cache per core)
 - Reduced scheduler overhead (less migration)
 - Predictable performance (no surprise migrations)
@@ -271,17 +293,20 @@ private:
 **Status**: 🔄 DEFER - Needs load monitoring infrastructure first
 
 **Proposed**:
+
 - Dynamically add/remove workers based on queue depth
 - Scale up when queues full, scale down when idle
 - Auto-tuning for varying workloads
 
 **Why Defer**:
+
 - **Complexity**: High (thread lifecycle management, hysteresis, thresholds)
 - **Risk**: Thread creation overhead can make performance worse
 - **Alternative**: Start with static optimal worker count (hardware_concurrency)
 - **Prerequisites**: Need queue depth monitoring first (item #6)
 
 **When to Implement**:
+
 - After queue depth monitoring is operational
 - When workload varies significantly over time
 - When static worker count proves suboptimal
@@ -295,6 +320,7 @@ private:
 **Status**: ✅ IMPLEMENT NOW - Essential for data-driven optimization
 
 **What to Add**:
+
 1. **Built-in profiling mode**:
    - `KEYSTONE_PROFILE=1 ./app` enables detailed tracing
    - Per-agent processing time histograms
@@ -308,6 +334,7 @@ private:
    - Measure actual async message flow (not setup/teardown)
 
 **Design**:
+
 ```cpp
 class ProfilingSession {
 public:
@@ -350,11 +377,13 @@ void processMessage(const KeystoneMessage& msg) {
 **Status**: ✅ IMPLEMENT NOW - Current benchmarks misleading
 
 **Problem**:
+
 - Async benchmarks include scheduler startup/shutdown in timing
 - Artificial 10ms sleep makes results meaningless
 - Not measuring actual message flow performance
 
 **Fix**:
+
 ```cpp
 // BEFORE (misleading)
 for (auto _ : state) {
@@ -481,6 +510,7 @@ static void BM_Async4LayerHierarchy_4Workers(benchmark::State& state) {
     - Statistics: local vs remote steals, network message count
 
 **Benefits of Simulation**:
+
 - Test distributed features on single machine
 - Adjustable parameters (latency, bandwidth, node count)
 - Reproducible experiments
@@ -488,6 +518,7 @@ static void BM_Async4LayerHierarchy_4Workers(benchmark::State& state) {
 - Easy to test edge cases (high latency, packet loss)
 
 **Implementation Approach**:
+
 ```cpp
 class SimulatedNUMANode {
     WorkStealingScheduler scheduler;
@@ -520,22 +551,26 @@ class SimulatedNUMANode {
 ## Success Criteria for Phase D
 
 ### Must Have ✅
+
 - [x] Async benchmarks accurately measure message flow (not setup/teardown)
 - [x] Performance profiling can identify performance bottlenecks
 - [x] Queue depth alerts log warnings when agents overloaded
 - [x] All existing tests still passing ✅ **255/255 tests passing**
 
 ### Should Have 🎯
+
 - [x] Worker CPU affinity implemented (Phase D.2) ✅
 - [x] Message pooling reduces allocation count (Phase D.2) ✅
 - [x] Benchmark suite runs in <2 minutes ✅ ACHIEVED (now ~30 sec vs 10+ min before)
 
 ### Nice to Have 💡
+
 - [ ] Prometheus metrics export for Grafana dashboards (deferred)
 - [ ] Work-stealing efficiency >80% (successful steals / steal attempts)
 - [ ] Flame graphs generated automatically from benchmarks (deferred)
 
 ### Phase D.3 Simulation Criteria ✅
+
 - [x] NUMA simulation with 2-4 simulated nodes ✅ **SimulatedCluster**
 - [x] Cross-node latency injection (configurable 100µs-1ms) ✅ **SimulatedNetwork**
 - [x] Network-aware work stealing (local-first policy) ✅ **WorkStealingScheduler**
@@ -548,6 +583,7 @@ class SimulatedNUMANode {
 ## Rationale Summary
 
 **What Makes Sense NOW**:
+
 1. **Fix benchmarks** - Can't optimize what we can't measure accurately
 2. **Profiling infra** - Data-driven decisions beat guessing
 3. **Queue alerting** - Operational visibility prevents production issues
@@ -555,6 +591,7 @@ class SimulatedNUMANode {
 5. **Message pooling** - Reduces allocation pressure, common optimization
 
 **What Doesn't Make Sense YET**:
+
 1. **NUMA** - No multi-socket hardware to target
 2. **Zero-copy** - No network layer to benefit from it
 3. **Custom allocators** - No evidence malloc is the bottleneck
@@ -569,6 +606,7 @@ Measure first, optimize what matters, defer complexity until it's justified by d
 ---
 
 **Next Steps**:
+
 1. ✅ Phase D.1 COMPLETE: Queue depth alerting + profiling infrastructure
 2. ✅ Phase D.2 COMPLETE: CPU affinity + message pooling
 3. ✅ Phase D.3 COMPLETE: NUMA/Network Simulation Architecture

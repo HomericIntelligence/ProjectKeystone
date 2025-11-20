@@ -106,7 +106,8 @@ class ProfilingSession {
 
   // Global profiling state
   static bool checkEnabled();
-  static void recordDuration(const std::string& section_name, double duration_us);
+  static void recordDuration(const std::string& section_name,
+                             double duration_us);
 
   // Data storage
   struct SectionData {

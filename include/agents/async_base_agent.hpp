@@ -1,14 +1,14 @@
 #pragma once
 
-#include "agent_base.hpp"
-#include "concurrency/task.hpp"
-#include "core/failure_injector.hpp"
-#include "core/message.hpp"
-
 #include <atomic>
 #include <chrono>
 #include <memory>
 #include <string>
+
+#include "agent_base.hpp"
+#include "concurrency/task.hpp"
+#include "core/failure_injector.hpp"
+#include "core/message.hpp"
 
 namespace keystone {
 
@@ -22,7 +22,8 @@ namespace agents {
  * @brief Async base class for all agents using coroutines
  *
  * Phase B: Agents with async processMessage() that returns Task<Response>.
- * This enables agents to co_await async operations without blocking worker threads.
+ * This enables agents to co_await async operations without blocking worker
+ * threads.
  */
 class AsyncBaseAgent : public AgentBase {
  public:
@@ -49,13 +50,14 @@ class AsyncBaseAgent : public AgentBase {
    * @param msg The message to process
    * @return concurrency::Task<core::Response> Coroutine that produces response
    */
-  virtual concurrency::Task<core::Response> processMessage(const core::KeystoneMessage& msg) = 0;
+  virtual concurrency::Task<core::Response> processMessage(
+      const core::KeystoneMessage& msg) = 0;
 
   /**
    * @brief Receive a message into the inbox (called by MessageBus)
    *
-   * This overrides AgentBase to automatically submit messages for async processing
-   * when a scheduler is set.
+   * This overrides AgentBase to automatically submit messages for async
+   * processing when a scheduler is set.
    *
    * @param msg Message to receive
    */

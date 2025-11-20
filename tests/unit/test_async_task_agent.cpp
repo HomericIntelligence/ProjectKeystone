@@ -1,11 +1,11 @@
-#include "agents/async_task_agent.hpp"
-#include "concurrency/work_stealing_scheduler.hpp"
-#include "core/message_bus.hpp"
+#include <gtest/gtest.h>
 
 #include <chrono>
 #include <thread>
 
-#include <gtest/gtest.h>
+#include "agents/async_task_agent.hpp"
+#include "concurrency/work_stealing_scheduler.hpp"
+#include "core/message_bus.hpp"
 
 using namespace keystone;
 using namespace keystone::agents;
@@ -37,7 +37,8 @@ class AsyncTaskAgentTest : public ::testing::Test {
 
 TEST_F(AsyncTaskAgentTest, ProcessSimpleEchoCommand) {
   // Create message with echo command
-  auto msg = KeystoneMessage::create("test", agent_->getAgentId(), "echo hello");
+  auto msg =
+      KeystoneMessage::create("test", agent_->getAgentId(), "echo hello");
 
   // Send message via bus (async routing)
   bus_->routeMessage(msg);
@@ -46,8 +47,8 @@ TEST_F(AsyncTaskAgentTest, ProcessSimpleEchoCommand) {
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
   // Verify response was sent back
-  // Note: In async mode, the response is sent via MessageBus, not returned directly
-  // The agent's command history should be updated
+  // Note: In async mode, the response is sent via MessageBus, not returned
+  // directly The agent's command history should be updated
   const auto& history = agent_->getCommandHistory();
   ASSERT_EQ(history.size(), 1);
   EXPECT_EQ(history[0].first, "echo hello");
@@ -55,7 +56,8 @@ TEST_F(AsyncTaskAgentTest, ProcessSimpleEchoCommand) {
 }
 
 TEST_F(AsyncTaskAgentTest, ProcessArithmeticCommand) {
-  auto msg = KeystoneMessage::create("test", agent_->getAgentId(), "echo $((5 + 3))");
+  auto msg =
+      KeystoneMessage::create("test", agent_->getAgentId(), "echo $((5 + 3))");
 
   bus_->routeMessage(msg);
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -67,9 +69,12 @@ TEST_F(AsyncTaskAgentTest, ProcessArithmeticCommand) {
 }
 
 TEST_F(AsyncTaskAgentTest, ProcessMultipleCommands) {
-  auto msg1 = KeystoneMessage::create("test", agent_->getAgentId(), "echo first");
-  auto msg2 = KeystoneMessage::create("test", agent_->getAgentId(), "echo second");
-  auto msg3 = KeystoneMessage::create("test", agent_->getAgentId(), "echo third");
+  auto msg1 =
+      KeystoneMessage::create("test", agent_->getAgentId(), "echo first");
+  auto msg2 =
+      KeystoneMessage::create("test", agent_->getAgentId(), "echo second");
+  auto msg3 =
+      KeystoneMessage::create("test", agent_->getAgentId(), "echo third");
 
   bus_->routeMessage(msg1);
   bus_->routeMessage(msg2);
@@ -108,10 +113,12 @@ TEST_F(AsyncTaskAgentTest, HandleCommandFailure) {
 
 TEST_F(AsyncTaskAgentTest, AsyncExecutionDoesNotBlock) {
   // Submit a slow command
-  auto slow_msg = KeystoneMessage::create("test", agent_->getAgentId(), "sleep 0.1 && echo slow");
+  auto slow_msg = KeystoneMessage::create("test", agent_->getAgentId(),
+                                          "sleep 0.1 && echo slow");
 
   // Submit a fast command
-  auto fast_msg = KeystoneMessage::create("test", agent_->getAgentId(), "echo fast");
+  auto fast_msg =
+      KeystoneMessage::create("test", agent_->getAgentId(), "echo fast");
 
   // Send slow first
   bus_->routeMessage(slow_msg);
@@ -147,7 +154,8 @@ TEST_F(AsyncTaskAgentTest, MessageBusIntegration) {
   bus_->registerAgent(receiver->getAgentId(), receiver.get());
 
   // Send message from agent to receiver
-  auto msg = KeystoneMessage::create(agent_->getAgentId(), receiver->getAgentId(), "echo test");
+  auto msg = KeystoneMessage::create(agent_->getAgentId(),
+                                     receiver->getAgentId(), "echo test");
 
   agent_->sendMessage(msg);
 
@@ -165,7 +173,8 @@ TEST_F(AsyncTaskAgentTest, CoawaitSyntaxInCoroutine) {
   // The actual co_await happens inside processMessage, which is tested
   // by all other tests. This is more of a compilation test.
 
-  auto msg = KeystoneMessage::create("test", agent_->getAgentId(), "echo coawait");
+  auto msg =
+      KeystoneMessage::create("test", agent_->getAgentId(), "echo coawait");
   bus_->routeMessage(msg);
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
@@ -182,7 +191,8 @@ TEST_F(AsyncTaskAgentTest, SchedulerRequired) {
 
   bus_->registerAgent(no_sched_agent->getAgentId(), no_sched_agent.get());
 
-  auto msg = KeystoneMessage::create("test", no_sched_agent->getAgentId(), "echo test");
+  auto msg = KeystoneMessage::create("test", no_sched_agent->getAgentId(),
+                                     "echo test");
 
   // Send message - should still work (message queued)
   bus_->routeMessage(msg);

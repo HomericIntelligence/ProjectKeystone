@@ -1,14 +1,14 @@
 #pragma once
 
-#include "core/config.hpp"   // FIX m3: Centralized configuration
-#include "core/message.hpp"  // For Priority enum
-
 #include <atomic>
 #include <chrono>
 #include <map>
 #include <mutex>
 #include <optional>
 #include <string>
+
+#include "core/config.hpp"   // FIX m3: Centralized configuration
+#include "core/message.hpp"  // For Priority enum
 
 namespace keystone {
 namespace core {
@@ -39,7 +39,8 @@ class Metrics {
   /**
    * @brief Record a message sent
    * @param msg_id Message identifier
-   * @param priority Message priority (FIX: now uses Priority enum for type safety)
+   * @param priority Message priority (FIX: now uses Priority enum for type
+   * safety)
    */
   void recordMessageSent(const std::string& msg_id, Priority priority);
 

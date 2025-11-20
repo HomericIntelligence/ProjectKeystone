@@ -15,18 +15,18 @@ spec:
     app: hmas
     component: agent-system
   ports:
-  - name: metrics
-    port: 9090
-    targetPort: metrics
-    protocol: TCP
-  - name: health
-    port: 8080
-    targetPort: health
-    protocol: TCP
-  - name: grpc
-    port: 50051
-    targetPort: grpc
-    protocol: TCP
+    - name: metrics
+      port: 9090
+      targetPort: metrics
+      protocol: TCP
+    - name: health
+      port: 8080
+      targetPort: health
+      protocol: TCP
+    - name: grpc
+      port: 50051
+      targetPort: grpc
+      protocol: TCP
   sessionAffinity: None
 ---
 apiVersion: v1
@@ -44,8 +44,8 @@ spec:
     app: hmas
     component: agent-system
   ports:
-  - name: grpc
-    port: 50051
-    targetPort: grpc
-    protocol: TCP
+    - name: grpc
+      port: 50051
+      targetPort: grpc
+      protocol: TCP
   publishNotReadyAddresses: false

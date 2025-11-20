@@ -3,14 +3,14 @@
  * @brief Unit tests for ThreadPool
  */
 
-#include "concurrency/task.hpp"
-#include "concurrency/thread_pool.hpp"
+#include <gtest/gtest.h>
 
 #include <atomic>
 #include <chrono>
 #include <thread>
 
-#include <gtest/gtest.h>
+#include "concurrency/task.hpp"
+#include "concurrency/thread_pool.hpp"
 
 using namespace keystone::concurrency;
 

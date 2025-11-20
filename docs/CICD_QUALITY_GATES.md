@@ -21,6 +21,7 @@ ProjectKeystone implements **5 quality gates** that must pass before code can be
 **Workflow Job**: `coverage`
 
 **Process**:
+
 1. Build with coverage instrumentation (`-DENABLE_COVERAGE=ON`)
 2. Run all 329+ tests
 3. Generate coverage report with `lcov`
@@ -29,18 +30,22 @@ ProjectKeystone implements **5 quality gates** that must pass before code can be
 6. **Gate**: FAIL if coverage < 95%
 
 **Commands**:
+
 ```bash
 ./scripts/generate_coverage.sh
 ```
 
 **Success Criteria**:
+
 - Line coverage ≥ 95%
 - Coverage report uploaded to artifacts
 
 **Artifacts**:
+
 - `coverage-report/` - HTML coverage report
 
 **Viewing Results**:
+
 ```bash
 # Download artifact from GitHub Actions
 unzip coverage-report.zip
@@ -54,10 +59,12 @@ open coverage-report/html/index.html
 **Workflow Job**: `static-analysis`
 
 **Tools**:
+
 - **clang-tidy**: C++ linting and best practices
 - **cppcheck**: Static analysis for C/C++
 
 **Process**:
+
 1. Build with `ENABLE_CLANG_TIDY=ON`
 2. Run `clang-tidy` on all source files
 3. Run `cppcheck` with all checks enabled
@@ -66,21 +73,25 @@ open coverage-report/html/index.html
 6. **Gate**: FAIL if critical errors found
 
 **Commands**:
+
 ```bash
 ./scripts/run_static_analysis.sh
 ```
 
 **Success Criteria**:
+
 - Zero critical errors
 - Warnings are reported but don't block
 
 **Artifacts**:
+
 - `static-analysis-reports/clang-tidy-report.txt`
 - `static-analysis-reports/clang-tidy-report.xml`
 - `static-analysis-reports/cppcheck-report.txt`
 - `static-analysis-reports/cppcheck-report.xml`
 
 **Checks Performed**:
+
 - Memory safety (leaks, use-after-free)
 - Undefined behavior
 - Performance anti-patterns
@@ -94,18 +105,21 @@ open coverage-report/html/index.html
 **Workflow Job**: `fuzz-testing`
 
 **Fuzz Targets** (15 minutes each):
+
 1. `fuzz_message_serialization` - Message parsing
 2. `fuzz_message_bus_routing` - MessageBus routing
 3. `fuzz_work_stealing` - Work-stealing scheduler
 4. `fuzz_retry_policy` - Retry policy calculations
 
 **Process**:
+
 1. Build with `ENABLE_FUZZING=ON` (requires Clang)
 2. Run each fuzz target for 15 minutes
 3. Check for crash artifacts (`crash-*` files)
 4. **Gate**: FAIL if any crashes found
 
 **Commands**:
+
 ```bash
 # Build
 cmake -DENABLE_FUZZING=ON -DCMAKE_CXX_COMPILER=clang++ ..
@@ -116,13 +130,16 @@ ninja
 ```
 
 **Success Criteria**:
+
 - No crash artifacts generated
 - All fuzz targets complete 15 minutes without crashes
 
 **Artifacts** (on failure):
+
 - `fuzz-crash-artifacts/crash-*` - Crashing inputs
 
 **Reproducing Crashes**:
+
 ```bash
 # Download crash artifact
 ./fuzz_message_serialization crash-abc123def456
@@ -138,6 +155,7 @@ gdb --args ./fuzz_message_serialization crash-abc123def456
 **Workflow Job**: `benchmarks`
 
 **Benchmark Suites** (45+ tests):
+
 - `hierarchy_benchmarks` (5 tests)
 - `message_pool_benchmarks` (10 tests)
 - `distributed_benchmarks` (8 tests)
@@ -145,6 +163,7 @@ gdb --args ./fuzz_message_serialization crash-abc123def456
 - `resilience_benchmarks` (20 tests)
 
 **Process**:
+
 1. Build in Release mode (`CMAKE_BUILD_TYPE=Release`)
 2. Download baseline (from previous runs)
 3. Run all 45+ benchmarks
@@ -153,24 +172,29 @@ gdb --args ./fuzz_message_serialization crash-abc123def456
 6. **Gate**: FAIL if regressions detected
 
 **Commands**:
+
 ```bash
 ./scripts/run_benchmarks.sh --compare benchmarks/results/baseline.json
 ```
 
 **Success Criteria**:
+
 - No benchmarks >10% slower than baseline
 - Baseline created if first run
 
 **Artifacts**:
+
 - `benchmark-baseline/baseline.json` - Baseline metrics
 - `benchmark-results/` - Current run results
 
 **Regression Threshold**:
+
 - **Regression**: >10% slower (ratio > 1.10)
 - **Improvement**: >10% faster (ratio < 0.90)
 - **Unchanged**: Within ±10%
 
 **Example Output**:
+
 ```
 ✓ Passing: 40
 ↑ Improvements: 3
@@ -190,17 +214,20 @@ gdb --args ./fuzz_message_serialization crash-abc123def456
 **Workflow Job**: `tests`
 
 **Test Suites** (329+ tests):
+
 - Unit tests (various components)
 - E2E tests (Phase 1-5)
 - Concurrency tests
 - Simulation tests
 
 **Process**:
+
 1. Build in Debug mode
 2. Run all tests with `ctest`
 3. **Gate**: FAIL if any test fails
 
 **Commands**:
+
 ```bash
 cd build
 cmake -DCMAKE_BUILD_TYPE=Debug -G Ninja ..
@@ -209,6 +236,7 @@ ctest --output-on-failure
 ```
 
 **Success Criteria**:
+
 - All tests pass
 - No segfaults or timeouts
 
@@ -217,16 +245,19 @@ ctest --output-on-failure
 The quality gate workflow runs on:
 
 1. **Push to main/develop**
+
    ```
    git push origin main
    ```
 
 2. **Push to claude/** branches
+
    ```
    git push origin claude/feature-name-xyz
    ```
 
 3. **Pull requests to main/develop**
+
    ```
    gh pr create --base main
    ```
@@ -252,11 +283,13 @@ This prevents duplicate runs and saves CI resources.
 The `quality-summary` job runs after all quality gates complete:
 
 **Purpose**:
+
 - Aggregate results from all jobs
 - Provide single pass/fail status
 - Used for branch protection rules
 
 **Status**:
+
 - ✅ **PASS**: All 5 quality gates passed
 - ❌ **FAIL**: At least one quality gate failed
 
@@ -351,6 +384,7 @@ For pull requests, the coverage job automatically comments:
 **Problem**: Coverage is 87%, need 95%
 
 **Solution**:
+
 1. Check `PHASE_9_COVERAGE_BASELINE.md` for priority files
 2. Write tests for uncovered code
 3. Re-run coverage locally
@@ -361,6 +395,7 @@ For pull requests, the coverage job automatically comments:
 **Problem**: clang-tidy reports errors
 
 **Solution**:
+
 1. Download `static-analysis-reports` artifact
 2. Read `clang-tidy-report.txt`
 3. Fix reported issues
@@ -372,6 +407,7 @@ For pull requests, the coverage job automatically comments:
 **Problem**: Fuzz target found crash
 
 **Solution**:
+
 1. Download `fuzz-crash-artifacts`
 2. Reproduce locally: `./fuzz_target crash-abc123`
 3. Debug with gdb: `gdb --args ./fuzz_target crash-abc123`
@@ -384,6 +420,7 @@ For pull requests, the coverage job automatically comments:
 **Problem**: Benchmark >10% slower
 
 **Solution**:
+
 1. Download `benchmark-results` artifact
 2. Identify which benchmark regressed
 3. Profile locally: `perf record ./benchmark_exe`
@@ -396,6 +433,7 @@ For pull requests, the coverage job automatically comments:
 **Problem**: Unit tests fail in CI
 
 **Solution**:
+
 1. View test logs in GitHub Actions
 2. Reproduce locally: `ctest --output-on-failure`
 3. Fix failing tests
@@ -417,6 +455,7 @@ For pull requests, the coverage job automatically comments:
 **Total**: ~60-75 minutes (sequential)
 
 **Optimization Strategies**:
+
 1. Use GitHub Actions caching for dependencies
 2. Run fuzz targets in parallel (future)
 3. Incremental coverage (only changed files)
@@ -430,6 +469,7 @@ For pull requests, the coverage job automatically comments:
 - **Private repos**: Depends on plan
 
 **Approximate usage**:
+
 - 75 minutes per workflow run
 - ~10 runs per day (active development)
 - **Total**: ~750 minutes/day

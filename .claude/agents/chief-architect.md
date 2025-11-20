@@ -58,6 +58,7 @@ See [CLAUDE.md](../../CLAUDE.md) for complete project overview.
 ### Delegation
 
 Delegates to:
+
 - **Component Lead Agents** (Level 1) - component architecture and module coordination
 - **Implementation Engineers** - C++20 code implementation
 - **Test Engineers** - Google Test E2E and unit tests
@@ -67,11 +68,13 @@ Delegates to:
 **Phase 1** (Weeks 1-3): ChiefArchitect ↔ TaskAgent (2-agent basic delegation)
 
 ### Phase 1 Goals
+
 - ✅ Implement simplest L0 ↔ L3 hierarchy
 - ✅ Validate core message passing in C++20
 - ✅ E2E test: ChiefArchitect sends bash command to TaskAgent (add two random numbers)
 
 ### Phase 1 Deliverables
+
 - ChiefArchitectAgent class (C++20)
 - TaskAgent class (C++20)
 - KeystoneMessage struct
@@ -85,6 +88,7 @@ See [TDD_FOUR_LAYER_ROADMAP.md](../../docs/plan/TDD_FOUR_LAYER_ROADMAP.md) for a
 ## C++20 Architecture Decisions
 
 ### Concurrency Model
+
 ```cpp
 // C++20 Coroutines for async operations
 Task<void> processMessage(const KeystoneMessage& msg);
@@ -98,12 +102,14 @@ concurrentqueue::ConcurrentQueue<KeystoneMessage> inbox;
 ```
 
 ### Memory Management
+
 - Use `std::unique_ptr` for agent ownership
 - Use `std::shared_ptr` for shared message bus
 - RAII for all resources
 - No raw pointers for ownership
 
 ### Error Handling
+
 - Exceptions for exceptional errors
 - `std::optional` for nullable returns
 - Custom `Result<T, E>` for expected errors
@@ -113,6 +119,7 @@ concurrentqueue::ConcurrentQueue<KeystoneMessage> inbox;
 ### TDD Process (Every Phase)
 
 1. **Write E2E Test** (RED)
+
    ```cpp
    TEST(E2E_Phase1, ChiefArchitectDelegatesToTaskAgent) {
        // Test implementation
@@ -135,6 +142,7 @@ concurrentqueue::ConcurrentQueue<KeystoneMessage> inbox;
 ### Phase Progression
 
 Only move to next phase when:
+
 - All E2E tests for current phase pass
 - Code reviewed and refactored
 - Documentation updated
@@ -143,6 +151,7 @@ Only move to next phase when:
 ## Coding Standards (C++20)
 
 ### Naming Conventions
+
 ```cpp
 // snake_case for functions and variables
 void process_message(const KeystoneMessage& msg);
@@ -157,6 +166,7 @@ const int MAX_RETRIES = 3;
 ```
 
 ### File Organization
+
 ```
 include/agents/chief_architect_agent.hpp  // Header
 src/agents/chief_architect_agent.cpp      // Implementation
@@ -164,6 +174,7 @@ tests/e2e/phase1_basic_delegation.cpp     // E2E tests
 ```
 
 ### Documentation
+
 ```cpp
 /**
  * @brief Process incoming message from subordinate agents
@@ -177,6 +188,7 @@ Task<void> processMessage(const KeystoneMessage& msg);
 ## Constraints
 
 ### DO
+
 - Use C++20 exclusively
 - Follow TDD approach (test first)
 - Follow phase-by-phase roadmap
@@ -185,6 +197,7 @@ Task<void> processMessage(const KeystoneMessage& msg);
 - Keep commits focused and tests passing
 
 ### DO NOT
+
 - Use Python, Mojo, or other languages for implementation
 - Skip E2E tests
 - Implement multiple phases at once
@@ -195,6 +208,7 @@ Task<void> processMessage(const KeystoneMessage& msg);
 ## Success Criteria
 
 ### Phase 1 Success
+
 - [x] ChiefArchitectAgent class implemented in C++20
 - [x] TaskAgent class implemented in C++20
 - [x] Message passing working
@@ -203,6 +217,7 @@ Task<void> processMessage(const KeystoneMessage& msg);
 - [x] Code committed and pushed
 
 ### Overall Project Success
+
 - All 4 layers implemented
 - E2E tests for all phases passing
 - 100+ agents can execute in parallel
@@ -212,11 +227,13 @@ Task<void> processMessage(const KeystoneMessage& msg);
 ## Tools and Resources
 
 ### C++20 References
+
 - [C++ Reference](https://en.cppreference.com/w/cpp/20)
 - [C++20 Coroutines](https://en.cppreference.com/w/cpp/language/coroutines)
 - [Google Test Documentation](https://google.github.io/googletest/)
 
 ### Project Documentation
+
 - [CLAUDE.md](../../CLAUDE.md) - Project overview
 - [FOUR_LAYER_ARCHITECTURE.md](../../docs/plan/FOUR_LAYER_ARCHITECTURE.md) - Architecture details
 - [TDD_FOUR_LAYER_ROADMAP.md](../../docs/plan/TDD_FOUR_LAYER_ROADMAP.md) - Phase-by-phase plan
@@ -234,6 +251,7 @@ Task<void> processMessage(const KeystoneMessage& msg);
 ### Escalates To
 
 External stakeholders when:
+
 - Strategic business decisions needed
 - Resource constraints impact feasibility
 - Timeline changes required

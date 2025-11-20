@@ -1,6 +1,7 @@
 # ProjectKeystone CI/CD Workflows
 
-This directory contains GitHub Actions workflows for automated testing, building, and security scanning of the ProjectKeystone HMAS (Hierarchical Multi-Agent System) codebase.
+This directory contains GitHub Actions workflows for automated testing, building, and
+security scanning of the ProjectKeystone HMAS (Hierarchical Multi-Agent System) codebase.
 
 ## Workflow Overview
 
@@ -74,11 +75,13 @@ Jobs:
 ```
 
 **Key Features**:
+
 - Caches pre-commit environments for faster runs
 - Shows diff on failure for easy fixes
 - Provides clear instructions for local fixes
 
 **Local Fix Process**:
+
 ```bash
 pip install pre-commit
 pre-commit install
@@ -97,6 +100,7 @@ Jobs:
 ```
 
 **Key Features**:
+
 - Docker-based builds for consistency
 - Coverage tracking with gcovr
 - XML and HTML coverage reports
@@ -104,6 +108,7 @@ Jobs:
 - Graceful handling of missing tests during development
 
 **Coverage Requirements**:
+
 - Target: 80% coverage (warning below)
 - Celebration: 90%+ coverage
 - Initial development: 0% accepted (until tests implemented)
@@ -119,6 +124,7 @@ Jobs:
 ```
 
 **Key Features**:
+
 - Multi-stage Docker builds
 - Native build validation
 - Build artifact uploads
@@ -126,6 +132,7 @@ Jobs:
 - Fails if any build fails
 
 **Docker Targets**:
+
 - `builder`: Full build environment (Ubuntu 22.04, GCC 12, CMake, Ninja)
 - `runtime`: Minimal runtime with test executables
 - `development`: Dev tools (gdb, valgrind, clang-format)
@@ -140,6 +147,7 @@ Jobs:
 ```
 
 **Key Features**:
+
 - Matrix strategy for parallel test execution
 - Phase-specific E2E tests
 - Fail-fast disabled (all phases run)
@@ -147,6 +155,7 @@ Jobs:
 - Detailed PR comments with phase status
 
 **Test Phases**:
+
 - Phase 1: L0 ↔ L3 (Basic delegation)
 - Phase 2: L0 ↔ L2 ↔ L3 (Coordination)
 - Phase 3: L0 ↔ L1 ↔ L2 ↔ L3 (Full hierarchy)
@@ -166,6 +175,7 @@ Jobs:
 ```
 
 **Key Features**:
+
 - Multi-layered security scanning
 - SARIF uploads to GitHub Security tab
 - Weekly scheduled scans
@@ -173,6 +183,7 @@ Jobs:
 - Blocks merges on critical vulnerabilities
 
 **Security Tools**:
+
 - **Gitleaks**: Secret detection in git history
 - **Semgrep**: Pattern-based SAST for C++/Docker/CMake
 - **CodeQL**: Deep semantic analysis for C++
@@ -190,6 +201,7 @@ Jobs:
 ```
 
 **Key Features**:
+
 - Runtime error detection during test execution
 - Parallel execution of compatible sanitizers
 - Automatic PR comments with findings
@@ -197,6 +209,7 @@ Jobs:
 - Fails workflow if issues detected
 
 **Sanitizer Types**:
+
 - **AddressSanitizer (ASan)**: Detects memory errors
   - Use-after-free, buffer overflows
   - Memory leaks
@@ -213,6 +226,7 @@ Jobs:
   - Only runs on manual trigger (complex setup)
 
 **Local Testing**:
+
 ```bash
 # Run with ASan + UBSan
 docker build --build-arg CMAKE_CXX_FLAGS="-fsanitize=address,undefined" .
@@ -224,18 +238,23 @@ docker build --build-arg CMAKE_CXX_FLAGS="-fsanitize=thread" .
 ## Workflow Triggers
 
 ### Pull Requests
+
 All workflows run on:
+
 - PR opened
 - PR synchronized (new commits)
 - PR reopened
 
 ### Push Events
+
 All workflows run on pushes to `main` branch
 
 ### Scheduled
+
 - **security-scan.yml**: Weekly on Mondays at 9 AM UTC
 
 ### Manual
+
 All workflows support `workflow_dispatch` for manual triggering
 
 ## Artifacts and Retention
@@ -309,31 +328,37 @@ Total time: ~25 minutes for comprehensive validation (including sanitizers)
 ## Failure Handling
 
 ### Pre-commit Failures
+
 - Shows diff of formatting issues
 - Provides local fix instructions
 - Fails workflow
 
 ### Unit Test Failures
+
 - Uploads test results as artifacts
 - Comments PR with failure details
 - Fails workflow
 
 ### Build Failures
+
 - Reports which target failed
 - Uploads build logs
 - Fails workflow immediately
 
 ### Integration Test Failures
+
 - Continues running all phases (fail-fast: false)
 - Reports which phases failed
 - Fails workflow after all tests run
 
 ### Security Scan Failures
+
 - Uploads findings to Security tab
 - Comments PR with summary
 - Fails workflow only on critical issues
 
 ### Sanitizer Failures
+
 - Uploads sanitizer logs as artifacts
 - Comments PR with detected issues
 - Fails workflow if any sanitizer detects errors
@@ -342,6 +367,7 @@ Total time: ~25 minutes for comprehensive validation (including sanitizers)
 ## Skipping Workflows
 
 To skip CI workflows on a commit:
+
 ```bash
 git commit -m "docs: Update README [skip ci]"
 ```
@@ -351,6 +377,7 @@ Note: This skips ALL workflows. Use sparingly and only for documentation changes
 ## Local Development
 
 ### Running Pre-commit Locally
+
 ```bash
 # Install
 pip install pre-commit
@@ -364,6 +391,7 @@ pre-commit run clang-format --all-files
 ```
 
 ### Running Tests Locally
+
 ```bash
 # Build and run tests in Docker
 docker-compose up test
@@ -375,6 +403,7 @@ cd build && ctest --output-on-failure
 ```
 
 ### Running Builds Locally
+
 ```bash
 # Build specific Docker target
 docker build --target builder -t projectkeystone:builder .
@@ -388,6 +417,7 @@ ninja
 ```
 
 ### Running Security Scans Locally
+
 ```bash
 # Gitleaks
 docker run -v $(pwd):/path zricethezav/gitleaks:latest detect --source /path
@@ -400,6 +430,7 @@ cppcheck --enable=all --suppress=missingIncludeSystem -I include src/
 ```
 
 ### Running Sanitizers Locally
+
 ```bash
 # ASan + UBSan
 docker build \
@@ -424,22 +455,26 @@ make
 ## Troubleshooting
 
 ### Workflow Not Triggering
+
 - Check branch protection rules
 - Verify workflow file syntax
 - Check GitHub Actions tab for errors
 - Ensure repository has Actions enabled
 
 ### Docker Build Timeouts
+
 - Increase `timeout-minutes` in workflow
 - Use BuildKit caching
 - Split large builds into stages
 
 ### Coverage Not Generating
+
 - Ensure tests are built with coverage flags
 - Check gcovr is installed in Docker image
 - Verify test executables run successfully
 
 ### Security Scans False Positives
+
 - Add suppressions to `.semgrepignore` or `.gitleaksignore`
 - Use inline comments for cppcheck: `// cppcheck-suppress`
 - Document false positives in PR comments
@@ -447,16 +482,19 @@ make
 ## Maintenance
 
 ### Weekly Tasks
+
 - Review Dependabot PRs for GitHub Actions updates
 - Check Security tab for new advisories
 - Review failed scheduled security scans
 
 ### Monthly Tasks
+
 - Update action versions (use Dependabot)
 - Review artifact retention policies
 - Clean up old workflow runs (automatic after 90 days)
 
 ### Quarterly Tasks
+
 - Review and update pre-commit hooks
 - Update Docker base images
 - Review and update security scan configurations
@@ -484,6 +522,7 @@ When adding new workflows:
 ## Support
 
 For workflow issues:
+
 - Check workflow run logs in GitHub Actions tab
 - Review this README for troubleshooting steps
 - Open an issue with workflow run link

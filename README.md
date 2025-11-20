@@ -10,7 +10,9 @@
 
 ## Overview
 
-ProjectKeystone is a high-performance, hierarchical multi-agent system (HMAS) built with modern C++20. It implements a 4-layer agent architecture with message-passing communication, work-stealing task scheduling, and comprehensive resilience features.
+ProjectKeystone is a high-performance, hierarchical multi-agent system (HMAS) built
+with modern C++20. It implements a 4-layer agent architecture with message-passing
+communication, work-stealing task scheduling, and comprehensive resilience features.
 
 ### Key Features
 
@@ -248,6 +250,7 @@ MIT License - See [LICENSE](LICENSE) for details.
 ## Acknowledgments
 
 Built with:
+
 - [Google Test](https://github.com/google/googletest) - Unit testing framework
 - [Google Benchmark](https://github.com/google/benchmark) - Performance benchmarking
 - [spdlog](https://github.com/gabime/spdlog) - Fast logging library

@@ -1,47 +1,47 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "projectkeystone.fullname" . }}-config
-  namespace: {{ include "projectkeystone.namespace" . }}
+  name: {{include "projectkeystone.fullname" .}}-config
+  namespace: {{include "projectkeystone.namespace" .}}
   labels:
-    {{- include "projectkeystone.labels" . | nindent 4 }}
+    {{- include "projectkeystone.labels" . | nindent 4}}
 data:
   # Worker configuration
-  WORKER_COUNT: {{ .Values.config.workerCount | quote }}
-  WORK_STEALING_ENABLED: {{ .Values.config.workStealingEnabled | quote }}
+  WORKER_COUNT: {{.Values.config.workerCount | quote}}
+  WORK_STEALING_ENABLED: {{.Values.config.workStealingEnabled | quote}}
 
   # Logging configuration
-  LOG_LEVEL: {{ .Values.config.logLevel | quote }}
-  LOG_FORMAT: {{ .Values.config.logFormat | quote }}
+  LOG_LEVEL: {{.Values.config.logLevel | quote}}
+  LOG_FORMAT: {{.Values.config.logFormat | quote}}
 
   # Agent configuration
-  HEARTBEAT_INTERVAL_MS: {{ .Values.config.heartbeatIntervalMs | quote }}
-  HEARTBEAT_TIMEOUT_MS: {{ .Values.config.heartbeatTimeoutMs | quote }}
+  HEARTBEAT_INTERVAL_MS: {{.Values.config.heartbeatIntervalMs | quote}}
+  HEARTBEAT_TIMEOUT_MS: {{.Values.config.heartbeatTimeoutMs | quote}}
 
   # Circuit breaker configuration
-  CIRCUIT_BREAKER_FAILURE_THRESHOLD: {{ .Values.config.circuitBreakerFailureThreshold | quote }}
-  CIRCUIT_BREAKER_TIMEOUT_MS: {{ .Values.config.circuitBreakerTimeoutMs | quote }}
-  CIRCUIT_BREAKER_SUCCESS_THRESHOLD: {{ .Values.config.circuitBreakerSuccessThreshold | quote }}
+  CIRCUIT_BREAKER_FAILURE_THRESHOLD: {{.Values.config.circuitBreakerFailureThreshold | quote}}
+  CIRCUIT_BREAKER_TIMEOUT_MS: {{.Values.config.circuitBreakerTimeoutMs | quote}}
+  CIRCUIT_BREAKER_SUCCESS_THRESHOLD: {{.Values.config.circuitBreakerSuccessThreshold | quote}}
 
   # Retry policy configuration
-  RETRY_MAX_ATTEMPTS: {{ .Values.config.retryMaxAttempts | quote }}
-  RETRY_INITIAL_DELAY_MS: {{ .Values.config.retryInitialDelayMs | quote }}
-  RETRY_BACKOFF_MULTIPLIER: {{ .Values.config.retryBackoffMultiplier | quote }}
-  RETRY_MAX_DELAY_MS: {{ .Values.config.retryMaxDelayMs | quote }}
+  RETRY_MAX_ATTEMPTS: {{.Values.config.retryMaxAttempts | quote}}
+  RETRY_INITIAL_DELAY_MS: {{.Values.config.retryInitialDelayMs | quote}}
+  RETRY_BACKOFF_MULTIPLIER: {{.Values.config.retryBackoffMultiplier | quote}}
+  RETRY_MAX_DELAY_MS: {{.Values.config.retryMaxDelayMs | quote}}
 
   # Message configuration
-  MESSAGE_LOSS_RATE: {{ .Values.config.messageLossRate | quote }}
-  MESSAGE_MIN_LATENCY_US: {{ .Values.config.messageMinLatencyUs | quote }}
-  MESSAGE_MAX_LATENCY_US: {{ .Values.config.messageMaxLatencyUs | quote }}
+  MESSAGE_LOSS_RATE: {{.Values.config.messageLossRate | quote}}
+  MESSAGE_MIN_LATENCY_US: {{.Values.config.messageMinLatencyUs | quote}}
+  MESSAGE_MAX_LATENCY_US: {{.Values.config.messageMaxLatencyUs | quote}}
 
   # Metrics configuration
-  METRICS_ENABLED: {{ .Values.config.metricsEnabled | quote }}
-  METRICS_PORT: {{ .Values.config.metricsPort | quote }}
+  METRICS_ENABLED: {{.Values.config.metricsEnabled | quote}}
+  METRICS_PORT: {{.Values.config.metricsPort | quote}}
 
   # Health check configuration
-  HEALTH_CHECK_PORT: {{ .Values.config.healthCheckPort | quote }}
+  HEALTH_CHECK_PORT: {{.Values.config.healthCheckPort | quote}}
 
   # Feature flags
-  ENABLE_CHAOS_ENGINEERING: {{ .Values.config.enableChaosEngineering | quote }}
-  ENABLE_DISTRIBUTED_TRACING: {{ .Values.config.enableDistributedTracing | quote }}
-  ENABLE_AI_AGENTS: {{ .Values.config.enableAiAgents | quote }}
+  ENABLE_CHAOS_ENGINEERING: {{.Values.config.enableChaosEngineering | quote}}
+  ENABLE_DISTRIBUTED_TRACING: {{.Values.config.enableDistributedTracing | quote}}
+  ENABLE_AI_AGENTS: {{.Values.config.enableAiAgents | quote}}

@@ -21,6 +21,7 @@ Phase 4: L0 ←→ [L1 × 3] ←→ [L2 × n] ←→ [L3 × m] (full system)
 ## Phase 1: Chief Architect + Task Agent (Weeks 1-3)
 
 ### Goal
+
 Validate core infrastructure with the simplest possible hierarchy.
 
 ### Architecture
@@ -146,6 +147,7 @@ TEST(E2E_Phase1, ChiefArchitectCoordinatesThreeTaskAgents) {
 ## Phase 2: Add Module Lead Layer (Weeks 4-6)
 
 ### Goal
+
 Introduce intermediate coordination layer for task synthesis.
 
 ### Architecture
@@ -253,6 +255,7 @@ TEST(E2E_Phase2, ModuleLeadRecoversFromTaskFailure) {
 ## Phase 3: Add Component Lead Layer (Weeks 7-9)
 
 ### Goal
+
 Introduce component-level coordination across multiple modules.
 
 ### Architecture
@@ -361,6 +364,7 @@ TEST(E2E_Phase3, ComponentLeadResolvesDependencies) {
 ## Phase 4: Full Multi-Component System (Weeks 10-12)
 
 ### Goal
+
 Complete 4-layer hierarchy with multiple components executing in parallel.
 
 ### Architecture
@@ -588,6 +592,7 @@ TEST(E2E_Phase5, SystemRecoversFro mRandomFailures) {
 ## Daily TDD Workflow
 
 ### Morning (9 AM - 12 PM)
+
 1. Review failing E2E test from yesterday
 2. Identify minimal code needed to pass
 3. Implement in TDD cycles:
@@ -597,6 +602,7 @@ TEST(E2E_Phase5, SystemRecoversFro mRandomFailures) {
    - Repeat
 
 ### Afternoon (1 PM - 5 PM)
+
 4. Run E2E test
 5. If failing: debug and iterate
 6. If passing: refactor and optimize
@@ -604,6 +610,7 @@ TEST(E2E_Phase5, SystemRecoversFro mRandomFailures) {
 8. Commit: "GREEN: E2E test XYZ now passing"
 
 ### Weekly Checkpoint (Friday)
+
 - All E2E tests for the week must pass
 - Performance benchmarks run
 - Code review session
@@ -614,22 +621,27 @@ TEST(E2E_Phase5, SystemRecoversFro mRandomFailures) {
 ## Success Criteria (E2E-Based)
 
 ### Week 3 (Phase 1)
+
 - [ ] E2E: Chief delegates to 1 Task Agent
 - [ ] E2E: Chief coordinates 3 Task Agents in parallel
 
 ### Week 6 (Phase 2)
+
 - [ ] E2E: Module Lead synthesizes 3 task results
 - [ ] E2E: Module Lead recovers from task failure
 
 ### Week 9 (Phase 3)
+
 - [ ] E2E: Component Lead coordinates 2 modules
 - [ ] E2E: Dependencies resolved correctly
 
 ### Week 12 (Phase 4)
+
 - [ ] E2E: All 4 components complete
 - [ ] E2E: Parallel execution verified
 
 ### Week 14 (Phase 5)
+
 - [ ] E2E: 100 agents execute successfully
 - [ ] E2E: System recovers from 20 random failures
 - [ ] E2E: 24-hour stability test passes

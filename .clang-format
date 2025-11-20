@@ -66,17 +66,17 @@ IncludeBlocks: Regroup
 SortIncludes: true
 IncludeCategories:
   # Main header (for .cpp files)
-  - Regex:           '^".*\.hpp"$'
-    Priority:        1
+  - Regex: '^".*\.hpp"$'
+    Priority: 1
   # Project headers
-  - Regex:           '^<(agents|core|concurrency)/'
-    Priority:        2
+  - Regex: '^<(agents|core|concurrency)/'
+    Priority: 2
   # C++ standard library
-  - Regex:           '^<[a-z_]+>$'
-    Priority:        3
+  - Regex: '^<[a-z_]+>$'
+    Priority: 3
   # Third-party headers
-  - Regex:           '^<.*>$'
-    Priority:        4
+  - Regex: '^<.*>$'
+    Priority: 4
 
 # Namespaces
 CompactNamespaces: false
@@ -88,7 +88,7 @@ AllowAllParametersOfDeclarationOnNextLine: false
 BinPackParameters: false
 BinPackArguments: false
 AlwaysBreakAfterReturnType: None
-AlwaysBreakTemplateDeclarations: Yes
+AlwaysBreakTemplateDeclarations: yes
 
 # Comments
 CommentPragmas: '^ (NOLINT|NOLINTNEXTLINE|IWYU pragma:)'

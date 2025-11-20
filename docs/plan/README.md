@@ -22,6 +22,7 @@ This architecture mirrors the agent development structure used to build the syst
 ## Vision
 
 Build a production-ready, native C++ agent orchestration platform capable of:
+
 - Processing 1M+ messages per second
 - Managing hundreds of concurrent specialized agents
 - Providing sub-millisecond internal communication latency
@@ -98,9 +99,11 @@ ProjectKeystone/
 Every phase begins with writing **failing E2E tests** that define the desired behavior, then implementing the minimal code to make them pass.
 
 ### Phase 0: E2E Test Infrastructure (Week 1)
+
 **Goal**: Set up the ability to write and run E2E tests
 
 **First E2E Test (Even Though Nothing Exists)**:
+
 ```cpp
 TEST(E2E_Foundation, CanCreateAndRunTwoAgents) {
     ThreadPool pool{2};
@@ -116,15 +119,18 @@ TEST(E2E_Foundation, CanCreateAndRunTwoAgents) {
 ```
 
 **Deliverables**:
+
 - ✅ E2E test framework (GoogleTest)
 - ✅ CMake builds and runs E2E tests
 - ✅ First test passes (minimal agent stub)
 - ✅ CI runs E2E tests on every commit
 
 ### Phase 1: Core Message Passing (Weeks 2-3)
+
 **Goal**: Two agents can send messages to each other
 
 **E2E Test First**:
+
 ```cpp
 TEST(E2E_MessagePassing, AgentCanSendMessageToAnotherAgent) {
     ThreadPool pool{2};
@@ -140,6 +146,7 @@ TEST(E2E_MessagePassing, AgentCanSendMessageToAnotherAgent) {
 ```
 
 **Deliverables**:
+
 - ✅ KeystoneMessage structure
 - ✅ MessageQueue with concurrentqueue
 - ✅ MessageBus routing
@@ -147,9 +154,11 @@ TEST(E2E_MessagePassing, AgentCanSendMessageToAnotherAgent) {
 - ✅ **E2E test: Bidirectional agent communication**
 
 ### Phase 2: Coordinator-Worker Pattern (Weeks 4-5)
+
 **Goal**: Coordinator delegates task to Worker, receives result
 
 **E2E Test First**:
+
 ```cpp
 TEST(E2E_Delegation, CoordinatorDelegatesAndAggregates) {
     auto coordinator = std::make_unique<CoordinatorAgent>();
@@ -162,15 +171,18 @@ TEST(E2E_Delegation, CoordinatorDelegatesAndAggregates) {
 ```
 
 **Deliverables**:
+
 - ✅ CoordinatorAgent with task decomposition
 - ✅ WorkerAgent with execution
 - ✅ Agent state machines
 - ✅ **E2E test: Complete task delegation workflow**
 
 ### Phase 3: Performance & Concurrency (Week 6)
+
 **Goal**: Validate performance targets with E2E tests
 
 **E2E Test First**:
+
 ```cpp
 TEST(E2E_Performance, ThousandTasksPerSecond) {
     // Send 1000 tasks, verify completes in <1 second
@@ -179,14 +191,17 @@ TEST(E2E_Performance, ThousandTasksPerSecond) {
 ```
 
 **Deliverables**:
+
 - ✅ Performance optimizations
 - ✅ ThreadSanitizer validation
 - ✅ **E2E test: >1000 tasks/second**
 
 ### Phase 4: External Integration (Weeks 7-8)
+
 **Goal**: Worker can call external AI services (gRPC)
 
 **E2E Test First**:
+
 ```cpp
 TEST(E2E_AIIntegration, WorkerCallsExternalAIService) {
     MockAIService mock_service("localhost:50051");
@@ -200,15 +215,18 @@ TEST(E2E_AIIntegration, WorkerCallsExternalAIService) {
 ```
 
 **Deliverables**:
+
 - ✅ Mock gRPC AI service
 - ✅ Async gRPC client
 - ✅ Serialization gateway (Cista ↔ Protobuf)
 - ✅ **E2E test: Worker calls external AI**
 
 ### Phase 5: Three-Layer Hierarchy (Weeks 9-11)
+
 **Goal**: Expand to full Root → Branch → Leaf
 
 **E2E Test First**:
+
 ```cpp
 TEST(E2E_ThreeLayer, ComplexTaskDecomposition) {
     auto root = createFullHierarchy(/*branches=*/3, /*leaves=*/9);
@@ -223,15 +241,18 @@ TEST(E2E_ThreeLayer, ComplexTaskDecomposition) {
 ```
 
 **Deliverables**:
+
 - ✅ RootAgent (evolved from Coordinator)
 - ✅ BranchAgent (new middle layer)
 - ✅ LeafAgent (evolved from Worker)
 - ✅ **E2E test: 3-layer hierarchy works**
 
 ### Phase 6: Production Hardening (Weeks 12-14)
+
 **Goal**: Chaos testing and production readiness
 
 **E2E Test First**:
+
 ```cpp
 TEST(E2E_Chaos, SystemRemainsStableUnderFailures) {
     auto system = createFullHierarchy();
@@ -245,6 +266,7 @@ TEST(E2E_Chaos, SystemRemainsStableUnderFailures) {
 ```
 
 **Deliverables**:
+
 - ✅ Graceful shutdown
 - ✅ Failure recovery
 - ✅ **E2E test: 24-hour stability**
@@ -253,12 +275,14 @@ TEST(E2E_Chaos, SystemRemainsStableUnderFailures) {
 ## Technology Stack
 
 ### Core Technologies
+
 - **Language**: C++20 (GCC 13+, Clang 16+, or MSVC 2022+)
 - **Build System**: CMake 3.28+
 - **Package Manager**: vcpkg or Conan
 - **Version Control**: Git
 
 ### Key Libraries
+
 - **Concurrency**: `concurrentqueue` (lock-free queue)
 - **Serialization**: Cista (zero-copy), FlatBuffers
 - **RPC**: gRPC with Protocol Buffers
@@ -268,6 +292,7 @@ TEST(E2E_Chaos, SystemRemainsStableUnderFailures) {
 - **Monitoring**: Prometheus C++ client
 
 ### Development Tools
+
 - **Static Analysis**: clang-tidy, cppcheck
 - **Formatting**: clang-format
 - **Profiling**: perf, Valgrind, Tracy
@@ -276,18 +301,21 @@ TEST(E2E_Chaos, SystemRemainsStableUnderFailures) {
 ## Success Criteria
 
 ### Performance Targets
+
 - **Throughput**: 1M+ messages/second on standard hardware
 - **Latency**: <1ms p99 internal message delivery
 - **Scalability**: Linear scaling to 1000+ concurrent agents
 - **Memory**: <100MB overhead for core framework
 
 ### Quality Targets
+
 - **Test Coverage**: >95% for Keystone.Core, >90% for agents
 - **Build Time**: <5 minutes for full rebuild
 - **Documentation**: 100% API coverage
 - **Static Analysis**: Zero critical issues
 
 ### Reliability Targets
+
 - **Availability**: Graceful shutdown with zero data loss
 - **Recovery**: <100ms failure detection and recovery
 - **Isolation**: Complete session context separation
@@ -296,6 +324,7 @@ TEST(E2E_Chaos, SystemRemainsStableUnderFailures) {
 ## Team Requirements
 
 ### Core Team
+
 - **Senior C++ Engineer** (Lead) - 1 FTE
   - C++20 expertise, coroutines, concurrency
   - System architecture and design
@@ -309,6 +338,7 @@ TEST(E2E_Chaos, SystemRemainsStableUnderFailures) {
   - Deployment and monitoring
 
 ### Specialized Skills Needed
+
 - C++20 modules and coroutines
 - High-performance concurrent systems
 - Actor-model architecture

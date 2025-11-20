@@ -89,20 +89,20 @@ kind: ClusterRole
 metadata:
   name: prometheus
 rules:
-- apiGroups: [""]
-  resources:
-  - nodes
-  - nodes/proxy
-  - services
-  - endpoints
-  - pods
-  verbs: ["get", "list", "watch"]
-- apiGroups: [""]
-  resources:
-  - configmaps
-  verbs: ["get"]
-- nonResourceURLs: ["/metrics"]
-  verbs: ["get"]
+  - apiGroups: [""]
+    resources:
+      - nodes
+      - nodes/proxy
+      - services
+      - endpoints
+      - pods
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources:
+      - configmaps
+    verbs: ["get"]
+  - nonResourceURLs: ["/metrics"]
+    verbs: ["get"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -113,9 +113,9 @@ roleRef:
   kind: ClusterRole
   name: prometheus
 subjects:
-- kind: ServiceAccount
-  name: prometheus
-  namespace: projectkeystone
+  - kind: ServiceAccount
+    name: prometheus
+    namespace: projectkeystone
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -136,55 +136,55 @@ spec:
     spec:
       serviceAccountName: prometheus
       containers:
-      - name: prometheus
-        image: prom/prometheus:v2.47.2
-        args:
-          - '--config.file=/etc/prometheus/prometheus.yml'
-          - '--storage.tsdb.path=/prometheus'
-          - '--storage.tsdb.retention.time=15d'
-          - '--web.console.libraries=/usr/share/prometheus/console_libraries'
-          - '--web.console.templates=/usr/share/prometheus/consoles'
-          - '--web.enable-lifecycle'
-        ports:
-        - name: web
-          containerPort: 9090
-          protocol: TCP
-        resources:
-          requests:
-            cpu: 500m
-            memory: 512Mi
-          limits:
-            cpu: 1000m
-            memory: 1Gi
-        volumeMounts:
-        - name: config
-          mountPath: /etc/prometheus
-        - name: alerts
-          mountPath: /etc/prometheus/alerts
-        - name: storage
-          mountPath: /prometheus
-        livenessProbe:
-          httpGet:
-            path: /-/healthy
-            port: web
-          initialDelaySeconds: 30
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /-/ready
-            port: web
-          initialDelaySeconds: 5
-          periodSeconds: 5
+        - name: prometheus
+          image: prom/prometheus:v2.47.2
+          args:
+            - '--config.file=/etc/prometheus/prometheus.yml'
+            - '--storage.tsdb.path=/prometheus'
+            - '--storage.tsdb.retention.time=15d'
+            - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+            - '--web.console.templates=/usr/share/prometheus/consoles'
+            - '--web.enable-lifecycle'
+          ports:
+            - name: web
+              containerPort: 9090
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          volumeMounts:
+            - name: config
+              mountPath: /etc/prometheus
+            - name: alerts
+              mountPath: /etc/prometheus/alerts
+            - name: storage
+              mountPath: /prometheus
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: web
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: web
+            initialDelaySeconds: 5
+            periodSeconds: 5
       volumes:
-      - name: config
-        configMap:
-          name: prometheus-config
-      - name: alerts
-        configMap:
-          name: prometheus-alerts
-      - name: storage
-        persistentVolumeClaim:
-          claimName: prometheus-data
+        - name: config
+          configMap:
+            name: prometheus-config
+        - name: alerts
+          configMap:
+            name: prometheus-alerts
+        - name: storage
+          persistentVolumeClaim:
+            claimName: prometheus-data
 ---
 # PersistentVolumeClaim for Prometheus TSDB storage
 # Retains metrics data across pod restarts
@@ -201,7 +201,7 @@ spec:
   resources:
     requests:
       storage: 100Gi  # 15 days retention + headroom
-  # storageClassName: fast-ssd  # Uncomment and set appropriate storage class
+      # storageClassName: fast-ssd  # Uncomment and set appropriate storage class
 ---
 apiVersion: v1
 kind: Service
@@ -215,7 +215,7 @@ spec:
   selector:
     app: prometheus
   ports:
-  - name: web
-    port: 9090
-    targetPort: web
-    protocol: TCP
+    - name: web
+      port: 9090
+      targetPort: web
+      protocol: TCP

@@ -7,11 +7,15 @@
 
 ## Overview
 
-Phase 7 transforms ProjectKeystone from a traditional hierarchical multi-agent system into an **AI-powered autonomous development platform**. This phase integrates Large Language Models (LLMs) to enable natural language goal processing, intelligent code generation, automated debugging, and adaptive task decomposition.
+Phase 7 transforms ProjectKeystone from a traditional hierarchical multi-agent system
+into an **AI-powered autonomous development platform**. This phase integrates Large
+Language Models (LLMs) to enable natural language goal processing, intelligent code
+generation, automated debugging, and adaptive task decomposition.
 
 ### Current Status (Post-Phase 6)
 
 **What We Have**:
+
 - ✅ Production-ready HMAS deployment (Kubernetes + monitoring)
 - ✅ 4-layer agent hierarchy with work-stealing scheduler
 - ✅ Chaos engineering and resilience features
@@ -19,6 +23,7 @@ Phase 7 transforms ProjectKeystone from a traditional hierarchical multi-agent s
 - ✅ Current agents use hardcoded logic for task decomposition
 
 **What Phase 7 Adds**:
+
 - LLM-powered TaskAgents that generate code from natural language
 - AI-driven goal decomposition at L2 (ModuleLead) and L1 (ComponentLead)
 - Natural language interface for ChiefArchitect
@@ -75,34 +80,42 @@ Phase 7 transforms ProjectKeystone from a traditional hierarchical multi-agent s
 ## LLM Integration Strategy
 
 ### Option A: OpenAI API (Recommended for Phase 7)
+
 **Pros**:
+
 - Production-ready, high quality (GPT-4, GPT-3.5-turbo)
 - Extensive code generation capabilities
 - Function calling for structured outputs
 - Stream support for real-time responses
 
 **Cons**:
+
 - Requires API key and costs money
 - Network dependency
 - Rate limits
 
 **Models**:
+
 - **GPT-4**: Complex reasoning, architecture decisions (L0, L1)
 - **GPT-3.5-turbo**: Fast code generation, debugging (L2, L3)
 - **GPT-4-turbo**: Balance of quality and speed
 
 ### Option B: Local LLMs (Future Phase)
+
 **Pros**:
+
 - No external dependency
 - No API costs
 - Privacy and data control
 
 **Cons**:
+
 - Requires GPU resources
 - Lower quality than GPT-4
 - Deployment complexity
 
 **Models**:
+
 - **CodeLlama**: Specialized for code generation
 - **WizardCoder**: Strong coding performance
 - **DeepSeek-Coder**: Competitive quality
@@ -151,6 +164,7 @@ Phase 7 transforms ProjectKeystone from a traditional hierarchical multi-agent s
    - Test error handling
 
 **Deliverables**:
+
 - ✅ OpenAI API client library
 - ✅ Prompt template system
 - ✅ Response parser with code extraction
@@ -199,6 +213,7 @@ Phase 7 transforms ProjectKeystone from a traditional hierarchical multi-agent s
    - Safety checks (no malicious commands)
 
 **Deliverables**:
+
 - ✅ NLP goal parser using GPT-4
 - ✅ Structured plan extraction
 - ✅ ChiefArchitect integration
@@ -248,6 +263,7 @@ Phase 7 transforms ProjectKeystone from a traditional hierarchical multi-agent s
    - Mock LLM for deterministic testing
 
 **Deliverables**:
+
 - ✅ AI code generator for C++20
 - ✅ Prompt templates for code generation
 - ✅ AITaskAgent implementation
@@ -296,6 +312,7 @@ Phase 7 transforms ProjectKeystone from a traditional hierarchical multi-agent s
    - Full 4-layer AI workflow
 
 **Deliverables**:
+
 - ✅ AI task decomposer for intelligent breakdown
 - ✅ Decomposition prompts with examples
 - ✅ ModuleLead AI integration
@@ -347,6 +364,7 @@ Phase 7 transforms ProjectKeystone from a traditional hierarchical multi-agent s
    - Code regenerated and passes
 
 **Deliverables**:
+
 - ✅ AI code reviewer
 - ✅ AI debugger assistant
 - ✅ Review/debug prompts
@@ -401,6 +419,7 @@ Phase 7 transforms ProjectKeystone from a traditional hierarchical multi-agent s
    - Troubleshooting guide
 
 **Deliverables**:
+
 - ✅ Prompt library with versioning
 - ✅ Prompt optimization framework
 - ✅ AI safety guardrails
@@ -446,45 +465,55 @@ Phase 7 transforms ProjectKeystone from a traditional hierarchical multi-agent s
 ## Risk Mitigation
 
 ### Risk 1: LLM Hallucinations (Generated code doesn't work)
+
 **Impact**: High
 **Likelihood**: High
 **Mitigation**:
+
 - Validate generated code (compile, test, static analysis)
 - Iterative improvement loop (review → fix)
 - Fallback to rule-based logic
 - Track success rate metrics
 
 ### Risk 2: API Costs
+
 **Impact**: Medium
 **Likelihood**: Medium
 **Mitigation**:
+
 - Use GPT-3.5-turbo for most tasks (cheaper)
 - Cache responses for repeated queries
 - Optimize prompts to reduce token usage
 - Set monthly budget limits
 
 ### Risk 3: API Availability/Rate Limits
+
 **Impact**: High
 **Likelihood**: Medium
 **Mitigation**:
+
 - Implement retry logic with exponential backoff
 - Circuit breaker for API failures
 - Fallback to local LLM or rule-based logic
 - Queue requests to stay under rate limits
 
 ### Risk 4: Security (Malicious code generation)
+
 **Impact**: Critical
 **Likelihood**: Low
 **Mitigation**:
+
 - Sandbox execution of generated code
 - Static analysis for security vulnerabilities
 - Content filtering on inputs/outputs
 - Audit log of all LLM interactions
 
 ### Risk 5: Prompt Engineering Complexity
+
 **Impact**: Medium
 **Likelihood**: High
 **Mitigation**:
+
 - Start with simple prompts, iterate
 - Version control for prompts
 - A/B testing for prompt improvements
@@ -495,22 +524,26 @@ Phase 7 transforms ProjectKeystone from a traditional hierarchical multi-agent s
 ## Performance Expectations
 
 **LLM Latency**:
+
 - **GPT-4**: 5-15 seconds per request (complex reasoning)
 - **GPT-3.5-turbo**: 2-5 seconds per request (fast code gen)
 - **Streaming**: 100-500 tokens/sec real-time
 
 **Token Usage** (estimated per request):
+
 - **Goal parsing**: 500-1000 tokens
 - **Task decomposition**: 800-1500 tokens
 - **Code generation**: 1500-3000 tokens
 - **Code review**: 2000-4000 tokens
 
 **Cost Estimation** (OpenAI pricing):
+
 - **GPT-4-turbo**: $10/1M input tokens, $30/1M output tokens
 - **GPT-3.5-turbo**: $0.50/1M input tokens, $1.50/1M output tokens
 - **Monthly estimate** (100 goals/day): ~$50-200/month
 
 **Throughput**:
+
 - Limited by LLM API rate limits (e.g., 500 requests/min for GPT-4)
 - Parallel requests possible (up to rate limit)
 
@@ -519,24 +552,28 @@ Phase 7 transforms ProjectKeystone from a traditional hierarchical multi-agent s
 ## Testing Strategy
 
 ### Unit Tests
+
 1. **OpenAI Client**: Mock API responses, test retry logic
 2. **Prompt Templates**: Variable substitution, validation
 3. **Response Parser**: Code extraction, error handling
 4. **Code Validator**: Syntax check, security check
 
 ### Integration Tests
+
 1. **NLP Goal Parser**: Real LLM calls with sample goals
 2. **Code Generator**: Generate simple functions, verify compilation
 3. **Task Decomposer**: Decompose sample modules
 4. **Code Reviewer**: Review code with bugs, verify detection
 
 ### E2E Tests
+
 1. **Full AI Workflow**: Natural language → code generation → review
 2. **Multi-layer AI**: ChiefArchitect → ComponentLead → ModuleLead → TaskAgent (all using AI)
 3. **Error Handling**: LLM failure → fallback to rules
 4. **Iterative Improvement**: Generate → review → fix → pass
 
 ### Manual Testing
+
 1. Real-world goals: "Build a web server", "Add authentication"
 2. Complex decomposition: Multi-component systems
 3. Code quality: Generated code readability, maintainability
@@ -547,6 +584,7 @@ Phase 7 transforms ProjectKeystone from a traditional hierarchical multi-agent s
 ## Documentation Plan
 
 ### Required Documentation
+
 1. **AI_INTEGRATION.md** - Overview of LLM integration
 2. **PROMPT_ENGINEERING.md** - Guide to writing effective prompts
 3. **AI_SAFETY.md** - Safety guardrails and best practices
@@ -554,12 +592,14 @@ Phase 7 transforms ProjectKeystone from a traditional hierarchical multi-agent s
 5. **COST_OPTIMIZATION.md** - Tips for reducing API costs
 
 ### Prompt Documentation
+
 - Document all prompts in `prompts/` directory
 - Include few-shot examples
 - Version control with changelog
 - Performance metrics per prompt
 
 ### README Updates
+
 - Add "AI Integration" section
 - Describe natural language interface
 - Link to prompt library
@@ -570,12 +610,15 @@ Phase 7 transforms ProjectKeystone from a traditional hierarchical multi-agent s
 ## Example Workflow
 
 ### Input (User)
+
 ```
 "Build a message queue component with thread-safe push/pop operations"
 ```
 
 ### Step 1: ChiefArchitect (NLP Goal Parser)
+
 **LLM Input**:
+
 ```
 User goal: Build a message queue component with thread-safe push/pop operations
 
@@ -583,6 +626,7 @@ Parse this into a structured plan with components and modules.
 ```
 
 **LLM Output**:
+
 ```json
 {
   "components": [
@@ -597,7 +641,9 @@ Parse this into a structured plan with components and modules.
 ```
 
 ### Step 2: ComponentLead (Task Decomposition)
+
 **LLM Input**:
+
 ```
 Component: Core
 Module: MessageQueue
@@ -606,6 +652,7 @@ Decompose this module into implementation tasks.
 ```
 
 **LLM Output**:
+
 ```json
 {
   "tasks": [
@@ -618,7 +665,9 @@ Decompose this module into implementation tasks.
 ```
 
 ### Step 3: TaskAgent (Code Generation)
+
 **LLM Input**:
+
 ```
 Task: Implement MessageQueue class with std::queue and std::mutex
 Language: C++20
@@ -627,6 +676,7 @@ Generate code.
 ```
 
 **LLM Output**:
+
 ```cpp
 #pragma once
 #include <queue>
@@ -658,13 +708,16 @@ private:
 ```
 
 ### Step 4: AICodeReviewer
+
 **LLM Input**:
+
 ```
 Review this code for bugs, performance, and style issues:
 [code from Step 3]
 ```
 
 **LLM Output**:
+
 ```
 ✅ Thread-safe: Correct use of mutex and lock_guard
 ✅ Move semantics: Uses std::move for efficiency
@@ -674,7 +727,9 @@ Review this code for bugs, performance, and style issues:
 ```
 
 ### Step 5: Result Aggregation
-ModuleLead aggregates all task results, ComponentLead aggregates module results, ChiefArchitect returns final output to user.
+
+ModuleLead aggregates all task results, ComponentLead aggregates module results,
+ChiefArchitect returns final output to user.
 
 ---
 
@@ -687,6 +742,7 @@ ModuleLead aggregates all task results, ComponentLead aggregates module results,
 **Week 5**: Prompt engineering, safety, and cost optimization
 
 **After Phase 7**: Move to **Phase 8: Distributed System**
+
 - Real network communication (gRPC)
 - Multi-node HMAS deployment
 - Distributed work-stealing across nodes

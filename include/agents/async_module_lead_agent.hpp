@@ -1,12 +1,12 @@
 #pragma once
 
-#include "async_base_agent.hpp"
-#include "concurrency/task.hpp"
-
 #include <map>
 #include <mutex>
 #include <string>
 #include <vector>
+
+#include "async_base_agent.hpp"
+#include "concurrency/task.hpp"
 
 namespace keystone {
 namespace agents {
@@ -46,12 +46,14 @@ class AsyncModuleLeadAgent : public AsyncBaseAgent {
   explicit AsyncModuleLeadAgent(const std::string& agent_id);
 
   /**
-   * @brief Process incoming message asynchronously (module goals or task results)
+   * @brief Process incoming message asynchronously (module goals or task
+   * results)
    *
    * @param msg Message to process
    * @return concurrency::Task<core::Response> Coroutine producing response
    */
-  concurrency::Task<core::Response> processMessage(const core::KeystoneMessage& msg) override;
+  concurrency::Task<core::Response> processMessage(
+      const core::KeystoneMessage& msg) override;
 
   /**
    * @brief Configure available TaskAgents for delegation
@@ -65,7 +67,9 @@ class AsyncModuleLeadAgent : public AsyncBaseAgent {
    *
    * @return const std::vector<std::string>& State transition history
    */
-  const std::vector<std::string>& getExecutionTrace() const { return execution_trace_; }
+  const std::vector<std::string>& getExecutionTrace() const {
+    return execution_trace_;
+  }
 
   /**
    * @brief Get current state
@@ -84,7 +88,8 @@ class AsyncModuleLeadAgent : public AsyncBaseAgent {
    * @param result_msg Message containing task result
    * @return concurrency::Task<void> Coroutine for async processing
    */
-  concurrency::Task<void> processTaskResult(const core::KeystoneMessage& result_msg);
+  concurrency::Task<void> processTaskResult(
+      const core::KeystoneMessage& result_msg);
 
   /**
    * @brief Decompose module goal into individual tasks

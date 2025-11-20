@@ -13,14 +13,16 @@ concurrency::Task<core::Response> AsyncChiefArchitectAgent::processMessage(
     const core::KeystoneMessage& msg) {
   // Skip response messages to avoid feedback loops (similar to AsyncTaskAgent)
   if (msg.command == "response") {
-    auto response = core::Response::createSuccess(msg, agent_id_, "response received");
+    auto response =
+        core::Response::createSuccess(msg, agent_id_, "response received");
     co_return response;
   }
 
-  // ChiefArchitect receives responses from subordinates (TaskAgent, ModuleLead, etc.)
-  // Check payload exists
+  // ChiefArchitect receives responses from subordinates (TaskAgent, ModuleLead,
+  // etc.) Check payload exists
   if (!msg.payload) {
-    auto response = core::Response::createError(msg, agent_id_, "Missing payload in message");
+    auto response = core::Response::createError(msg, agent_id_,
+                                                "Missing payload in message");
     co_return response;
   }
 
@@ -29,8 +31,8 @@ concurrency::Task<core::Response> AsyncChiefArchitectAgent::processMessage(
   co_return response;
 }
 
-void AsyncChiefArchitectAgent::sendCommandAsync(const std::string& command,
-                                                const std::string& subordinate_id) {
+void AsyncChiefArchitectAgent::sendCommandAsync(
+    const std::string& command, const std::string& subordinate_id) {
   // Create message
   auto msg = core::KeystoneMessage::create(agent_id_, subordinate_id, command);
 
@@ -48,8 +50,9 @@ void AsyncChiefArchitectAgent::sendCommandAsync(const std::string& command,
 // PHASE 4: Multi-Component Coordination Implementation
 // ============================================================================
 
-void AsyncChiefArchitectAgent::registerComponent(const std::string& component_name,
-                                                 AsyncComponentLeadAgent* component_lead) {
+void AsyncChiefArchitectAgent::registerComponent(
+    const std::string& component_name,
+    AsyncComponentLeadAgent* component_lead) {
   std::lock_guard<std::mutex> lock(component_mutex_);
   component_registry_[component_name] = component_lead;
 }
@@ -71,7 +74,8 @@ std::vector<std::string> AsyncChiefArchitectAgent::getComponentNames() const {
   return names;
 }
 
-std::vector<std::string> AsyncChiefArchitectAgent::getComponentExecutionOrder() const {
+std::vector<std::string> AsyncChiefArchitectAgent::getComponentExecutionOrder()
+    const {
   std::lock_guard<std::mutex> lock(component_mutex_);
 
   std::unordered_set<std::string> visited;
@@ -82,7 +86,8 @@ std::vector<std::string> AsyncChiefArchitectAgent::getComponentExecutionOrder() 
   for (const auto& [component_name, _] : component_registry_) {
     if (visited.find(component_name) == visited.end()) {
       if (!topologicalSortUtil(visited, rec_stack, component_name, result)) {
-        throw std::runtime_error("Circular dependency detected in component dependencies");
+        throw std::runtime_error(
+            "Circular dependency detected in component dependencies");
       }
     }
   }
@@ -92,10 +97,10 @@ std::vector<std::string> AsyncChiefArchitectAgent::getComponentExecutionOrder() 
   return result;
 }
 
-bool AsyncChiefArchitectAgent::topologicalSortUtil(std::unordered_set<std::string>& visited,
-                                                   std::unordered_set<std::string>& rec_stack,
-                                                   const std::string& component,
-                                                   std::vector<std::string>& result) const {
+bool AsyncChiefArchitectAgent::topologicalSortUtil(
+    std::unordered_set<std::string>& visited,
+    std::unordered_set<std::string>& rec_stack, const std::string& component,
+    std::vector<std::string>& result) const {
   // Mark current node as visited and add to recursion stack
   visited.insert(component);
   rec_stack.insert(component);
@@ -123,8 +128,8 @@ bool AsyncChiefArchitectAgent::topologicalSortUtil(std::unordered_set<std::strin
   return true;
 }
 
-std::vector<std::vector<std::string>> AsyncChiefArchitectAgent::getComponentDependencyLevels()
-    const {
+std::vector<std::vector<std::string>>
+AsyncChiefArchitectAgent::getComponentDependencyLevels() const {
   std::lock_guard<std::mutex> lock(component_mutex_);
 
   // Build in-degree map for Kahn's algorithm
@@ -168,9 +173,11 @@ std::vector<std::vector<std::string>> AsyncChiefArchitectAgent::getComponentDepe
       }
     }
 
-    if (current_level.empty() && processed.size() < component_registry_.size()) {
+    if (current_level.empty() &&
+        processed.size() < component_registry_.size()) {
       // Circular dependency detected
-      throw std::runtime_error("Circular dependency detected in component dependencies");
+      throw std::runtime_error(
+          "Circular dependency detected in component dependencies");
     }
 
     // Add current level
@@ -185,8 +192,8 @@ std::vector<std::vector<std::string>> AsyncChiefArchitectAgent::getComponentDepe
   return levels;
 }
 
-concurrency::Task<std::vector<ComponentResult>> AsyncChiefArchitectAgent::executeAllComponents(
-    const std::string& goal) {
+concurrency::Task<std::vector<ComponentResult>>
+AsyncChiefArchitectAgent::executeAllComponents(const std::string& goal) {
   // Get dependency levels for parallel execution
   std::vector<std::vector<std::string>> levels;
   try {
@@ -230,8 +237,8 @@ concurrency::Task<std::vector<ComponentResult>> AsyncChiefArchitectAgent::execut
       // Create task for this component
       auto task = [](AsyncChiefArchitectAgent* chief,
                      const std::string& comp_name,
-                     AsyncComponentLeadAgent* lead,
-                     const std::string& goal_str) -> concurrency::Task<ComponentResult> {
+                     AsyncComponentLeadAgent* lead, const std::string& goal_str)
+          -> concurrency::Task<ComponentResult> {
         ComponentResult comp_result;
         comp_result.component_name = comp_name;
 

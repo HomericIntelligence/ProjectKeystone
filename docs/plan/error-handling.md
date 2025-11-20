@@ -2,11 +2,12 @@
 
 ## Overview
 
-This document defines the error handling strategy for ProjectKeystone HMAS. Consistent error handling ensures reliability, debuggability, and maintainability across all 4 layers of the agent hierarchy.
+This document defines the error handling strategy for ProjectKeystone HMAS. Consistent error handling ensures
+reliability, debuggability, and maintainability across all 4 layers of the agent hierarchy.
 
 ## Exceptions vs Return Values
 
-### Use Exceptions For:
+### Use Exceptions For
 
 - **Programming errors**: Null pointers, invalid state, contract violations
 - **Resource failures**: File I/O errors, network errors, memory allocation failures
@@ -14,6 +15,7 @@ This document defines the error handling strategy for ProjectKeystone HMAS. Cons
 - **Unrecoverable errors**: Errors that cannot be handled locally
 
 **Example**:
+
 ```cpp
 void MessageBus::registerAgent(const std::string& agent_id, BaseAgent* agent) {
     if (!agent) {
@@ -23,7 +25,7 @@ void MessageBus::registerAgent(const std::string& agent_id, BaseAgent* agent) {
 }
 ```
 
-### Use Response::Status For:
+### Use Response::Status For
 
 - **Expected failures**: Command execution errors, validation failures
 - **Business logic errors**: Task completion failures, workflow errors
@@ -31,6 +33,7 @@ void MessageBus::registerAgent(const std::string& agent_id, BaseAgent* agent) {
 - **Recoverable errors**: Errors that can be handled by the caller
 
 **Example**:
+
 ```cpp
 core::Response TaskAgent::processMessage(const core::KeystoneMessage& msg) {
     try {
@@ -45,15 +48,18 @@ core::Response TaskAgent::processMessage(const core::KeystoneMessage& msg) {
 ## Exception Safety Guarantees
 
 All code must provide at least **basic exception safety**:
+
 - No resource leaks
 - Objects remain in valid (though possibly changed) state after exception
 - Invariants are maintained
 
 Critical paths should provide **strong exception safety**:
+
 - Rollback changes on exception
 - State unchanged if operation fails (commit-or-rollback semantics)
 
 **Example of strong exception safety**:
+
 ```cpp
 void MessageBus::registerAgent(const std::string& agent_id, BaseAgent* agent) {
     std::lock_guard<std::mutex> lock(registry_mutex_);
@@ -73,6 +79,7 @@ void MessageBus::registerAgent(const std::string& agent_id, BaseAgent* agent) {
 All resources must use RAII (Resource Acquisition Is Initialization):
 
 ### File Handles
+
 ```cpp
 struct PipeDeleter {
     void operator()(FILE* pipe) const {
@@ -87,12 +94,14 @@ PipeHandle pipe(popen(command.c_str(), "r"));
 ```
 
 ### Locks
+
 ```cpp
 std::lock_guard<std::mutex> lock(mutex_);
 // Automatically released on exception or return
 ```
 
 ### Memory
+
 ```cpp
 auto agent = std::make_unique<TaskAgent>("task_1");
 // Automatically freed on exception or return
@@ -103,21 +112,25 @@ auto agent = std::make_unique<TaskAgent>("task_1");
 ### Layer-by-Layer Strategy
 
 **Level 3 (TaskAgent)**:
+
 - Catch system/OS errors
 - Convert to Response::Status::Error
 - Send error responses via MessageBus
 
 **Level 2 (ModuleLead)** *(Phase 2+)*:
+
 - Aggregate errors from multiple tasks
 - Decide on retry/fallback strategy
 - Report synthesized results upstream
 
 **Level 1 (ComponentLead)** *(Phase 3+)*:
+
 - Handle module-level failures
 - Coordinate recovery across modules
 - Report component-level status
 
 **Level 0 (ChiefArchitect)**:
+
 - Receive final results
 - Make strategic decisions
 - No exceptions should escape to user
@@ -125,6 +138,7 @@ auto agent = std::make_unique<TaskAgent>("task_1");
 ### Error Context
 
 Always include context in error messages:
+
 ```cpp
 // BAD
 throw std::runtime_error("Failed");
@@ -256,7 +270,8 @@ try {
 | Validation failures | Return Response::Error | Missing payload, invalid format |
 | Recoverable errors | Return Response::Error | Task timeout, retry available |
 
-**Golden Rule**: If the caller can reasonably handle it, use Response::Status. If it's a programming error or unrecoverable, throw an exception.
+**Golden Rule**: If the caller can reasonably handle it, use Response::Status. If it's a programming error or
+unrecoverable, throw an exception.
 
 ---
 

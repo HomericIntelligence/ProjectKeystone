@@ -12,9 +12,7 @@ WorkStealingQueue::WorkStealingQueue()
     : queue_(1024)  // Initial capacity
 {}
 
-void WorkStealingQueue::push(WorkItem item) {
-  queue_.enqueue(std::move(item));
-}
+void WorkStealingQueue::push(WorkItem item) { queue_.enqueue(std::move(item)); }
 
 std::optional<WorkItem> WorkStealingQueue::pop() {
   WorkItem item;
@@ -32,13 +30,9 @@ std::optional<WorkItem> WorkStealingQueue::steal() {
   return std::nullopt;
 }
 
-size_t WorkStealingQueue::size_approx() const {
-  return queue_.size_approx();
-}
+size_t WorkStealingQueue::size_approx() const { return queue_.size_approx(); }
 
-bool WorkStealingQueue::empty() const {
-  return queue_.size_approx() == 0;
-}
+bool WorkStealingQueue::empty() const { return queue_.size_approx() == 0; }
 
 }  // namespace concurrency
 }  // namespace keystone

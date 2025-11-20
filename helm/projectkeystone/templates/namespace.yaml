@@ -1,22 +1,22 @@
-{{- if .Values.namespace.create }}
+{{- if .Values.namespace.create}}
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: {{ include "projectkeystone.namespace" . }}
+  name: {{include "projectkeystone.namespace" .}}
   labels:
-    name: {{ include "projectkeystone.namespace" . }}
-    {{- include "projectkeystone.labels" . | nindent 4 }}
+    name: {{include "projectkeystone.namespace" .}}
+    {{- include "projectkeystone.labels" . | nindent 4}}
 ---
-{{- if .Values.namespace.resourceQuota.enabled }}
+{{- if .Values.namespace.resourceQuota.enabled}}
 apiVersion: v1
 kind: ResourceQuota
 metadata:
-  name: {{ include "projectkeystone.fullname" . }}-quota
-  namespace: {{ include "projectkeystone.namespace" . }}
+  name: {{include "projectkeystone.fullname" .}}-quota
+  namespace: {{include "projectkeystone.namespace" .}}
   labels:
-    {{- include "projectkeystone.labels" . | nindent 4 }}
+    {{- include "projectkeystone.labels" . | nindent 4}}
 spec:
   hard:
-    {{- toYaml .Values.namespace.resourceQuota.hard | nindent 4 }}
-{{- end }}
-{{- end }}
+    {{- toYaml .Values.namespace.resourceQuota.hard | nindent 4}}
+{{- end}}
+{{- end}}

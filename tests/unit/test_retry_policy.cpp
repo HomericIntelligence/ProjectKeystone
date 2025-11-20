@@ -3,11 +3,11 @@
  * @brief Unit tests for RetryPolicy
  */
 
-#include "core/retry_policy.hpp"
+#include <gtest/gtest.h>
 
 #include <thread>
 
-#include <gtest/gtest.h>
+#include "core/retry_policy.hpp"
 
 using namespace keystone::core;
 
@@ -18,10 +18,11 @@ class RetryPolicyTest : public ::testing::Test {
  protected:
   void SetUp() override {
     // Default configuration
-    default_config_ = RetryPolicy::Config{.max_attempts = 3,
-                                          .initial_delay_ms = std::chrono::milliseconds(100),
-                                          .max_delay_ms = std::chrono::milliseconds(5000),
-                                          .backoff_multiplier = 2.0};
+    default_config_ =
+        RetryPolicy::Config{.max_attempts = 3,
+                            .initial_delay_ms = std::chrono::milliseconds(100),
+                            .max_delay_ms = std::chrono::milliseconds(5000),
+                            .backoff_multiplier = 2.0};
   }
 
   RetryPolicy::Config default_config_;
@@ -63,7 +64,8 @@ TEST_F(RetryPolicyTest, ShouldRetryWithinMaxAttempts) {
   policy.recordAttempt("msg1");
 
   EXPECT_TRUE(policy.shouldRetry("msg1"));
-  EXPECT_EQ(policy.getTotalRetries(), 1);  // First attempt doesn't count as retry
+  EXPECT_EQ(policy.getTotalRetries(),
+            1);  // First attempt doesn't count as retry
 }
 
 TEST_F(RetryPolicyTest, ShouldNotRetryAfterMaxAttempts) {
@@ -105,10 +107,11 @@ TEST_F(RetryPolicyTest, GetNextDelayExponentialBackoff) {
 }
 
 TEST_F(RetryPolicyTest, GetNextDelayMaxCap) {
-  RetryPolicy::Config config{.max_attempts = 10,
-                             .initial_delay_ms = std::chrono::milliseconds(1000),
-                             .max_delay_ms = std::chrono::milliseconds(5000),
-                             .backoff_multiplier = 2.0};
+  RetryPolicy::Config config{
+      .max_attempts = 10,
+      .initial_delay_ms = std::chrono::milliseconds(1000),
+      .max_delay_ms = std::chrono::milliseconds(5000),
+      .backoff_multiplier = 2.0};
   RetryPolicy policy(config);
 
   // Record many attempts

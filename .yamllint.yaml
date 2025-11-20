@@ -3,6 +3,10 @@
 
 extends: default
 
+# Ignore Helm template files (they contain Go template syntax)
+ignore: |
+  helm/**/templates/
+
 rules:
   # Line length - allow longer lines for readability
   line-length:

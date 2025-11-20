@@ -1,10 +1,10 @@
 #pragma once
 
-#include "base_agent.hpp"
-
 #include <map>
 #include <string>
 #include <vector>
+
+#include "base_agent.hpp"
 
 namespace keystone {
 namespace agents {
@@ -75,7 +75,9 @@ class ModuleLeadAgent : public BaseAgent {
    *
    * @return const std::vector<std::string>& State transition history
    */
-  const std::vector<std::string>& getExecutionTrace() const { return execution_trace_; }
+  const std::vector<std::string>& getExecutionTrace() const {
+    return execution_trace_;
+  }
 
   /**
    * @brief Get current state

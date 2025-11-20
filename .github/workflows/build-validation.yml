@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   build-docker:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
       matrix:
@@ -64,7 +64,7 @@ jobs:
           retention-days: 7
 
   build-native:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - name: Checkout code
@@ -77,7 +77,11 @@ jobs:
             build-essential \
             cmake \
             ninja-build \
-            libgtest-dev
+            libgtest-dev \
+            clang-18 \
+            clang++-18 \
+            libc++-18-dev \
+            libc++abi-18-dev
 
       - name: Configure CMake
         run: |
@@ -85,7 +89,8 @@ jobs:
           cd build
           cmake -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_CXX_COMPILER=g++-12 \
+            -DCMAKE_C_COMPILER=clang-18 \
+            -DCMAKE_CXX_COMPILER=clang++-18 \
             ..
 
       - name: Build
@@ -107,7 +112,7 @@ jobs:
           retention-days: 7
 
   build-validation:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     needs: [build-docker, build-native]
     if: always()

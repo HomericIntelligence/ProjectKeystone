@@ -7,6 +7,7 @@ ProjectKeystone uses C++20 Modules instead of traditional header files for bette
 ## Why C++20 Modules?
 
 ### Advantages Over Headers
+
 1. **Faster Compilation**: Modules are compiled once and reused (no repeated parsing)
 2. **Better Encapsulation**: Private implementation details truly hidden
 3. **No Include Order Issues**: Modules are order-independent
@@ -14,6 +15,7 @@ ProjectKeystone uses C++20 Modules instead of traditional header files for bette
 5. **Explicit Dependencies**: Clear module interface vs implementation
 
 ### Toolchain Requirements
+
 - **GCC**: 13.0 or later
 - **Clang**: 16.0 or later
 - **MSVC**: Visual Studio 2022 17.5 or later
@@ -67,15 +69,18 @@ export namespace Keystone::Core {
 ### Submodules
 
 #### Keystone.Core:Concurrency
+
 **File**: `modules/Keystone.Core/Concurrency.cppm`
 
 **Exports**:
+
 - `ThreadPool` - Fixed-size thread pool for coroutine execution
 - `Task<T>` - Coroutine return type with promise_type
 - `AsyncOperation<T>` - Base for async operations
 - `CoroutineHandle` - Utilities for coroutine management
 
 **Example**:
+
 ```cpp
 export module Keystone.Core:Concurrency;
 
@@ -113,15 +118,18 @@ export namespace Keystone::Core {
 ```
 
 #### Keystone.Core:Messaging
+
 **File**: `modules/Keystone.Core/Messaging.cppm`
 
 **Exports**:
+
 - `MessageQueue<T>` - Thread-safe queue wrapper
 - `AsyncQueuePop<T>` - Custom awaitable for queue operations
 - `MessageRouter` - Route messages to agents
 - `MessageBus` - Central message bus coordination
 
 **Example**:
+
 ```cpp
 export module Keystone.Core:Messaging;
 
@@ -154,14 +162,17 @@ export namespace Keystone::Core {
 ```
 
 #### Keystone.Core:Synchronization
+
 **File**: `modules/Keystone.Core/Synchronization.cppm`
 
 **Exports**:
+
 - `InitializationLatch` - Wrapper for std::latch
 - `PhaseBarrier` - Wrapper for std::barrier
 - `AtomicState` - Atomic state management utilities
 
 **Example**:
+
 ```cpp
 export module Keystone.Core:Synchronization;
 
@@ -184,19 +195,23 @@ export namespace Keystone::Core {
 ```
 
 #### Keystone.Core:Utilities
+
 **File**: `modules/Keystone.Core/Utilities.cppm`
 
 **Exports**:
+
 - `UUID` - UUID generation and handling
 - `Logger` - Structured logging interface
 - `Config` - Configuration management
 - `Metrics` - Performance metrics collection
 
 ### Dependencies
+
 - **External**: `concurrentqueue`, `spdlog`
 - **Internal**: None (foundation module)
 
 ### Directory Structure
+
 ```
 modules/Keystone.Core/
 ├── CMakeLists.txt
@@ -241,15 +256,18 @@ export namespace Keystone::Protocol {
 ### Submodules
 
 #### Keystone.Protocol:KIM
+
 **File**: `modules/Keystone.Protocol/KIM.cppm`
 
 **Exports**:
+
 - `KeystoneMessage` - Inter-agent message structure
 - `ActionType` - Message action enumeration
 - `Priority` - Message priority levels
 - `MessageBuilder` - Fluent API for message construction
 
 **Example**:
+
 ```cpp
 export module Keystone.Protocol:KIM;
 
@@ -305,15 +323,18 @@ export namespace Keystone::Protocol {
 ```
 
 #### Keystone.Protocol:Serialization
+
 **File**: `modules/Keystone.Protocol/Serialization.cppm`
 
 **Exports**:
+
 - `SerializationFormat` - Format enumeration (Cista, Protobuf)
 - `serialize<T>()` - Generic serialization
 - `deserialize<T>()` - Generic deserialization
 - Common serializable types
 
 **Example**:
+
 ```cpp
 export module Keystone.Protocol:Serialization;
 
@@ -351,14 +372,17 @@ export namespace Keystone::Protocol {
 ```
 
 #### Keystone.Protocol:GRPC
+
 **File**: `modules/Keystone.Protocol/GRPC.cppm`
 
 **Exports**:
+
 - `GRPCClient<ServiceT>` - Async gRPC client wrapper
 - `GRPCError` - gRPC error handling
 - Protocol Buffer message types (generated from .proto)
 
 **Example**:
+
 ```cpp
 export module Keystone.Protocol:GRPC;
 
@@ -388,10 +412,12 @@ export namespace Keystone::Protocol {
 ```
 
 ### Dependencies
+
 - **External**: `cista`, `grpc++`, `protobuf`
 - **Internal**: `Keystone.Core` (for coroutines)
 
 ### Directory Structure
+
 ```
 modules/Keystone.Protocol/
 ├── CMakeLists.txt
@@ -442,15 +468,18 @@ export namespace Keystone::Agents {
 ### Submodules
 
 #### Keystone.Agents:Base
+
 **File**: `modules/Keystone.Agents/Base.cppm`
 
 **Exports**:
+
 - `AgentBase` - Base class for all agents
 - `AgentId` - Agent identifier type
 - `SessionId` - Session identifier type
 - `AgentConfig` - Configuration structure
 
 **Example**:
+
 ```cpp
 export module Keystone.Agents:Base;
 
@@ -487,12 +516,15 @@ export namespace Keystone::Agents {
 ```
 
 #### Keystone.Agents:Root
+
 **File**: `modules/Keystone.Agents/Root.cppm`
 
 **Exports**:
+
 - `RootAgent` - L1 orchestrator agent
 
 **Example**:
+
 ```cpp
 export module Keystone.Agents:Root;
 
@@ -520,12 +552,15 @@ export namespace Keystone::Agents {
 ```
 
 #### Keystone.Agents:Branch
+
 **File**: `modules/Keystone.Agents/Branch.cppm`
 
 **Exports**:
+
 - `BranchAgent` - L2 planning/zone manager
 
 **Example**:
+
 ```cpp
 export module Keystone.Agents:Branch;
 
@@ -557,12 +592,15 @@ export namespace Keystone::Agents {
 ```
 
 #### Keystone.Agents:Leaf
+
 **File**: `modules/Keystone.Agents/Leaf.cppm`
 
 **Exports**:
+
 - `LeafAgent` - L3 worker/tool controller
 
 **Example**:
+
 ```cpp
 export module Keystone.Agents:Leaf;
 
@@ -590,26 +628,32 @@ export namespace Keystone::Agents {
 ```
 
 #### Keystone.Agents:StateMachine
+
 **File**: `modules/Keystone.Agents/StateMachine.cppm`
 
 **Exports**:
+
 - `AgentState` - State enumeration
 - `StateTransition` - Transition validation
 - `StateHistory` - State transition tracking
 
 #### Keystone.Agents:Supervision
+
 **File**: `modules/Keystone.Agents/Supervision.cppm`
 
 **Exports**:
+
 - `SupervisionStrategy` - Failure handling strategies
 - `HealthMonitor` - Agent health checking
 - `FailureRecovery` - Recovery coordination
 
 ### Dependencies
+
 - **External**: None
 - **Internal**: `Keystone.Core`, `Keystone.Protocol`
 
 ### Directory Structure
+
 ```
 modules/Keystone.Agents/
 ├── CMakeLists.txt
@@ -646,14 +690,17 @@ export import :Tools;
 ### Submodules
 
 #### Keystone.Integration:AI
+
 **File**: `modules/Keystone.Integration/AI.cppm`
 
 **Exports**:
+
 - `ONNXRuntime` - Local model inference
 - `RemoteAIClient` - Remote AI service clients
 - `ModelRegistry` - Model loading and management
 
 **Example**:
+
 ```cpp
 export module Keystone.Integration:AI;
 
@@ -678,14 +725,17 @@ export namespace Keystone::Integration {
 ```
 
 #### Keystone.Integration:Monitoring
+
 **File**: `modules/Keystone.Integration/Monitoring.cppm`
 
 **Exports**:
+
 - `MetricsCollector` - Prometheus metrics
 - `Tracer` - OpenTelemetry tracing
 - `HealthCheck` - Health check endpoints
 
 **Example**:
+
 ```cpp
 export module Keystone.Integration:Monitoring;
 
@@ -708,10 +758,12 @@ export namespace Keystone::Integration {
 ```
 
 ### Dependencies
+
 - **External**: `onnxruntime`, `prometheus-cpp`, `opentelemetry-cpp`
 - **Internal**: `Keystone.Core`, `Keystone.Protocol`
 
 ### Directory Structure
+
 ```
 modules/Keystone.Integration/
 ├── CMakeLists.txt
@@ -751,6 +803,7 @@ Keystone.Core
 ## CMake Module Configuration
 
 ### Root CMakeLists.txt
+
 ```cmake
 cmake_minimum_required(VERSION 3.28)
 project(ProjectKeystone CXX)
@@ -771,6 +824,7 @@ add_subdirectory(modules/Keystone.Integration)
 ```
 
 ### Module CMakeLists.txt Example
+
 ```cmake
 # modules/Keystone.Core/CMakeLists.txt
 

@@ -12,6 +12,7 @@ Phase 6 transforms ProjectKeystone from a development prototype to a **productio
 ### Current Status (Post-Phase 5 & 9.2-9.5)
 
 **What We Have**:
+
 - ✅ Complete 4-layer HMAS hierarchy (329 tests, 86.2% coverage)
 - ✅ Chaos engineering infrastructure (Phase 5)
 - ✅ Performance optimizations with simulation (Phase D)
@@ -20,6 +21,7 @@ Phase 6 transforms ProjectKeystone from a development prototype to a **productio
 - ✅ GitHub Actions CI/CD workflows
 
 **What Phase 6 Adds**:
+
 - Kubernetes deployment manifests (Deployments, Services, ConfigMaps)
 - Production-grade monitoring (Prometheus + Grafana)
 - Centralized logging (ELK stack or Loki)
@@ -98,6 +100,7 @@ Phase 6 transforms ProjectKeystone from a development prototype to a **productio
    - Verify logs and metrics
 
 **Deliverables**:
+
 - ✅ Kubernetes manifests for Deployment, Service, ConfigMap, Namespace
 - ✅ Successful deployment to local Kubernetes (kind/minikube)
 - ✅ Health checks working
@@ -140,6 +143,7 @@ Phase 6 transforms ProjectKeystone from a development prototype to a **productio
    - `helm test` for validation
 
 **Deliverables**:
+
 - ✅ Helm chart in `helm/projectkeystone/`
 - ✅ Templated deployments with configurable values
 - ✅ Helm tests for validation
@@ -183,6 +187,7 @@ Phase 6 transforms ProjectKeystone from a development prototype to a **productio
    - P95 latency: `histogram_quantile(0.95, hmas_message_latency_seconds)`
 
 **Deliverables**:
+
 - ✅ Prometheus exporter integrated into HMAS
 - ✅ Prometheus deployed to Kubernetes
 - ✅ Metrics visible in Prometheus UI
@@ -236,6 +241,7 @@ Phase 6 transforms ProjectKeystone from a development prototype to a **productio
    - Import via ConfigMap or Grafana provisioning
 
 **Deliverables**:
+
 - ✅ Grafana deployed to Kubernetes
 - ✅ 3 dashboards: Overview, Agent Details, System Health
 - ✅ Dashboards exported as JSON
@@ -283,6 +289,7 @@ Phase 6 transforms ProjectKeystone from a development prototype to a **productio
    - Timestamp in ISO 8601 format
 
 **Deliverables**:
+
 - ✅ Loki deployed to Kubernetes
 - ✅ Promtail scraping HMAS logs
 - ✅ Logs visible in Grafana
@@ -343,6 +350,7 @@ Phase 6 transforms ProjectKeystone from a development prototype to a **productio
    - Load test with 100+ agents
 
 **Deliverables**:
+
 - ✅ Production readiness checklist
 - ✅ Deployment, rollback, and incident response docs
 - ✅ Security hardening applied
@@ -386,6 +394,7 @@ Phase 6 transforms ProjectKeystone from a development prototype to a **productio
 ## Implementation Checklist
 
 ### Phase 6.1: Kubernetes Manifests ✅
+
 - [ ] Create `k8s/namespace.yaml`
 - [ ] Create `k8s/deployment.yaml`
 - [ ] Create `k8s/service.yaml`
@@ -394,6 +403,7 @@ Phase 6 transforms ProjectKeystone from a development prototype to a **productio
 - [ ] Document: `docs/KUBERNETES_DEPLOYMENT.md`
 
 ### Phase 6.2: Helm Chart ✅
+
 - [ ] Initialize Helm chart structure
 - [ ] Create `Chart.yaml`
 - [ ] Create `values.yaml`
@@ -402,6 +412,7 @@ Phase 6 transforms ProjectKeystone from a development prototype to a **productio
 - [ ] Document: `helm/projectkeystone/README.md`
 
 ### Phase 6.3: Prometheus Monitoring ✅
+
 - [ ] Implement Prometheus exporter
 - [ ] Add metrics endpoint `:9090/metrics`
 - [ ] Deploy Prometheus to Kubernetes
@@ -410,6 +421,7 @@ Phase 6 transforms ProjectKeystone from a development prototype to a **productio
 - [ ] Document example queries
 
 ### Phase 6.4: Grafana Dashboards ✅
+
 - [ ] Deploy Grafana to Kubernetes
 - [ ] Create HMAS Overview dashboard
 - [ ] Create Agent Details dashboard
@@ -418,6 +430,7 @@ Phase 6 transforms ProjectKeystone from a development prototype to a **productio
 - [ ] Document: `docs/MONITORING.md`
 
 ### Phase 6.5: Centralized Logging ✅
+
 - [ ] Deploy Loki to Kubernetes
 - [ ] Deploy Promtail DaemonSet
 - [ ] Configure Loki data source in Grafana
@@ -426,6 +439,7 @@ Phase 6 transforms ProjectKeystone from a development prototype to a **productio
 - [ ] Verify log aggregation
 
 ### Phase 6.6: Production Readiness ✅
+
 - [ ] Create production readiness checklist
 - [ ] Document deployment procedures
 - [ ] Document rollback procedures
@@ -438,26 +452,31 @@ Phase 6 transforms ProjectKeystone from a development prototype to a **productio
 ## Risk Mitigation
 
 ### Risk 1: Kubernetes Complexity
+
 **Impact**: Medium
 **Likelihood**: Medium
 **Mitigation**: Start with simple manifests, use Helm for templating, test locally with kind/minikube before production.
 
 ### Risk 2: Monitoring Overhead
+
 **Impact**: Low
 **Likelihood**: Low
 **Mitigation**: Prometheus metrics are pull-based (low overhead). Sample metrics at 30s interval.
 
 ### Risk 3: Log Volume
+
 **Impact**: Medium
 **Likelihood**: Medium
 **Mitigation**: Use Loki with retention policy (7 days). Tune log levels (INFO in prod, not DEBUG).
 
 ### Risk 4: Resource Limits Too Restrictive
+
 **Impact**: High
 **Likelihood**: Medium
 **Mitigation**: Start with generous limits (2 CPU, 2 GB RAM), tune based on observed usage.
 
 ### Risk 5: Deployment Failures
+
 **Impact**: High
 **Likelihood**: Low
 **Mitigation**: Test in local Kubernetes first. Use Helm for easy rollback. Document troubleshooting steps.
@@ -467,15 +486,18 @@ Phase 6 transforms ProjectKeystone from a development prototype to a **productio
 ## Performance Expectations
 
 **Resource Usage** (per HMAS pod):
+
 - **CPU**: 0.5-2 cores (depends on worker count and load)
 - **Memory**: 512 MB - 2 GB (depends on agent count)
 - **Network**: Low (<10 Mbps for metrics/logs)
 
 **Scalability**:
+
 - **Horizontal**: 2-5 replicas with load balancer
 - **Vertical**: Tune worker count via ConfigMap (4-16 workers)
 
 **Monitoring Performance**:
+
 - **Metrics scrape interval**: 30s
 - **Dashboard refresh**: 30s
 - **Log retention**: 7 days
@@ -486,6 +508,7 @@ Phase 6 transforms ProjectKeystone from a development prototype to a **productio
 ## Testing Strategy
 
 ### Local Kubernetes Testing (kind/minikube)
+
 1. Deploy HMAS with Helm
 2. Verify pod startup and health checks
 3. Send test messages, verify processing
@@ -494,6 +517,7 @@ Phase 6 transforms ProjectKeystone from a development prototype to a **productio
 6. Query logs in Loki
 
 ### Integration Testing
+
 1. Deploy full stack (HMAS + Prometheus + Grafana + Loki)
 2. Run E2E tests inside Kubernetes
 3. Verify metrics collection
@@ -502,6 +526,7 @@ Phase 6 transforms ProjectKeystone from a development prototype to a **productio
 6. Test rolling update (change image tag)
 
 ### Load Testing
+
 1. Deploy with multiple replicas
 2. Send high message volume
 3. Monitor queue depths and latency
@@ -513,6 +538,7 @@ Phase 6 transforms ProjectKeystone from a development prototype to a **productio
 ## Documentation Plan
 
 ### Required Documentation
+
 1. **KUBERNETES_DEPLOYMENT.md** - Kubernetes manifest guide
 2. **HELM_CHART.md** - Helm chart usage
 3. **MONITORING.md** - Prometheus + Grafana setup
@@ -523,6 +549,7 @@ Phase 6 transforms ProjectKeystone from a development prototype to a **productio
 8. **PRODUCTION_READINESS.md** - Checklist before go-live
 
 ### README Updates
+
 - Add "Production Deployment" section
 - Link to Helm chart
 - Link to monitoring dashboards
@@ -538,6 +565,7 @@ Phase 6 transforms ProjectKeystone from a development prototype to a **productio
 **Week 4**: Production readiness and documentation
 
 **After Phase 6**: Move to **Phase 7: AI Integration**
+
 - LLM-based task agents
 - Natural language goal processing
 - Code generation integration

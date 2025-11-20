@@ -11,6 +11,7 @@ This directory contains utility scripts for ProjectKeystone HMAS development and
 Creates GitHub issues for future implementation phases (7, 8, and 10) based on the plan documents in `docs/plan/`.
 
 **Usage**:
+
 ```bash
 # Dry run (preview what will be created)
 ./scripts/create_phase_issues.sh --dry-run
@@ -20,11 +21,13 @@ Creates GitHub issues for future implementation phases (7, 8, and 10) based on t
 ```
 
 **Requirements**:
+
 - GitHub CLI (`gh`) installed and authenticated
 - Must be run from project root directory
 - Write access to the repository
 
 **What it does**:
+
 1. Reads plan documents (`PHASE_7_PLAN.md`, `PHASE_8_PLAN.md`, `PHASE_10_PLAN.md`)
 2. Generates issue bodies with:
    - Overview and links to plan documents
@@ -36,6 +39,7 @@ Creates GitHub issues for future implementation phases (7, 8, and 10) based on t
    - Phase 10: `phase-10`, `epic`, `enhancement`, `observability`
 
 **Example output**:
+
 ```
 === ProjectKeystone Phase Issues Creator ===
 
@@ -52,9 +56,11 @@ Creating Phase 10 issues...
 ```
 
 **Dry run mode**:
+
 ```bash
 ./scripts/create_phase_issues.sh --dry-run
 ```
+
 This will show what would be created without actually creating any issues.
 
 ---
@@ -64,21 +70,27 @@ This will show what would be created without actually creating any issues.
 ### GitHub CLI (`gh`)
 
 **macOS**:
+
 ```bash
 brew install gh
 gh auth login
 ```
 
 **Ubuntu/Debian**:
+
 ```bash
-curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+  | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg]" \
+  "https://cli.github.com/packages stable main" \
+  | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
 sudo apt update
 sudo apt install gh
 gh auth login
 ```
 
 **Docker** (if running in container):
+
 ```bash
 # Already installed in dev container
 gh auth login

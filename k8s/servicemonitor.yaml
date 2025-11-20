@@ -17,11 +17,11 @@ spec:
       app.kubernetes.io/name: projectkeystone
       app.kubernetes.io/component: agent-system
   endpoints:
-  - port: metrics
-    interval: 30s
-    scrapeTimeout: 10s
-    path: /metrics
-    scheme: http
+    - port: metrics
+      interval: 30s
+      scrapeTimeout: 10s
+      path: /metrics
+      scheme: http
   namespaceSelector:
     matchNames:
       - projectkeystone

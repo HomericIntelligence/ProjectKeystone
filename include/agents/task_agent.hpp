@@ -1,11 +1,11 @@
 #pragma once
 
-#include "base_agent.hpp"
-
 #include <cstdio>
 #include <memory>
 #include <utility>
 #include <vector>
+
+#include "base_agent.hpp"
 
 namespace keystone {
 namespace agents {
@@ -36,10 +36,11 @@ class TaskAgent : public BaseAgent {
   /**
    * @brief Get command execution history
    *
-   * @return const std::vector<std::pair<std::string, std::string>>& History of (command, result)
-   * pairs
+   * @return const std::vector<std::pair<std::string, std::string>>& History of
+   * (command, result) pairs
    */
-  const std::vector<std::pair<std::string, std::string>>& getCommandHistory() const {
+  const std::vector<std::pair<std::string, std::string>>& getCommandHistory()
+      const {
     return command_log_;
   }
 

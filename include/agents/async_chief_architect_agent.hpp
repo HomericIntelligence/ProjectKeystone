@@ -1,14 +1,14 @@
 #pragma once
 
-#include "async_base_agent.hpp"
-#include "async_component_lead_agent.hpp"
-#include "concurrency/task.hpp"
-
 #include <map>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+
+#include "async_base_agent.hpp"
+#include "async_component_lead_agent.hpp"
+#include "concurrency/task.hpp"
 
 namespace keystone {
 namespace agents {
@@ -28,9 +28,11 @@ struct ComponentResult {
  * @brief Level 0 Async Chief Architect Agent
  *
  * Async version of ChiefArchitectAgent using coroutines.
- * Strategic orchestrator that delegates tasks to lower-level agents asynchronously.
+ * Strategic orchestrator that delegates tasks to lower-level agents
+ * asynchronously.
  *
- * **Phase 4 Enhancement**: Supports multi-component coordination with dependency resolution.
+ * **Phase 4 Enhancement**: Supports multi-component coordination with
+ * dependency resolution.
  */
 class AsyncChiefArchitectAgent : public AsyncBaseAgent {
  public:
@@ -42,12 +44,14 @@ class AsyncChiefArchitectAgent : public AsyncBaseAgent {
   explicit AsyncChiefArchitectAgent(const std::string& agent_id);
 
   /**
-   * @brief Process incoming message asynchronously (typically responses from subordinates)
+   * @brief Process incoming message asynchronously (typically responses from
+   * subordinates)
    *
    * @param msg Message to process
    * @return concurrency::Task<core::Response> Coroutine producing response
    */
-  concurrency::Task<core::Response> processMessage(const core::KeystoneMessage& msg) override;
+  concurrency::Task<core::Response> processMessage(
+      const core::KeystoneMessage& msg) override;
 
   /**
    * @brief Send a command to a subordinate agent asynchronously
@@ -56,9 +60,11 @@ class AsyncChiefArchitectAgent : public AsyncBaseAgent {
    * happens asynchronously on worker threads.
    *
    * @param command Command string to execute
-   * @param subordinate_id Target agent ID (TaskAgent, ModuleLead, or ComponentLead)
+   * @param subordinate_id Target agent ID (TaskAgent, ModuleLead, or
+   * ComponentLead)
    */
-  void sendCommandAsync(const std::string& command, const std::string& subordinate_id);
+  void sendCommandAsync(const std::string& command,
+                        const std::string& subordinate_id);
 
   // ========================================================================
   // PHASE 4: Multi-Component Coordination
@@ -102,9 +108,11 @@ class AsyncChiefArchitectAgent : public AsyncBaseAgent {
    * Submits independent components in parallel to work-stealing scheduler.
    *
    * @param goal High-level goal for the system
-   * @return concurrency::Task<std::vector<ComponentResult>> Results from all components
+   * @return concurrency::Task<std::vector<ComponentResult>> Results from all
+   * components
    */
-  concurrency::Task<std::vector<ComponentResult>> executeAllComponents(const std::string& goal);
+  concurrency::Task<std::vector<ComponentResult>> executeAllComponents(
+      const std::string& goal);
 
   /**
    * @brief Get registered component names
@@ -153,7 +161,8 @@ class AsyncChiefArchitectAgent : public AsyncBaseAgent {
 
   // Phase 4: Component management
   std::unordered_map<std::string, AsyncComponentLeadAgent*> component_registry_;
-  std::unordered_map<std::string, std::vector<std::string>> component_dependencies_;
+  std::unordered_map<std::string, std::vector<std::string>>
+      component_dependencies_;
   mutable std::mutex component_mutex_;
 };
 

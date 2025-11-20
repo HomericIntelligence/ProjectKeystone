@@ -1,14 +1,14 @@
+#include <gtest/gtest.h>
+
+#include <memory>
+#include <vector>
+
 #include "agents/async_chief_architect_agent.hpp"
 #include "agents/async_component_lead_agent.hpp"
 #include "agents/async_module_lead_agent.hpp"
 #include "agents/async_task_agent.hpp"
 #include "concurrency/work_stealing_scheduler.hpp"
 #include "core/message_bus.hpp"
-
-#include <memory>
-#include <vector>
-
-#include <gtest/gtest.h>
 
 using namespace keystone::agents;
 using namespace keystone::core;
@@ -49,9 +49,11 @@ TEST_F(Phase4MultiComponentTest, RegisterFourComponents) {
 
   // Create 4 component leads
   auto core_lead = std::make_unique<AsyncComponentLeadAgent>("core_lead");
-  auto protocol_lead = std::make_unique<AsyncComponentLeadAgent>("protocol_lead");
+  auto protocol_lead =
+      std::make_unique<AsyncComponentLeadAgent>("protocol_lead");
   auto agents_lead = std::make_unique<AsyncComponentLeadAgent>("agents_lead");
-  auto integration_lead = std::make_unique<AsyncComponentLeadAgent>("integration_lead");
+  auto integration_lead =
+      std::make_unique<AsyncComponentLeadAgent>("integration_lead");
 
   core_lead->setMessageBus(message_bus_.get());
   protocol_lead->setMessageBus(message_bus_.get());
@@ -85,9 +87,11 @@ TEST_F(Phase4MultiComponentTest, ComponentDependencyResolution) {
 
   // Create components
   auto core_lead = std::make_unique<AsyncComponentLeadAgent>("core_lead");
-  auto protocol_lead = std::make_unique<AsyncComponentLeadAgent>("protocol_lead");
+  auto protocol_lead =
+      std::make_unique<AsyncComponentLeadAgent>("protocol_lead");
   auto agents_lead = std::make_unique<AsyncComponentLeadAgent>("agents_lead");
-  auto integration_lead = std::make_unique<AsyncComponentLeadAgent>("integration_lead");
+  auto integration_lead =
+      std::make_unique<AsyncComponentLeadAgent>("integration_lead");
 
   chief->registerComponent("Core", core_lead.get());
   chief->registerComponent("Protocol", protocol_lead.get());
@@ -107,14 +111,18 @@ TEST_F(Phase4MultiComponentTest, ComponentDependencyResolution) {
   ASSERT_EQ(execution_order.size(), 4);
 
   // Find indices
-  auto core_idx = std::find(execution_order.begin(), execution_order.end(), "Core") -
-                  execution_order.begin();
-  auto protocol_idx = std::find(execution_order.begin(), execution_order.end(), "Protocol") -
-                      execution_order.begin();
-  auto agents_idx = std::find(execution_order.begin(), execution_order.end(), "Agents") -
-                    execution_order.begin();
-  auto integration_idx = std::find(execution_order.begin(), execution_order.end(), "Integration") -
-                         execution_order.begin();
+  auto core_idx =
+      std::find(execution_order.begin(), execution_order.end(), "Core") -
+      execution_order.begin();
+  auto protocol_idx =
+      std::find(execution_order.begin(), execution_order.end(), "Protocol") -
+      execution_order.begin();
+  auto agents_idx =
+      std::find(execution_order.begin(), execution_order.end(), "Agents") -
+      execution_order.begin();
+  auto integration_idx =
+      std::find(execution_order.begin(), execution_order.end(), "Integration") -
+      execution_order.begin();
 
   // Verify: Core and Protocol come before Agents
   EXPECT_LT(core_idx, agents_idx);
@@ -144,7 +152,9 @@ TEST_F(Phase4MultiComponentTest, CircularDependencyDetection) {
   chief->addComponentDependency("C", {"A"});  // Creates cycle
 
   // Should throw on circular dependency
-  EXPECT_THROW({ auto execution_order = chief->getComponentExecutionOrder(); }, std::runtime_error);
+  EXPECT_THROW(
+      { auto execution_order = chief->getComponentExecutionOrder(); },
+      std::runtime_error);
 }
 
 /**
@@ -154,7 +164,8 @@ TEST_F(Phase4MultiComponentTest, IndependentComponentsExecutionOrder) {
   auto chief = std::make_unique<AsyncChiefArchitectAgent>("chief");
 
   auto core_lead = std::make_unique<AsyncComponentLeadAgent>("core_lead");
-  auto protocol_lead = std::make_unique<AsyncComponentLeadAgent>("protocol_lead");
+  auto protocol_lead =
+      std::make_unique<AsyncComponentLeadAgent>("protocol_lead");
 
   chief->registerComponent("Core", core_lead.get());
   chief->registerComponent("Protocol", protocol_lead.get());
@@ -164,10 +175,10 @@ TEST_F(Phase4MultiComponentTest, IndependentComponentsExecutionOrder) {
 
   // Both should be in the list
   ASSERT_EQ(execution_order.size(), 2);
-  EXPECT_TRUE(std::find(execution_order.begin(), execution_order.end(), "Core") !=
-              execution_order.end());
-  EXPECT_TRUE(std::find(execution_order.begin(), execution_order.end(), "Protocol") !=
-              execution_order.end());
+  EXPECT_TRUE(std::find(execution_order.begin(), execution_order.end(),
+                        "Core") != execution_order.end());
+  EXPECT_TRUE(std::find(execution_order.begin(), execution_order.end(),
+                        "Protocol") != execution_order.end());
 }
 
 /**
@@ -183,7 +194,8 @@ TEST_F(Phase4MultiComponentTest, ParallelComponentExecution) {
 
   // Create 2 independent components
   auto core_lead = std::make_unique<AsyncComponentLeadAgent>("core_lead");
-  auto protocol_lead = std::make_unique<AsyncComponentLeadAgent>("protocol_lead");
+  auto protocol_lead =
+      std::make_unique<AsyncComponentLeadAgent>("protocol_lead");
 
   core_lead->setMessageBus(message_bus_.get());
   core_lead->setScheduler(scheduler_.get());
@@ -196,7 +208,8 @@ TEST_F(Phase4MultiComponentTest, ParallelComponentExecution) {
 
   // Execute all components - this returns a Task that needs to be awaited
   // For now, we verify the structure is correct
-  // Full execution testing will require a test harness that can await coroutines
+  // Full execution testing will require a test harness that can await
+  // coroutines
 
   // Verify components are registered correctly
   EXPECT_EQ(chief->getComponentCount(), 2);
@@ -222,9 +235,11 @@ TEST_F(Phase4MultiComponentTest, DependencyLevelsGrouping) {
 
   // Create 4 components
   auto core_lead = std::make_unique<AsyncComponentLeadAgent>("core_lead");
-  auto protocol_lead = std::make_unique<AsyncComponentLeadAgent>("protocol_lead");
+  auto protocol_lead =
+      std::make_unique<AsyncComponentLeadAgent>("protocol_lead");
   auto agents_lead = std::make_unique<AsyncComponentLeadAgent>("agents_lead");
-  auto integration_lead = std::make_unique<AsyncComponentLeadAgent>("integration_lead");
+  auto integration_lead =
+      std::make_unique<AsyncComponentLeadAgent>("integration_lead");
 
   chief->registerComponent("Core", core_lead.get());
   chief->registerComponent("Protocol", protocol_lead.get());
@@ -237,9 +252,8 @@ TEST_F(Phase4MultiComponentTest, DependencyLevelsGrouping) {
   chief->addComponentDependency("Agents", {"Core", "Protocol"});
   chief->addComponentDependency("Integration", {"Agents"});
 
-  // Get dependency levels (not exposed publicly, but we can test via execution order)
-  // Expected levels:
-  // Level 0: [Core, Protocol] (can execute in parallel)
+  // Get dependency levels (not exposed publicly, but we can test via execution
+  // order) Expected levels: Level 0: [Core, Protocol] (can execute in parallel)
   // Level 1: [Agents] (depends on level 0)
   // Level 2: [Integration] (depends on level 1)
 
@@ -247,14 +261,18 @@ TEST_F(Phase4MultiComponentTest, DependencyLevelsGrouping) {
   ASSERT_EQ(execution_order.size(), 4);
 
   // Verify Core and Protocol come before Agents
-  auto core_idx = std::find(execution_order.begin(), execution_order.end(), "Core") -
-                  execution_order.begin();
-  auto protocol_idx = std::find(execution_order.begin(), execution_order.end(), "Protocol") -
-                      execution_order.begin();
-  auto agents_idx = std::find(execution_order.begin(), execution_order.end(), "Agents") -
-                    execution_order.begin();
-  auto integration_idx = std::find(execution_order.begin(), execution_order.end(), "Integration") -
-                         execution_order.begin();
+  auto core_idx =
+      std::find(execution_order.begin(), execution_order.end(), "Core") -
+      execution_order.begin();
+  auto protocol_idx =
+      std::find(execution_order.begin(), execution_order.end(), "Protocol") -
+      execution_order.begin();
+  auto agents_idx =
+      std::find(execution_order.begin(), execution_order.end(), "Agents") -
+      execution_order.begin();
+  auto integration_idx =
+      std::find(execution_order.begin(), execution_order.end(), "Integration") -
+      execution_order.begin();
 
   EXPECT_LT(core_idx, agents_idx);
   EXPECT_LT(protocol_idx, agents_idx);
@@ -281,7 +299,8 @@ TEST_F(Phase4MultiComponentTest, StressTest100Agents) {
 
   // Create 4 ComponentLeads
   std::vector<std::unique_ptr<AsyncComponentLeadAgent>> component_leads;
-  std::vector<std::string> component_names = {"Core", "Protocol", "Agents", "Integration"};
+  std::vector<std::string> component_names = {"Core", "Protocol", "Agents",
+                                              "Integration"};
 
   for (const auto& name : component_names) {
     auto component = std::make_unique<AsyncComponentLeadAgent>(name + "_lead");
@@ -305,7 +324,8 @@ TEST_F(Phase4MultiComponentTest, StressTest100Agents) {
 
     for (int mod_idx = 0; mod_idx < 3; ++mod_idx) {
       // Create ModuleLead
-      std::string module_id = component_names[comp_idx] + "_module_" + std::to_string(mod_idx);
+      std::string module_id =
+          component_names[comp_idx] + "_module_" + std::to_string(mod_idx);
       auto module = std::make_unique<AsyncModuleLeadAgent>(module_id);
       module->setMessageBus(message_bus_.get());
       module->setScheduler(scheduler_.get());
@@ -375,7 +395,8 @@ TEST_F(Phase4MultiComponentTest, StressTest150Agents) {
 
   // Create 4 ComponentLeads
   std::vector<std::unique_ptr<AsyncComponentLeadAgent>> component_leads;
-  std::vector<std::string> component_names = {"Core", "Protocol", "Agents", "Integration"};
+  std::vector<std::string> component_names = {"Core", "Protocol", "Agents",
+                                              "Integration"};
 
   for (const auto& name : component_names) {
     auto component = std::make_unique<AsyncComponentLeadAgent>(name + "_lead");
@@ -399,7 +420,8 @@ TEST_F(Phase4MultiComponentTest, StressTest150Agents) {
 
     for (int mod_idx = 0; mod_idx < 5; ++mod_idx) {  // 5 modules per component
       // Create ModuleLead
-      std::string module_id = component_names[comp_idx] + "_module_" + std::to_string(mod_idx);
+      std::string module_id =
+          component_names[comp_idx] + "_module_" + std::to_string(mod_idx);
       auto module = std::make_unique<AsyncModuleLeadAgent>(module_id);
       module->setMessageBus(message_bus_.get());
       module->setScheduler(scheduler_.get());
@@ -445,5 +467,6 @@ TEST_F(Phase4MultiComponentTest, StressTest150Agents) {
   EXPECT_EQ(component_list.size(), 4);
 
   // The system is now set up with 145 agents
-  // This tests the scheduler's ability to handle a large number of concurrent agents
+  // This tests the scheduler's ability to handle a large number of concurrent
+  // agents
 }

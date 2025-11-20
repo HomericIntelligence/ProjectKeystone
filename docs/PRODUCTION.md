@@ -4,7 +4,8 @@
 **Last Updated**: 2025-11-19
 **Status**: Production Ready ✅
 
-This document provides comprehensive production deployment procedures, operational runbooks, and incident response playbooks for ProjectKeystone HMAS.
+This document provides comprehensive production deployment procedures, operational
+runbooks, and incident response playbooks for ProjectKeystone HMAS.
 
 ---
 
@@ -97,6 +98,7 @@ Use this checklist before deploying to production:
 ### Initial Deployment
 
 **Prerequisites**:
+
 - Kubernetes cluster (1.24+)
 - kubectl configured
 - Helm 3.0+ (optional)
@@ -410,6 +412,7 @@ kubectl label namespace projectkeystone \
 ```
 
 **Pod security features in use**:
+
 - Non-root users (UID 1000 for HMAS, 472 for Grafana, etc.)
 - Read-only root filesystem (where possible)
 - Drop all capabilities
@@ -440,6 +443,7 @@ cosign sign projectkeystone:latest
 **Alert Rules**: Defined in `k8s/prometheus-alerts.yaml`
 
 **Alert Categories**:
+
 1. **Application Alerts** (hmas_application group)
    - HMASPodsDown
    - HighErrorRate
@@ -531,6 +535,7 @@ receivers:
 **Alert fires** → Check Grafana dashboards → Assess severity
 
 **Severity Levels**:
+
 - **Critical (P0)**: Total service outage, data loss risk
 - **High (P1)**: Major functionality impaired, SLO violation
 - **Medium (P2)**: Degraded performance, non-critical features down
@@ -739,7 +744,7 @@ kubectl port-forward -n projectkeystone svc/grafana 3000:3000
 
 ### Load Testing
 
-**Tool**: k6 (https://k6.io/)
+**Tool**: k6 (<https://k6.io/>)
 
 **Test Script** (`tests/load/hmas-load-test.js`):
 
@@ -799,7 +804,9 @@ kubectl run k6 --image=grafana/k6 -it --rm -- run - < tests/load/hmas-load-test.
 
 ```bash
 # Kill random pods (chaos testing)
-kubectl delete pod -n projectkeystone -l app=hmas --field-selector status.phase=Running --dry-run=client -o name | shuf | head -1 | xargs kubectl delete
+kubectl delete pod -n projectkeystone -l app=hmas \
+  --field-selector status.phase=Running --dry-run=client -o name | \
+  shuf | head -1 | xargs kubectl delete
 
 # Limit CPU
 kubectl set resources deployment/hmas -n projectkeystone --limits=cpu=100m
@@ -818,6 +825,7 @@ kubectl exec -n projectkeystone deployment/hmas -- dd if=/dev/zero of=/tmp/testf
 ### Backup Strategy
 
 **What to backup**:
+
 1. **Persistent data** (PVCs)
 2. **Configuration** (ConfigMaps, Secrets)
 3. **State** (if stateful)
@@ -921,6 +929,7 @@ kubectl logs <pod-name> -n projectkeystone --previous
 ```
 
 **Common Causes & Fixes**:
+
 - **Application error**: Check logs, fix code
 - **Missing ConfigMap/Secret**: Verify secrets exist
 - **Port conflict**: Check port configuration
@@ -938,6 +947,7 @@ kubectl describe pod <pod-name> -n projectkeystone | grep -A 5 "Limits"
 ```
 
 **Fixes**:
+
 - Increase memory limits in deployment.yaml
 - Fix memory leaks in application
 - Enable memory profiling
@@ -958,6 +968,7 @@ kubectl exec -n projectkeystone test-pod -- wget -O- http://hmas:8080/healthz
 ```
 
 **Fixes**:
+
 - Review and update network policies
 - Temporarily disable for testing (not in production!)
 
@@ -980,6 +991,7 @@ kubectl exec -n projectkeystone deployment/hmas -- curl localhost:9090/metrics
 ```
 
 **Fixes**:
+
 - Verify service selector matches pod labels
 - Check network policy allows Prometheus → HMAS traffic
 - Verify pod annotations (prometheus.io/scrape=true)
@@ -987,11 +999,13 @@ kubectl exec -n projectkeystone deployment/hmas -- curl localhost:9090/metrics
 ### Emergency Contacts
 
 **On-Call Rotation**:
-- Primary: ops-oncall@example.com
-- Secondary: sre-team@example.com
-- Escalation: engineering-lead@example.com
+
+- Primary: <ops-oncall@example.com>
+- Secondary: <sre-team@example.com>
+- Escalation: <engineering-lead@example.com>
 
 **Communication Channels**:
+
 - Slack: #projectkeystone-incidents
 - PagerDuty: ProjectKeystone service
 - War room: Zoom link in PagerDuty alert

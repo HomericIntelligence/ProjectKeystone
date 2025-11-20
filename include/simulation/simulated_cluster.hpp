@@ -1,14 +1,14 @@
 #pragma once
 
-#include "simulation/simulated_network.hpp"
-#include "simulation/simulated_numa_node.hpp"
-
 #include <cstddef>
 #include <functional>
 #include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
+
+#include "simulation/simulated_network.hpp"
+#include "simulation/simulated_numa_node.hpp"
 
 namespace keystone {
 namespace simulation {
@@ -51,13 +51,13 @@ class SimulatedCluster {
    * @brief Aggregate statistics across all nodes
    */
   struct Stats {
-    size_t total_local_steals;                  ///< Sum of local steals across all nodes
-    size_t total_remote_steals;                 ///< Sum of remote steals across all nodes
-    size_t total_network_messages;              ///< Total messages sent over network
-    double avg_network_latency_us;              ///< Average network latency
+    size_t total_local_steals;      ///< Sum of local steals across all nodes
+    size_t total_remote_steals;     ///< Sum of remote steals across all nodes
+    size_t total_network_messages;  ///< Total messages sent over network
+    double avg_network_latency_us;  ///< Average network latency
     std::vector<size_t> queue_depths_per_node;  ///< Queue depth for each node
-    double load_imbalance;                      ///< Standard deviation of queue depths
-    size_t total_tasks_submitted;               ///< Total tasks submitted to cluster
+    double load_imbalance;         ///< Standard deviation of queue depths
+    size_t total_tasks_submitted;  ///< Total tasks submitted to cluster
   };
 
   /**
@@ -75,9 +75,9 @@ class SimulatedCluster {
   SimulatedCluster(const SimulatedCluster&) = delete;
   SimulatedCluster& operator=(const SimulatedCluster&) = delete;
 
-  // Allow moving
-  SimulatedCluster(SimulatedCluster&&) noexcept = default;
-  SimulatedCluster& operator=(SimulatedCluster&&) noexcept = default;
+  // Prevent moving (contains atomic members which cannot be moved)
+  SimulatedCluster(SimulatedCluster&&) noexcept = delete;
+  SimulatedCluster& operator=(SimulatedCluster&&) noexcept = delete;
 
   /**
    * @brief Start all nodes in the cluster
@@ -186,7 +186,8 @@ class SimulatedCluster {
 
   // Statistics
   std::atomic<size_t> total_tasks_submitted_{0};
-  std::atomic<size_t> round_robin_counter_{0};  ///< For load balancing unregistered agents
+  std::atomic<size_t> round_robin_counter_{
+      0};  ///< For load balancing unregistered agents
 
   bool started_{false};
 
