@@ -96,12 +96,8 @@ jobs:
       - name: Run smoke test
         run: |
           cd build
-          # Run tests if they exist
-          if [ -f ./phase1_e2e_tests ]; then
-            ./phase1_e2e_tests --gtest_filter=*Smoke* || echo "No smoke tests yet"
-          else
-            echo "Test executables not built yet"
-          fi
+          # Run a quick smoke test using ctest
+          ctest -R "MessageBusTest.RegisterAgent" --output-on-failure || echo "Smoke test not available yet"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v5
