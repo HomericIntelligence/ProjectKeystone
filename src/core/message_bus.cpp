@@ -19,8 +19,8 @@ concurrency::WorkStealingScheduler* MessageBus::getScheduler() const {
   return scheduler_.load(std::memory_order_acquire);
 }
 
-void MessageBus::registerAgent(const std::string& agent_id,
-                               agents::AgentBase* agent) {
+void MessageBus::registerAgent(const std::string& agent_id, std::shared_ptr<agents::AgentBase> agent) {
+  // FIX C2: Use shared_ptr for safe lifetime management
   if (!agent) {
     throw std::invalid_argument("Cannot register null agent");
   }
@@ -42,8 +42,9 @@ void MessageBus::unregisterAgent(const std::string& agent_id) {
 bool MessageBus::routeMessage(const KeystoneMessage& msg) {
   // FIX C1: Deadlock prevention - lookup agent, then release lock
   // before making external calls (agent->receiveMessage or scheduler->submit)
+  // FIX C2: Use shared_ptr to keep agent alive during async routing
   // FIX C5: Scheduler loaded atomically (no mutex needed)
-  agents::AgentBase* agent = nullptr;
+  std::shared_ptr<agents::AgentBase> agent;
 
   {
     std::lock_guard<std::mutex> lock(registry_mutex_);
@@ -51,7 +52,7 @@ bool MessageBus::routeMessage(const KeystoneMessage& msg) {
     if (it == agents_.end()) {
       return false;  // Receiver not found
     }
-    agent = it->second;
+    agent = it->second;  // Ref count incremented - agent kept alive
   }  // ✅ Lock released before external calls
 
   // Load scheduler atomically (thread-safe)
@@ -62,7 +63,7 @@ bool MessageBus::routeMessage(const KeystoneMessage& msg) {
 
   // Async routing if scheduler present (Phase A Week 3+)
   if (sched) {
-    // Submit message delivery as work item to scheduler
+    // FIX C2: Lambda captures shared_ptr, keeping agent alive
     sched->submit([agent, msg]() { agent->receiveMessage(msg); });
     return true;
   }

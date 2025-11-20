@@ -12,11 +12,12 @@ namespace agents {
 
 TaskAgent::TaskAgent(const std::string& agent_id) : BaseAgent(agent_id) {}
 
-core::Response TaskAgent::processMessage(const core::KeystoneMessage& msg) {
-  // FIX: Record message processed for metrics tracking
+concurrency::Task<core::Response> TaskAgent::processMessage(const core::KeystoneMessage& msg) {
+  // FIX C3: Changed to async (returns Task<Response>)
+  // Record message processed for metrics tracking
   core::Metrics::getInstance().recordMessageProcessed(msg.msg_id);
 
-  // FIX: Check if deadline was missed
+  // Check if deadline was missed
   if (msg.deadline.has_value() && msg.hasDeadlinePassed()) {
     auto time_remaining = msg.getTimeUntilDeadline();
     (void)time_remaining;  // Suppress unused warning - reserved for future use
@@ -46,7 +47,7 @@ core::Response TaskAgent::processMessage(const core::KeystoneMessage& msg) {
     // MessageBus routes it automatically
     sendMessage(response_msg);
 
-    return response;
+    co_return response;  // FIX C3: Use co_return for coroutine
 
   } catch (const std::exception& e) {
     // Create error response
@@ -60,7 +61,7 @@ core::Response TaskAgent::processMessage(const core::KeystoneMessage& msg) {
 
     sendMessage(response_msg);
 
-    return response;
+    co_return response;  // FIX C3: Use co_return for coroutine
   }
 }
 
