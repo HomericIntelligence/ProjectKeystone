@@ -8,7 +8,9 @@ namespace keystone {
 namespace agents {
 
 AgentBase::AgentBase(const std::string& agent_id)
-    : agent_id_(agent_id) {
+    : agent_id_(agent_id),
+      last_low_priority_check_(std::chrono::steady_clock::now()) {
+    // FIX M2: Initialize time-based fairness timer
     // Phase C: Priority queues initialized by default constructors
 }
 
@@ -68,21 +70,19 @@ void AgentBase::receiveMessage(const core::KeystoneMessage& msg) {
 }
 
 std::optional<core::KeystoneMessage> AgentBase::getMessage() {
-    // FIX: Weighted round-robin to prevent LOW priority starvation
-    // Strategy: After processing HIGH_PRIORITY_QUOTA high-priority messages,
-    // force-check NORMAL and LOW queues to ensure fairness
+    // FIX M2: Time-based priority fairness to prevent LOW priority starvation
+    // Strategy: Every LOW_PRIORITY_CHECK_INTERVAL (100ms), force-check NORMAL/LOW
+    // queues to ensure fairness even under sustained HIGH priority load
 
     core::KeystoneMessage msg;
-    uint64_t high_count = high_priority_processed_.load(std::memory_order_relaxed);
+    auto now = std::chrono::steady_clock::now();
 
-    // Every HIGH_PRIORITY_QUOTA messages, give lower priorities a chance
-    if (high_count >= HIGH_PRIORITY_QUOTA) {
-        // Reset counter
-        high_priority_processed_.store(0, std::memory_order_relaxed);
+    // Every 100ms, force-check lower priorities regardless of HIGH queue state
+    if (now - last_low_priority_check_ >= LOW_PRIORITY_CHECK_INTERVAL) {
+        last_low_priority_check_ = now;
 
-        // Try NORMAL first (give it priority over LOW)
+        // Try NORMAL first (give it priority over LOW during fairness check)
         if (normal_priority_inbox_.try_dequeue(msg)) {
-            // FIX: Track queue depth after dequeue
             updateQueueDepthMetrics();
             return msg;
         }
@@ -98,7 +98,6 @@ std::optional<core::KeystoneMessage> AgentBase::getMessage() {
 
     // Standard priority order: HIGH -> NORMAL -> LOW
     if (high_priority_inbox_.try_dequeue(msg)) {
-        high_priority_processed_.fetch_add(1, std::memory_order_relaxed);
         updateQueueDepthMetrics();
         return msg;
     }
