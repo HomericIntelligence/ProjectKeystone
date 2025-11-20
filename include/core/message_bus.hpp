@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -107,7 +108,8 @@ class MessageBus {
  private:
   mutable std::mutex registry_mutex_;
   std::unordered_map<std::string, agents::AgentBase*> agents_;
-  concurrency::WorkStealingScheduler* scheduler_{nullptr};
+  // FIX C5: Atomic scheduler pointer for thread-safe access without registry_mutex
+  std::atomic<concurrency::WorkStealingScheduler*> scheduler_{nullptr};
 };
 
 }  // namespace core

@@ -96,10 +96,11 @@ class AgentBase {
   moodycamel::ConcurrentQueue<core::KeystoneMessage> normal_priority_inbox_;
   moodycamel::ConcurrentQueue<core::KeystoneMessage> low_priority_inbox_;
 
-  // FIX M2: Anti-starvation using time-based fairness (not count-based)
+  // FIX C1: Anti-starvation using time-based fairness (not count-based)
   // Force-check lower priorities every N milliseconds to prevent starvation
   // under sustained HIGH priority load
-  std::chrono::steady_clock::time_point last_low_priority_check_;
+  // THREAD-SAFE: Using atomic to prevent data races from concurrent getMessage() calls
+  std::atomic<int64_t> last_low_priority_check_ns_;
 
   // FIX M1: Backpressure - Queue size limits to prevent memory exhaustion
   std::atomic<bool> backpressure_applied_{

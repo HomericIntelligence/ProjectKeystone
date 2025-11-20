@@ -10,13 +10,13 @@ namespace keystone {
 namespace core {
 
 void MessageBus::setScheduler(concurrency::WorkStealingScheduler* scheduler) {
-  std::lock_guard<std::mutex> lock(registry_mutex_);
-  scheduler_ = scheduler;
+  // FIX C5: Use atomic store for thread-safe access (no mutex needed)
+  scheduler_.store(scheduler, std::memory_order_release);
 }
 
 concurrency::WorkStealingScheduler* MessageBus::getScheduler() const {
-  std::lock_guard<std::mutex> lock(registry_mutex_);
-  return scheduler_;
+  // FIX C5: Use atomic load for thread-safe access (no mutex needed)
+  return scheduler_.load(std::memory_order_acquire);
 }
 
 void MessageBus::registerAgent(const std::string& agent_id,
@@ -40,10 +40,10 @@ void MessageBus::unregisterAgent(const std::string& agent_id) {
 }
 
 bool MessageBus::routeMessage(const KeystoneMessage& msg) {
-  // FIX C1: Deadlock prevention - lookup agent/scheduler, then release lock
+  // FIX C1: Deadlock prevention - lookup agent, then release lock
   // before making external calls (agent->receiveMessage or scheduler->submit)
+  // FIX C5: Scheduler loaded atomically (no mutex needed)
   agents::AgentBase* agent = nullptr;
-  concurrency::WorkStealingScheduler* sched = nullptr;
 
   {
     std::lock_guard<std::mutex> lock(registry_mutex_);
@@ -52,8 +52,10 @@ bool MessageBus::routeMessage(const KeystoneMessage& msg) {
       return false;  // Receiver not found
     }
     agent = it->second;
-    sched = scheduler_;
   }  // ✅ Lock released before external calls
+
+  // Load scheduler atomically (thread-safe)
+  concurrency::WorkStealingScheduler* sched = scheduler_.load(std::memory_order_acquire);
 
   // Record message sent to metrics for tracking
   Metrics::getInstance().recordMessageSent(msg.msg_id, msg.priority);
