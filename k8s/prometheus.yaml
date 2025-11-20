@@ -183,7 +183,25 @@ spec:
         configMap:
           name: prometheus-alerts
       - name: storage
-        emptyDir: {}  # Use PersistentVolume for production
+        persistentVolumeClaim:
+          claimName: prometheus-data
+---
+# PersistentVolumeClaim for Prometheus TSDB storage
+# Retains metrics data across pod restarts
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: prometheus-data
+  namespace: projectkeystone
+  labels:
+    app: prometheus
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Gi  # 15 days retention + headroom
+  # storageClassName: fast-ssd  # Uncomment and set appropriate storage class
 ---
 apiVersion: v1
 kind: Service
