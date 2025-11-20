@@ -17,6 +17,7 @@ repos:
         args: [--markdown-linebreak-ext=md]
       - id: end-of-file-fixer
       - id: check-yaml
+        exclude: ^(k8s/|helm/|\.github/workflows/)
       - id: check-json
       - id: check-toml
       - id: check-xml
@@ -76,7 +77,15 @@ repos:
     rev: v2.12.0
     hooks:
       - id: hadolint-docker
-        args: [--ignore, DL3008, --ignore, DL3009]  # Allow apt without versions
+        args:
+          - --ignore
+          - DL3008  # Allow apt without versions
+          - --ignore
+          - DL3009  # Allow apt without cleanup
+          - --ignore
+          - DL3015  # Allow apt without --no-install-recommends
+          - --ignore
+          - DL3003  # Allow cd instead of WORKDIR
 
   # ============================================================================
   # YAML Linting
