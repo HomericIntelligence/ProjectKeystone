@@ -213,7 +213,9 @@ void PrometheusExporter::handleRequest(int client_fd) {
         "HTTP/1.1 405 Method Not Allowed\r\n"
         "Allow: GET\r\n"
         "Content-Length: 0\r\n\r\n";
-    [[maybe_unused]] auto result = write(client_fd, method_not_allowed.c_str(), method_not_allowed.size());
+    [[maybe_unused]] auto result = write(client_fd,
+                                         method_not_allowed.c_str(),
+                                         method_not_allowed.size());
     return;
   }
 

@@ -17,7 +17,6 @@ repos:
         args: [--markdown-linebreak-ext=md]
       - id: end-of-file-fixer
       - id: check-yaml
-        args: [--safe]
       - id: check-json
       - id: check-toml
       - id: check-xml

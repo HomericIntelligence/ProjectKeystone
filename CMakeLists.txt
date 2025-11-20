@@ -31,8 +31,14 @@ if(ENABLE_CLANG_TIDY)
     find_program(CLANG_TIDY_EXE NAMES "clang-tidy")
     if(CLANG_TIDY_EXE)
         message(STATUS "clang-tidy found: ${CLANG_TIDY_EXE}")
+        # clang-tidy checks configuration
+        set(CLANG_TIDY_CHECKS
+            "*,-fuchsia-*,-llvm-header-guard"
+            ",-google-readability-todo,-readability-magic-numbers"
+            ",-cppcoreguidelines-avoid-magic-numbers"
+            ",-modernize-use-trailing-return-type")
         set(CMAKE_CXX_CLANG_TIDY
-            "${CLANG_TIDY_EXE};-checks=*,-fuchsia-*,-llvm-header-guard,-google-readability-todo,-readability-magic-numbers,-cppcoreguidelines-avoid-magic-numbers,-modernize-use-trailing-return-type")
+            "${CLANG_TIDY_EXE};-checks=${CLANG_TIDY_CHECKS}")
     else()
         message(WARNING "clang-tidy not found")
     endif()
@@ -48,7 +54,10 @@ if(ENABLE_FUZZING)
         set(FUZZING_FLAGS "-fsanitize=fuzzer,address,undefined" "-fno-omit-frame-pointer" "-g")
         # Do NOT apply globally - only to fuzz targets to avoid breaking googletest
     else()
-        message(WARNING "Fuzz testing only supported with Clang (use -DCMAKE_CXX_COMPILER=clang++)")
+        message(
+            WARNING
+            "Fuzz testing only supported with Clang "
+            "(use -DCMAKE_CXX_COMPILER=clang++)")
     endif()
 endif()
 
@@ -300,7 +309,10 @@ target_link_libraries(phase_5_e2e_tests
     GTest::gtest_main
 )
 
-gtest_discover_tests(phase_5_e2e_tests)
+gtest_discover_tests(
+    phase_5_e2e_tests
+    DISCOVERY_TIMEOUT 10
+)
 
 # Unit Tests
 add_executable(unit_tests
