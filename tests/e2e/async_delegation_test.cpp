@@ -57,16 +57,16 @@ TEST(E2E_PhaseA, AsyncDelegationWithWorkStealing) {
   std::cout << "✓ MessageBus configured with async routing" << std::endl;
 
   // Create agents
-  auto chief = std::make_unique<ChiefArchitectAgent>("chief_async");
-  auto task1 = std::make_unique<TaskAgent>("task_async_1");
-  auto task2 = std::make_unique<TaskAgent>("task_async_2");
-  auto task3 = std::make_unique<TaskAgent>("task_async_3");
+  auto chief = std::make_shared<ChiefArchitectAgent>("chief_async");
+  auto task1 = std::make_shared<TaskAgent>("task_async_1");
+  auto task2 = std::make_shared<TaskAgent>("task_async_2");
+  auto task3 = std::make_shared<TaskAgent>("task_async_3");
 
   // Register agents
-  bus->registerAgent(chief->getAgentId(), chief.get());
-  bus->registerAgent(task1->getAgentId(), task1.get());
-  bus->registerAgent(task2->getAgentId(), task2.get());
-  bus->registerAgent(task3->getAgentId(), task3.get());
+  bus->registerAgent(chief->getAgentId(), chief);
+  bus->registerAgent(task1->getAgentId(), task1);
+  bus->registerAgent(task2->getAgentId(), task2);
+  bus->registerAgent(task3->getAgentId(), task3);
 
   // Set message bus for all agents
   chief->setMessageBus(bus.get());
@@ -121,7 +121,7 @@ TEST(E2E_PhaseA, AsyncDelegationWithWorkStealing) {
   // Process all received messages and send responses
   for (auto& [agent, messages] : agent_messages) {
     for (auto& msg : messages) {
-      agent->processMessage(msg);
+      agent->processMessage(msg).get();
     }
   }
 
@@ -193,17 +193,17 @@ TEST(E2E_PhaseA, WorkStealingLoadBalancing) {
   bus->setScheduler(&scheduler);
 
   // Create 1 chief and 10 task agents
-  auto chief = std::make_unique<ChiefArchitectAgent>("chief_lb");
-  std::vector<std::unique_ptr<TaskAgent>> task_agents;
+  auto chief = std::make_shared<ChiefArchitectAgent>("chief_lb");
+  std::vector<std::shared_ptr<TaskAgent>> task_agents;
 
-  bus->registerAgent(chief->getAgentId(), chief.get());
+  bus->registerAgent(chief->getAgentId(), chief);
   chief->setMessageBus(bus.get());
 
   for (int i = 0; i < 10; ++i) {
-    auto agent = std::make_unique<TaskAgent>("task_lb_" + std::to_string(i));
-    bus->registerAgent(agent->getAgentId(), agent.get());
+    auto agent = std::make_shared<TaskAgent>("task_lb_" + std::to_string(i));
+    bus->registerAgent(agent->getAgentId(), agent);
     agent->setMessageBus(bus.get());
-    task_agents.push_back(std::move(agent));
+    task_agents.push_back(agent);
   }
 
   // Send 100 commands (will be distributed via work-stealing)
@@ -252,11 +252,11 @@ TEST(E2E_PhaseA, MixedSyncAsyncProcessing) {
   auto bus = std::make_unique<MessageBus>();
   // No scheduler set - synchronous mode
 
-  auto chief = std::make_unique<ChiefArchitectAgent>("chief_mixed");
-  auto task = std::make_unique<TaskAgent>("task_mixed");
+  auto chief = std::make_shared<ChiefArchitectAgent>("chief_mixed");
+  auto task = std::make_shared<TaskAgent>("task_mixed");
 
-  bus->registerAgent(chief->getAgentId(), chief.get());
-  bus->registerAgent(task->getAgentId(), task.get());
+  bus->registerAgent(chief->getAgentId(), chief);
+  bus->registerAgent(task->getAgentId(), task);
 
   chief->setMessageBus(bus.get());
   task->setMessageBus(bus.get());

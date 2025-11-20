@@ -1,13 +1,13 @@
-#include <gtest/gtest.h>
+#include "agents/task_agent.hpp"
+#include "concurrency/work_stealing_scheduler.hpp"
+#include "core/message_bus.hpp"
 
 #include <chrono>
 #include <map>
 #include <thread>
 #include <vector>
 
-#include "agents/async_task_agent.hpp"
-#include "concurrency/work_stealing_scheduler.hpp"
-#include "core/message_bus.hpp"
+#include <gtest/gtest.h>
 
 using namespace keystone;
 using namespace keystone::agents;
@@ -32,10 +32,10 @@ TEST(E2E_PhaseB, AsyncAgentCoroutineWorkflow) {
   MessageBus bus;
   bus.setScheduler(&scheduler);
 
-  // Create 3 async task agents
-  auto agent1 = std::make_unique<AsyncTaskAgent>("async_1");
-  auto agent2 = std::make_unique<AsyncTaskAgent>("async_2");
-  auto agent3 = std::make_unique<AsyncTaskAgent>("async_3");
+  // Create 3 task agents (async by default)
+  auto agent1 = std::make_shared<TaskAgent>("async_1");
+  auto agent2 = std::make_shared<TaskAgent>("async_2");
+  auto agent3 = std::make_shared<TaskAgent>("async_3");
 
   agent1->setMessageBus(&bus);
   agent1->setScheduler(&scheduler);
@@ -44,15 +44,18 @@ TEST(E2E_PhaseB, AsyncAgentCoroutineWorkflow) {
   agent3->setMessageBus(&bus);
   agent3->setScheduler(&scheduler);
 
-  bus.registerAgent(agent1->getAgentId(), agent1.get());
-  bus.registerAgent(agent2->getAgentId(), agent2.get());
-  bus.registerAgent(agent3->getAgentId(), agent3.get());
+  bus.registerAgent(agent1->getAgentId(), agent1);
+  bus.registerAgent(agent2->getAgentId(), agent2);
+  bus.registerAgent(agent3->getAgentId(), agent3);
 
   // Send commands to all agents
-  std::vector<std::pair<AsyncTaskAgent*, std::string>> commands = {
-      {agent1.get(), "echo $((10 + 5))"},   {agent2.get(), "echo $((20 * 3))"},
-      {agent3.get(), "echo $((100 - 25))"}, {agent1.get(), "echo hello"},
-      {agent2.get(), "echo world"},         {agent3.get(), "echo async"}};
+  std::vector<std::pair<TaskAgent*, std::string>> commands = {
+      {agent1.get(), "echo $((10 + 5))"},
+      {agent2.get(), "echo $((20 * 3))"},
+      {agent3.get(), "echo $((100 - 25))"},
+      {agent1.get(), "echo hello"},
+      {agent2.get(), "echo world"},
+      {agent3.get(), "echo async"}};
 
   for (const auto& [agent, cmd] : commands) {
     auto msg = KeystoneMessage::create("test", agent->getAgentId(), cmd);
@@ -101,10 +104,10 @@ TEST(E2E_PhaseB, AsyncAgentsConcurrentProcessing) {
   MessageBus bus;
   bus.setScheduler(&scheduler);
 
-  auto agent = std::make_unique<AsyncTaskAgent>("concurrent");
+  auto agent = std::make_shared<TaskAgent>("concurrent");
   agent->setMessageBus(&bus);
   agent->setScheduler(&scheduler);
-  bus.registerAgent(agent->getAgentId(), agent.get());
+  bus.registerAgent(agent->getAgentId(), agent);
 
   // Send 10 slow commands (sleep 0.05 seconds each)
   for (int i = 0; i < 10; ++i) {
@@ -151,16 +154,16 @@ TEST(E2E_PhaseB, AsyncAgentsWithChainedMessages) {
   MessageBus bus;
   bus.setScheduler(&scheduler);
 
-  auto agent_a = std::make_unique<AsyncTaskAgent>("agent_a");
-  auto agent_b = std::make_unique<AsyncTaskAgent>("agent_b");
+  auto agent_a = std::make_shared<TaskAgent>("agent_a");
+  auto agent_b = std::make_shared<TaskAgent>("agent_b");
 
   agent_a->setMessageBus(&bus);
   agent_a->setScheduler(&scheduler);
   agent_b->setMessageBus(&bus);
   agent_b->setScheduler(&scheduler);
 
-  bus.registerAgent(agent_a->getAgentId(), agent_a.get());
-  bus.registerAgent(agent_b->getAgentId(), agent_b.get());
+  bus.registerAgent(agent_a->getAgentId(), agent_a);
+  bus.registerAgent(agent_b->getAgentId(), agent_b);
 
   // Send commands: agent_a processes, sends response to agent_b
   auto msg_to_a = KeystoneMessage::create("test", "agent_a", "echo step1");
@@ -192,10 +195,10 @@ TEST(E2E_PhaseB, AsyncAgentErrorHandling) {
   MessageBus bus;
   bus.setScheduler(&scheduler);
 
-  auto agent = std::make_unique<AsyncTaskAgent>("error_handler");
+  auto agent = std::make_shared<TaskAgent>("error_handler");
   agent->setMessageBus(&bus);
   agent->setScheduler(&scheduler);
-  bus.registerAgent(agent->getAgentId(), agent.get());
+  bus.registerAgent(agent->getAgentId(), agent);
 
   // Send mix of successful and failing commands
   std::vector<std::string> commands = {"echo success1",
@@ -240,14 +243,13 @@ TEST(E2E_PhaseB, CoawaitAsyncBashExecution) {
   MessageBus bus;
   bus.setScheduler(&scheduler);
 
-  auto agent = std::make_unique<AsyncTaskAgent>("coawait_test");
+  auto agent = std::make_shared<TaskAgent>("coawait_test");
   agent->setMessageBus(&bus);
   agent->setScheduler(&scheduler);
-  bus.registerAgent(agent->getAgentId(), agent.get());
+  bus.registerAgent(agent->getAgentId(), agent);
 
   // This command's execution will co_await executeBashAsync internally
-  auto msg =
-      KeystoneMessage::create("test", agent->getAgentId(), "echo $((42 * 2))");
+  auto msg = KeystoneMessage::create("test", agent->getAgentId(), "echo $((42 * 2))");
   bus.routeMessage(msg);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));

@@ -9,22 +9,22 @@
  * - Recovery mechanisms
  */
 
-#include <gtest/gtest.h>
+#include "agents/chief_architect_agent.hpp"
+#include "agents/component_lead_agent.hpp"
+#include "agents/module_lead_agent.hpp"
+#include "agents/task_agent.hpp"
+#include "concurrency/work_stealing_scheduler.hpp"
+#include "core/failure_injector.hpp"
+#include "core/message_bus.hpp"
+#include "core/retry_policy.hpp"
+#include "simulation/simulated_network.hpp"
 
 #include <chrono>
 #include <memory>
 #include <thread>
 #include <vector>
 
-#include "agents/async_chief_architect_agent.hpp"
-#include "agents/async_component_lead_agent.hpp"
-#include "agents/async_module_lead_agent.hpp"
-#include "agents/async_task_agent.hpp"
-#include "concurrency/work_stealing_scheduler.hpp"
-#include "core/failure_injector.hpp"
-#include "core/message_bus.hpp"
-#include "core/retry_policy.hpp"
-#include "simulation/simulated_network.hpp"
+#include <gtest/gtest.h>
 
 using namespace keystone;
 using namespace keystone::agents;
@@ -65,10 +65,10 @@ class Phase5AgentFailureTest : public ::testing::Test {
  */
 TEST_F(Phase5AgentFailureTest, FailedAgentRejectsMessages) {
   // Create a TaskAgent
-  auto task = std::make_unique<AsyncTaskAgent>("task1");
+  auto task = std::make_shared<TaskAgent>("task1");
   task->setMessageBus(message_bus_.get());
   task->setScheduler(scheduler_.get());
-  message_bus_->registerAgent(task->getAgentId(), task.get());
+  message_bus_->registerAgent(task->getAgentId(), task);
 
   // Agent should be healthy initially
   EXPECT_FALSE(task->isFailed());
@@ -88,8 +88,7 @@ TEST_F(Phase5AgentFailureTest, FailedAgentRejectsMessages) {
   // Wait a bit for async processing
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-  // Agent should have rejected the message (we'd check error response in full
-  // impl)
+  // Agent should have rejected the message (we'd check error response in full impl)
   EXPECT_TRUE(task->isFailed());  // Still failed
 }
 
@@ -100,10 +99,10 @@ TEST_F(Phase5AgentFailureTest, FailedAgentRejectsMessages) {
  */
 TEST_F(Phase5AgentFailureTest, FailedAgentCanRecover) {
   // Create a TaskAgent
-  auto task = std::make_unique<AsyncTaskAgent>("task1");
+  auto task = std::make_shared<TaskAgent>("task1");
   task->setMessageBus(message_bus_.get());
   task->setScheduler(scheduler_.get());
-  message_bus_->registerAgent(task->getAgentId(), task.get());
+  message_bus_->registerAgent(task->getAgentId(), task);
 
   // Mark agent as failed
   task->markAsFailed("simulated crash");
@@ -117,8 +116,7 @@ TEST_F(Phase5AgentFailureTest, FailedAgentCanRecover) {
   EXPECT_TRUE(task->getFailureReason().empty());
 
   // Now it should process messages normally
-  auto msg =
-      KeystoneMessage::create("sender", task->getAgentId(), "echo recovered");
+  auto msg = KeystoneMessage::create("sender", task->getAgentId(), "echo recovered");
   task->receiveMessage(msg);
 
   // Wait a bit for async processing
@@ -136,10 +134,10 @@ TEST_F(Phase5AgentFailureTest, FailedAgentCanRecover) {
  */
 TEST_F(Phase5AgentFailureTest, FailureInjectorCrashesAgents) {
   // Create a TaskAgent
-  auto task = std::make_unique<AsyncTaskAgent>("task1");
+  auto task = std::make_shared<TaskAgent>("task1");
   task->setMessageBus(message_bus_.get());
   task->setScheduler(scheduler_.get());
-  message_bus_->registerAgent(task->getAgentId(), task.get());
+  message_bus_->registerAgent(task->getAgentId(), task);
 
   // Create failure injector
   FailureInjector injector(42);  // Seeded RNG for reproducibility
@@ -170,20 +168,20 @@ TEST_F(Phase5AgentFailureTest, FailureInjectorCrashesAgents) {
  */
 TEST_F(Phase5AgentFailureTest, SystemContinuesWithHealthyAgents) {
   // Create 3 TaskAgents
-  auto task1 = std::make_unique<AsyncTaskAgent>("task1");
+  auto task1 = std::make_shared<TaskAgent>("task1");
   task1->setMessageBus(message_bus_.get());
   task1->setScheduler(scheduler_.get());
-  message_bus_->registerAgent(task1->getAgentId(), task1.get());
+  message_bus_->registerAgent(task1->getAgentId(), task1);
 
-  auto task2 = std::make_unique<AsyncTaskAgent>("task2");
+  auto task2 = std::make_shared<TaskAgent>("task2");
   task2->setMessageBus(message_bus_.get());
   task2->setScheduler(scheduler_.get());
-  message_bus_->registerAgent(task2->getAgentId(), task2.get());
+  message_bus_->registerAgent(task2->getAgentId(), task2);
 
-  auto task3 = std::make_unique<AsyncTaskAgent>("task3");
+  auto task3 = std::make_shared<TaskAgent>("task3");
   task3->setMessageBus(message_bus_.get());
   task3->setScheduler(scheduler_.get());
-  message_bus_->registerAgent(task3->getAgentId(), task3.get());
+  message_bus_->registerAgent(task3->getAgentId(), task3);
 
   // Fail task2
   task2->markAsFailed("simulated crash");
@@ -194,12 +192,9 @@ TEST_F(Phase5AgentFailureTest, SystemContinuesWithHealthyAgents) {
   EXPECT_FALSE(task3->isFailed());
 
   // Send messages to all tasks
-  auto msg1 =
-      KeystoneMessage::create("test", task1->getAgentId(), "echo task1");
-  auto msg2 =
-      KeystoneMessage::create("test", task2->getAgentId(), "echo task2");
-  auto msg3 =
-      KeystoneMessage::create("test", task3->getAgentId(), "echo task3");
+  auto msg1 = KeystoneMessage::create("test", task1->getAgentId(), "echo task1");
+  auto msg2 = KeystoneMessage::create("test", task2->getAgentId(), "echo task2");
+  auto msg3 = KeystoneMessage::create("test", task3->getAgentId(), "echo task3");
 
   task1->receiveMessage(msg1);
   task2->receiveMessage(msg2);  // Should be rejected
@@ -274,13 +269,13 @@ TEST_F(Phase5ProbabilisticFailureTest, ProbabilisticFailureRate) {
  */
 TEST_F(Phase5ProbabilisticFailureTest, AgentsFailBasedOnInjectorRate) {
   // Create 10 task agents
-  std::vector<std::unique_ptr<AsyncTaskAgent>> agents;
+  std::vector<std::shared_ptr<TaskAgent>> agents;
   for (int i = 0; i < 10; ++i) {
-    auto agent = std::make_unique<AsyncTaskAgent>("task" + std::to_string(i));
+    auto agent = std::make_shared<TaskAgent>("task" + std::to_string(i));
     agent->setMessageBus(message_bus_.get());
     agent->setScheduler(scheduler_.get());
-    message_bus_->registerAgent(agent->getAgentId(), agent.get());
-    agents.push_back(std::move(agent));
+    message_bus_->registerAgent(agent->getAgentId(), agent);
+    agents.push_back(agent);
   }
 
   // Create failure injector with 50% failure rate
@@ -545,8 +540,7 @@ TEST_F(Phase5NetworkPartitionTest, PartitionStatisticsTracking) {
     network.send(0, 2, []() {});
   }
 
-  EXPECT_EQ(network.getPartitionDroppedMessages(),
-            10);  // Still 10 (no new drops)
+  EXPECT_EQ(network.getPartitionDroppedMessages(), 10);  // Still 10 (no new drops)
   EXPECT_EQ(network.getTotalMessages(), 18);
 
   // Reset stats
@@ -569,7 +563,7 @@ TEST_F(Phase5NetworkPartitionTest, SplitBrainWorkDistribution) {
   SimulatedNetwork network(config);
 
   // Simulate 4 nodes with work
-  [[maybe_unused]] std::atomic<int> node0_work{0};
+  std::atomic<int> node0_work{0};
   std::atomic<int> node1_work{0};
   std::atomic<int> node2_work{0};
   std::atomic<int> node3_work{0};
@@ -593,8 +587,7 @@ TEST_F(Phase5NetworkPartitionTest, SplitBrainWorkDistribution) {
     network.send(1, 3, [&node3_work]() { node3_work++; });
   }
 
-  EXPECT_EQ(network.getPartitionDroppedMessages(),
-            20);  // All cross-partition dropped
+  EXPECT_EQ(network.getPartitionDroppedMessages(), 20);  // All cross-partition dropped
 
   // Process work
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -819,11 +812,10 @@ TEST_F(Phase5MessageLossTest, MessageLossWithManualRetries) {
   };
   SimulatedNetwork network(net_config);
 
-  RetryPolicy::Config retry_config{
-      .max_attempts = 5,
-      .initial_delay_ms = std::chrono::milliseconds(10),
-      .max_delay_ms = std::chrono::milliseconds(100),
-      .backoff_multiplier = 2.0};
+  RetryPolicy::Config retry_config{.max_attempts = 5,
+                                   .initial_delay_ms = std::chrono::milliseconds(10),
+                                   .max_delay_ms = std::chrono::milliseconds(100),
+                                   .backoff_multiplier = 2.0};
   RetryPolicy policy(retry_config);
 
   // Try sending 10 messages with retry logic
@@ -840,8 +832,7 @@ TEST_F(Phase5MessageLossTest, MessageLossWithManualRetries) {
       total_attempts++;
 
       // Simulate sending (network may drop it)
-      bool dropped = (network.getDroppedMessages() <
-                      static_cast<size_t>(total_attempts.load()));
+      bool dropped = (network.getDroppedMessages() < static_cast<size_t>(total_attempts.load()));
 
       if (!dropped) {
         // Message delivered
@@ -880,8 +871,7 @@ TEST_F(Phase5MessageLossTest, MessageLossWithManualRetries) {
  */
 TEST_F(Phase5MessageLossTest, CombinedPartitionAndLoss) {
   SimulatedNetwork::Config config{
-      .min_latency =
-          std::chrono::microseconds(1000),  // Increased for reliable timing
+      .min_latency = std::chrono::microseconds(1000),  // Increased for reliable timing
       .max_latency = std::chrono::microseconds(2000),
       .bandwidth_mbps = 1000,
       .packet_loss_rate = 0.2  // 20% loss for more reliable detection
