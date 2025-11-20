@@ -2,6 +2,7 @@
 #include "core/message_bus.hpp"
 #include "core/metrics.hpp"
 #include <stdexcept>
+#include <iostream>  // FIX M1: For std::cerr (backpressure logging)
 
 namespace keystone {
 namespace agents {
@@ -20,6 +21,34 @@ void AgentBase::sendMessage(const core::KeystoneMessage& msg) {
 }
 
 void AgentBase::receiveMessage(const core::KeystoneMessage& msg) {
+    // FIX M1: Backpressure - check queue size limit before accepting message
+    size_t total_depth = high_priority_inbox_.size_approx() +
+                        normal_priority_inbox_.size_approx() +
+                        low_priority_inbox_.size_approx();
+
+    if (total_depth >= MAX_QUEUE_SIZE) {
+        // Apply backpressure: reject message to prevent memory exhaustion
+        if (!backpressure_applied_.exchange(true)) {
+            // Log warning on first occurrence
+            std::cerr << "[BACKPRESSURE] Agent " << agent_id_
+                     << " inbox full (" << total_depth << " messages), "
+                     << "rejecting new messages" << std::endl;
+        }
+
+        // For now, drop the message (could also throw exception or send NACK)
+        // In production, sender should retry with exponential backoff
+        return;
+    }
+
+    // Clear backpressure flag if queue is below limit
+    if (total_depth < MAX_QUEUE_SIZE * 0.8) {  // 80% threshold for hysteresis
+        if (backpressure_applied_.exchange(false)) {
+            std::cerr << "[BACKPRESSURE] Agent " << agent_id_
+                     << " inbox recovered (" << total_depth << " messages), "
+                     << "accepting messages again" << std::endl;
+        }
+    }
+
     // Phase C: Route to appropriate priority queue (lock-free)
     switch (msg.priority) {
         case core::Priority::HIGH:

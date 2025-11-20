@@ -37,22 +37,28 @@ void MessageBus::unregisterAgent(const std::string& agent_id) {
 }
 
 bool MessageBus::routeMessage(const KeystoneMessage& msg) {
-    std::lock_guard<std::mutex> lock(registry_mutex_);
+    // FIX C1: Deadlock prevention - lookup agent/scheduler, then release lock
+    // before making external calls (agent->receiveMessage or scheduler->submit)
+    agents::AgentBase* agent = nullptr;
+    concurrency::WorkStealingScheduler* sched = nullptr;
 
-    auto it = agents_.find(msg.receiver_id);
-    if (it == agents_.end()) {
-        return false;  // Receiver not found
-    }
+    {
+        std::lock_guard<std::mutex> lock(registry_mutex_);
+        auto it = agents_.find(msg.receiver_id);
+        if (it == agents_.end()) {
+            return false;  // Receiver not found
+        }
+        agent = it->second;
+        sched = scheduler_;
+    }  // ✅ Lock released before external calls
 
-    agents::AgentBase* agent = it->second;
-
-    // FIX: Record message sent to metrics for tracking
+    // Record message sent to metrics for tracking
     Metrics::getInstance().recordMessageSent(msg.msg_id, msg.priority);
 
     // Async routing if scheduler present (Phase A Week 3+)
-    if (scheduler_) {
+    if (sched) {
         // Submit message delivery as work item to scheduler
-        scheduler_->submit([agent, msg]() {
+        sched->submit([agent, msg]() {
             agent->receiveMessage(msg);
         });
         return true;

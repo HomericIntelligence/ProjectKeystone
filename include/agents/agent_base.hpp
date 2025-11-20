@@ -96,6 +96,10 @@ protected:
     // After N high-priority messages, force-check lower priorities
     std::atomic<uint64_t> high_priority_processed_{0};
     static constexpr uint64_t HIGH_PRIORITY_QUOTA = 10;  ///< Process max 10 HIGH before checking NORMAL/LOW
+
+    // FIX M1: Backpressure - Queue size limits to prevent memory exhaustion
+    static constexpr size_t MAX_QUEUE_SIZE = 10000;  ///< Max total messages across all priorities
+    std::atomic<bool> backpressure_applied_{false};  ///< Flag when backpressure is active
 };
 
 } // namespace agents

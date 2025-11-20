@@ -31,7 +31,12 @@ public:
      */
     explicit AsyncBaseAgent(const std::string& agent_id);
 
-    ~AsyncBaseAgent() override = default;
+    /**
+     * @brief Destructor - marks agent as destroyed for async safety
+     *
+     * FIX C2: Sets is_destroyed_ flag to prevent use-after-free in async lambdas
+     */
+    ~AsyncBaseAgent() override;
 
     /**
      * @brief Process an incoming message asynchronously
@@ -130,6 +135,12 @@ protected:
     std::string failure_reason_;
     mutable std::mutex failure_mutex_;
     core::FailureInjector* failure_injector_{nullptr};
+
+    // FIX C2: Lifetime tracking to prevent use-after-free
+    // This flag is checked in async lambdas to ensure agent is still alive
+    // IMPORTANT: Agents must outlive the scheduler, or scheduler must be
+    // drained before agent destruction. See shutdown sequence documentation.
+    std::shared_ptr<std::atomic<bool>> is_destroyed_;
 };
 
 } // namespace agents

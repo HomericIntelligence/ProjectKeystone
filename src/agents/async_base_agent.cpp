@@ -6,13 +6,21 @@ namespace keystone {
 namespace agents {
 
 AsyncBaseAgent::AsyncBaseAgent(const std::string& agent_id)
-    : AgentBase(agent_id) {
+    : AgentBase(agent_id),
+      is_destroyed_(std::make_shared<std::atomic<bool>>(false)) {
+    // FIX C2: Initialize lifetime tracking flag
+}
+
+AsyncBaseAgent::~AsyncBaseAgent() {
+    // FIX C2: Mark agent as destroyed to prevent use-after-free in async lambdas
+    // Any lambdas that captured is_destroyed_ will see this flag and skip processing
+    is_destroyed_->store(true, std::memory_order_release);
 }
 
 void AsyncBaseAgent::receiveMessage(const core::KeystoneMessage& msg) {
-    // Phase 5: Check if agent is failed
-    if (is_failed_.load()) {
-        // Reject message with error response
+    // FIX M6: Allow SHUTDOWN messages even when failed for graceful cleanup
+    if (is_failed_.load() && msg.action_type != core::ActionType::SHUTDOWN) {
+        // Reject non-SHUTDOWN messages with error response
         std::string error_msg;
         {
             std::lock_guard<std::mutex> lock(failure_mutex_);
@@ -40,7 +48,15 @@ void AsyncBaseAgent::receiveMessage(const core::KeystoneMessage& msg) {
     // If scheduler is set, automatically process the message asynchronously
     if (scheduler_) {
         auto msg_copy = msg;  // Copy for lambda capture
-        scheduler_->submit([this, msg_copy]() {
+        // FIX C2: Capture shared_ptr to is_destroyed_ flag for lifetime safety
+        auto destroyed_flag = is_destroyed_;
+        scheduler_->submit([this, msg_copy, destroyed_flag]() {
+            // FIX C2: Check if agent was destroyed before processing
+            if (destroyed_flag->load(std::memory_order_acquire)) {
+                // Agent was destroyed, skip processing
+                return;
+            }
+
             // Process message asynchronously
             auto task = this->processMessage(msg_copy);
             auto handle = task.get_handle();
@@ -48,6 +64,10 @@ void AsyncBaseAgent::receiveMessage(const core::KeystoneMessage& msg) {
             // Resume the coroutine until completion
             // Coroutines may suspend multiple times (e.g., nested co_await)
             while (!handle.done()) {
+                // FIX C2: Check again before each resume (long-running coroutines)
+                if (destroyed_flag->load(std::memory_order_acquire)) {
+                    return;
+                }
                 handle.resume();
             }
         });
@@ -69,14 +89,25 @@ void AsyncBaseAgent::processPendingMessages() {
         messages.push_back(*msg);
     }
 
+    // FIX C2: Capture lifetime flag for safe async processing
+    auto destroyed_flag = is_destroyed_;
+
     // Submit each message for async processing
     for (const auto& msg : messages) {
-        scheduler_->submit([this, msg]() {
+        scheduler_->submit([this, msg, destroyed_flag]() {
+            // FIX C2: Check if agent was destroyed
+            if (destroyed_flag->load(std::memory_order_acquire)) {
+                return;
+            }
+
             auto task = this->processMessage(msg);
             auto handle = task.get_handle();
 
             // Resume until completion
             while (!handle.done()) {
+                if (destroyed_flag->load(std::memory_order_acquire)) {
+                    return;
+                }
                 handle.resume();
             }
         });
