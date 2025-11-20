@@ -6,9 +6,50 @@
 #include <cstring>
 #include <sstream>
 #include <iostream>
+#include <array>
+#include <utility>  // FIX: For std::exchange
 
 namespace keystone {
 namespace monitoring {
+
+/**
+ * @brief RAII wrapper for socket file descriptors
+ *
+ * FIX C3: Ensures sockets are always closed, even on error paths.
+ */
+class SocketHandle {
+public:
+    explicit SocketHandle(int fd) : fd_(fd) {}
+
+    ~SocketHandle() {
+        if (fd_ >= 0) {
+            close(fd_);
+        }
+    }
+
+    // Non-copyable, movable
+    SocketHandle(const SocketHandle&) = delete;
+    SocketHandle& operator=(const SocketHandle&) = delete;
+
+    SocketHandle(SocketHandle&& other) noexcept
+        : fd_(std::exchange(other.fd_, -1)) {}
+
+    SocketHandle& operator=(SocketHandle&& other) noexcept {
+        if (this != &other) {
+            if (fd_ >= 0) {
+                close(fd_);
+            }
+            fd_ = std::exchange(other.fd_, -1);
+        }
+        return *this;
+    }
+
+    int get() const { return fd_; }
+    bool valid() const { return fd_ >= 0; }
+
+private:
+    int fd_;
+};
 
 PrometheusExporter::PrometheusExporter(int port) : port_(port) {}
 
@@ -110,25 +151,34 @@ void PrometheusExporter::serverLoop() {
             continue;
         }
 
-        // Handle request
-        handleRequest(client_fd);
+        // FIX C3: Use RAII wrapper - socket closed automatically on scope exit
+        SocketHandle client_socket(client_fd);
 
-        // Close client connection
-        close(client_fd);
+        // Handle request
+        handleRequest(client_socket.get());
+
+        // Socket automatically closed by SocketHandle destructor
     }
 }
 
 void PrometheusExporter::handleRequest(int client_fd) {
-    // Read HTTP request (we don't parse it, just respond)
-    char buffer[1024];
-    ssize_t bytes_read = read(client_fd, buffer, sizeof(buffer) - 1);
+    // FIX C5: Use std::array for bounds safety and proper buffer handling
+    std::array<char, 1024> buffer;
+    ssize_t bytes_read = read(client_fd, buffer.data(), buffer.size() - 1);
+
+    // Validate read result
     if (bytes_read < 0) {
-        return;
+        return;  // Read error
+    }
+
+    // FIX C5: Clamp to safe range to prevent buffer overflow
+    if (bytes_read >= static_cast<ssize_t>(buffer.size())) {
+        bytes_read = buffer.size() - 1;
     }
 
     // Check if this is a GET request to /metrics
-    buffer[bytes_read] = '\0';
-    std::string request(buffer);
+    buffer[bytes_read] = '\0';  // ✅ Safe: bytes_read is guaranteed < buffer.size()
+    std::string request(buffer.data());
     bool is_metrics_request = (request.find("GET /metrics") != std::string::npos);
 
     if (is_metrics_request) {
