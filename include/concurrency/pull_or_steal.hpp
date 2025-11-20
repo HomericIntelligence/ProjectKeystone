@@ -1,11 +1,12 @@
 #pragma once
 
 #include "concurrency/work_stealing_queue.hpp"
+
+#include <atomic>
+#include <chrono>
 #include <coroutine>
 #include <optional>
 #include <vector>
-#include <atomic>
-#include <chrono>
 
 namespace keystone {
 namespace concurrency {
@@ -30,63 +31,63 @@ namespace concurrency {
  * - Suspension/resume coordinated via atomic flag
  */
 class PullOrSteal {
-public:
-    /**
-     * @brief Construct a PullOrSteal awaitable
-     *
-     * @param own_queue Reference to this worker's queue
-     * @param all_queues All workers' queues (for stealing)
-     * @param worker_index This worker's index
-     * @param shutdown_flag Atomic flag for shutdown signaling
-     */
-    PullOrSteal(WorkStealingQueue& own_queue,
-                std::vector<WorkStealingQueue*>& all_queues,
-                size_t worker_index,
-                std::atomic<bool>& shutdown_flag);
+ public:
+  /**
+   * @brief Construct a PullOrSteal awaitable
+   *
+   * @param own_queue Reference to this worker's queue
+   * @param all_queues All workers' queues (for stealing)
+   * @param worker_index This worker's index
+   * @param shutdown_flag Atomic flag for shutdown signaling
+   */
+  PullOrSteal(WorkStealingQueue& own_queue,
+              std::vector<WorkStealingQueue*>& all_queues,
+              size_t worker_index,
+              std::atomic<bool>& shutdown_flag);
 
-    /**
-     * @brief Check if work is immediately available (awaitable protocol)
-     *
-     * First tries to pop from own queue, then attempts stealing.
-     * Returns true if work was found, false if coroutine should suspend.
-     */
-    bool await_ready() noexcept;
+  /**
+   * @brief Check if work is immediately available (awaitable protocol)
+   *
+   * First tries to pop from own queue, then attempts stealing.
+   * Returns true if work was found, false if coroutine should suspend.
+   */
+  bool await_ready() noexcept;
 
-    /**
-     * @brief Suspend the coroutine (awaitable protocol)
-     *
-     * Called when await_ready() returns false.
-     * Stores the coroutine handle for later resumption.
-     *
-     * @param handle The suspended coroutine's handle
-     */
-    void await_suspend(std::coroutine_handle<> handle) noexcept;
+  /**
+   * @brief Suspend the coroutine (awaitable protocol)
+   *
+   * Called when await_ready() returns false.
+   * Stores the coroutine handle for later resumption.
+   *
+   * @param handle The suspended coroutine's handle
+   */
+  void await_suspend(std::coroutine_handle<> handle) noexcept;
 
-    /**
-     * @brief Resume and return the work item (awaitable protocol)
-     *
-     * Returns the work item found, or std::nullopt if shutdown requested.
-     */
-    std::optional<WorkItem> await_resume() noexcept;
+  /**
+   * @brief Resume and return the work item (awaitable protocol)
+   *
+   * Returns the work item found, or std::nullopt if shutdown requested.
+   */
+  std::optional<WorkItem> await_resume() noexcept;
 
-private:
-    /**
-     * @brief Try to steal work from other workers
-     *
-     * Iterates through all other workers' queues and attempts to steal.
-     * Uses round-robin starting from (worker_index + 1) to distribute load.
-     *
-     * @return Stolen work item, or std::nullopt if all queues empty
-     */
-    std::optional<WorkItem> trySteal();
+ private:
+  /**
+   * @brief Try to steal work from other workers
+   *
+   * Iterates through all other workers' queues and attempts to steal.
+   * Uses round-robin starting from (worker_index + 1) to distribute load.
+   *
+   * @return Stolen work item, or std::nullopt if all queues empty
+   */
+  std::optional<WorkItem> trySteal();
 
-    WorkStealingQueue& own_queue_;
-    std::vector<WorkStealingQueue*>& all_queues_;
-    size_t worker_index_;
-    std::atomic<bool>& shutdown_flag_;
+  WorkStealingQueue& own_queue_;
+  std::vector<WorkStealingQueue*>& all_queues_;
+  size_t worker_index_;
+  std::atomic<bool>& shutdown_flag_;
 
-    std::optional<WorkItem> result_;
-    std::coroutine_handle<> awaiting_coroutine_;
+  std::optional<WorkItem> result_;
+  std::coroutine_handle<> awaiting_coroutine_;
 };
 
 /**
@@ -96,30 +97,30 @@ private:
  * Useful for tests and graceful shutdown scenarios.
  */
 class PullOrStealWithTimeout {
-public:
-    PullOrStealWithTimeout(WorkStealingQueue& own_queue,
-                           std::vector<WorkStealingQueue*>& all_queues,
-                           size_t worker_index,
-                           std::atomic<bool>& shutdown_flag,
-                           std::chrono::milliseconds timeout);
+ public:
+  PullOrStealWithTimeout(WorkStealingQueue& own_queue,
+                         std::vector<WorkStealingQueue*>& all_queues,
+                         size_t worker_index,
+                         std::atomic<bool>& shutdown_flag,
+                         std::chrono::milliseconds timeout);
 
-    bool await_ready() noexcept;
-    void await_suspend(std::coroutine_handle<> handle) noexcept;
-    std::optional<WorkItem> await_resume() noexcept;
+  bool await_ready() noexcept;
+  void await_suspend(std::coroutine_handle<> handle) noexcept;
+  std::optional<WorkItem> await_resume() noexcept;
 
-private:
-    std::optional<WorkItem> trySteal();
+ private:
+  std::optional<WorkItem> trySteal();
 
-    WorkStealingQueue& own_queue_;
-    std::vector<WorkStealingQueue*>& all_queues_;
-    size_t worker_index_;
-    std::atomic<bool>& shutdown_flag_;
-    std::chrono::milliseconds timeout_;
+  WorkStealingQueue& own_queue_;
+  std::vector<WorkStealingQueue*>& all_queues_;
+  size_t worker_index_;
+  std::atomic<bool>& shutdown_flag_;
+  std::chrono::milliseconds timeout_;
 
-    std::optional<WorkItem> result_;
-    std::coroutine_handle<> awaiting_coroutine_;
-    std::chrono::steady_clock::time_point start_time_;
+  std::optional<WorkItem> result_;
+  std::coroutine_handle<> awaiting_coroutine_;
+  std::chrono::steady_clock::time_point start_time_;
 };
 
-} // namespace concurrency
-} // namespace keystone
+}  // namespace concurrency
+}  // namespace keystone

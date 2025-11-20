@@ -1,9 +1,9 @@
 #pragma once
 
-#include <string>
 #include <atomic>
-#include <thread>
 #include <memory>
+#include <string>
+#include <thread>
 
 namespace keystone {
 namespace monitoring {
@@ -25,70 +25,70 @@ namespace monitoring {
  * - hmas_deadline_miss_milliseconds - Gauge of average miss time
  */
 class PrometheusExporter {
-public:
-    /**
-     * @brief Construct exporter with configuration
-     * @param port HTTP server port (default: 9090)
-     */
-    explicit PrometheusExporter(int port = 9090);
+ public:
+  /**
+   * @brief Construct exporter with configuration
+   * @param port HTTP server port (default: 9090)
+   */
+  explicit PrometheusExporter(int port = 9090);
 
-    /**
-     * @brief Destructor - stops server if running
-     */
-    ~PrometheusExporter();
+  /**
+   * @brief Destructor - stops server if running
+   */
+  ~PrometheusExporter();
 
-    // Prevent copying
-    PrometheusExporter(const PrometheusExporter&) = delete;
-    PrometheusExporter& operator=(const PrometheusExporter&) = delete;
+  // Prevent copying
+  PrometheusExporter(const PrometheusExporter&) = delete;
+  PrometheusExporter& operator=(const PrometheusExporter&) = delete;
 
-    /**
-     * @brief Start HTTP server in background thread
-     * @return true if started successfully, false if already running or error
-     */
-    bool start();
+  /**
+   * @brief Start HTTP server in background thread
+   * @return true if started successfully, false if already running or error
+   */
+  bool start();
 
-    /**
-     * @brief Stop HTTP server
-     */
-    void stop();
+  /**
+   * @brief Stop HTTP server
+   */
+  void stop();
 
-    /**
-     * @brief Check if server is running
-     */
-    bool isRunning() const;
+  /**
+   * @brief Check if server is running
+   */
+  bool isRunning() const;
 
-    /**
-     * @brief Get current port
-     */
-    int getPort() const;
+  /**
+   * @brief Get current port
+   */
+  int getPort() const;
 
-    /**
-     * @brief Generate Prometheus metrics in text format
-     *
-     * Queries Metrics singleton and formats as Prometheus exposition format.
-     * Called by HTTP server to serve /metrics endpoint.
-     *
-     * @return Metrics in Prometheus text format
-     */
-    static std::string generateMetrics();
+  /**
+   * @brief Generate Prometheus metrics in text format
+   *
+   * Queries Metrics singleton and formats as Prometheus exposition format.
+   * Called by HTTP server to serve /metrics endpoint.
+   *
+   * @return Metrics in Prometheus text format
+   */
+  static std::string generateMetrics();
 
-private:
-    /**
-     * @brief HTTP server loop (runs in background thread)
-     */
-    void serverLoop();
+ private:
+  /**
+   * @brief HTTP server loop (runs in background thread)
+   */
+  void serverLoop();
 
-    /**
-     * @brief Handle HTTP request and send response
-     * @param client_fd Client socket file descriptor
-     */
-    void handleRequest(int client_fd);
+  /**
+   * @brief Handle HTTP request and send response
+   * @param client_fd Client socket file descriptor
+   */
+  void handleRequest(int client_fd);
 
-    int port_;
-    std::atomic<bool> running_{false};
-    std::unique_ptr<std::thread> server_thread_;
-    int server_fd_{-1};
+  int port_;
+  std::atomic<bool> running_{false};
+  std::unique_ptr<std::thread> server_thread_;
+  int server_fd_{-1};
 };
 
-} // namespace monitoring
-} // namespace keystone
+}  // namespace monitoring
+}  // namespace keystone

@@ -26,276 +26,242 @@ namespace concurrency {
  *
  * @tparam T The return type of the coroutine
  */
-template<typename T = void>
+template <typename T = void>
 class Task {
-public:
+ public:
+  /**
+   * @brief Promise type for Task<T> coroutines
+   *
+   * This type is required by C++20 coroutines and defines how the coroutine
+   * behaves: how it starts, suspends, returns values, and handles exceptions.
+   */
+  struct promise_type {
+    std::optional<T> result;
+    std::exception_ptr exception;
+
     /**
-     * @brief Promise type for Task<T> coroutines
-     *
-     * This type is required by C++20 coroutines and defines how the coroutine
-     * behaves: how it starts, suspends, returns values, and handles exceptions.
+     * @brief Creates the Task object from the promise
      */
-    struct promise_type {
-        std::optional<T> result;
-        std::exception_ptr exception;
-
-        /**
-         * @brief Creates the Task object from the promise
-         */
-        Task get_return_object() {
-            return Task{std::coroutine_handle<promise_type>::from_promise(*this)};
-        }
-
-        /**
-         * @brief Coroutine starts suspended (lazy evaluation)
-         */
-        std::suspend_always initial_suspend() noexcept {
-            return {};
-        }
-
-        /**
-         * @brief Coroutine stays suspended after completion
-         */
-        std::suspend_always final_suspend() noexcept {
-            return {};
-        }
-
-        /**
-         * @brief Stores the return value
-         */
-        void return_value(T value) {
-            result = std::move(value);
-        }
-
-        /**
-         * @brief Captures exceptions thrown in the coroutine
-         */
-        void unhandled_exception() {
-            exception = std::current_exception();
-        }
-    };
-
-    // Constructor from coroutine handle
-    explicit Task(std::coroutine_handle<promise_type> handle)
-        : handle_(handle) {}
-
-    // Move-only semantics
-    Task(const Task&) = delete;
-    Task& operator=(const Task&) = delete;
-
-    Task(Task&& other) noexcept
-        : handle_(std::exchange(other.handle_, nullptr)) {}
-
-    Task& operator=(Task&& other) noexcept {
-        if (this != &other) {
-            if (handle_) {
-                handle_.destroy();
-            }
-            handle_ = std::exchange(other.handle_, nullptr);
-        }
-        return *this;
-    }
-
-    // Destructor
-    ~Task() {
-        if (handle_) {
-            handle_.destroy();
-        }
+    Task get_return_object() {
+      return Task{std::coroutine_handle<promise_type>::from_promise(*this)};
     }
 
     /**
-     * @brief Check if the coroutine has finished execution
+     * @brief Coroutine starts suspended (lazy evaluation)
      */
-    bool done() const {
-        return handle_ && handle_.done();
-    }
+    std::suspend_always initial_suspend() noexcept { return {}; }
 
     /**
-     * @brief Resume the coroutine execution
+     * @brief Coroutine stays suspended after completion
      */
-    void resume() {
-        if (handle_ && !handle_.done()) {
-            handle_.resume();
-        }
-    }
+    std::suspend_always final_suspend() noexcept { return {}; }
 
     /**
-     * @brief Get the result value (throws if exception occurred)
-     *
-     * This method will resume the coroutine until completion if not already done.
-     *
-     * @return The result value
-     * @throws std::runtime_error if coroutine not done
-     * @throws Any exception thrown by the coroutine
+     * @brief Stores the return value
      */
-    T get() {
-        // Resume until done
-        while (handle_ && !handle_.done()) {
-            handle_.resume();
-        }
-
-        if (!handle_) {
-            throw std::runtime_error("Task: Invalid coroutine handle");
-        }
-
-        // Check for exception
-        if (handle_.promise().exception) {
-            std::rethrow_exception(handle_.promise().exception);
-        }
-
-        // Check for result
-        if (!handle_.promise().result.has_value()) {
-            throw std::runtime_error("Task: No result available");
-        }
-
-        return std::move(handle_.promise().result.value());
-    }
+    void return_value(T value) { result = std::move(value); }
 
     /**
-     * @brief Awaitable interface - check if result is ready
+     * @brief Captures exceptions thrown in the coroutine
      */
-    bool await_ready() const noexcept {
-        return handle_ && handle_.done();
+    void unhandled_exception() { exception = std::current_exception(); }
+  };
+
+  // Constructor from coroutine handle
+  explicit Task(std::coroutine_handle<promise_type> handle) : handle_(handle) {}
+
+  // Move-only semantics
+  Task(const Task&) = delete;
+  Task& operator=(const Task&) = delete;
+
+  Task(Task&& other) noexcept : handle_(std::exchange(other.handle_, nullptr)) {}
+
+  Task& operator=(Task&& other) noexcept {
+    if (this != &other) {
+      if (handle_) {
+        handle_.destroy();
+      }
+      handle_ = std::exchange(other.handle_, nullptr);
+    }
+    return *this;
+  }
+
+  // Destructor
+  ~Task() {
+    if (handle_) {
+      handle_.destroy();
+    }
+  }
+
+  /**
+   * @brief Check if the coroutine has finished execution
+   */
+  bool done() const { return handle_ && handle_.done(); }
+
+  /**
+   * @brief Resume the coroutine execution
+   */
+  void resume() {
+    if (handle_ && !handle_.done()) {
+      handle_.resume();
+    }
+  }
+
+  /**
+   * @brief Get the result value (throws if exception occurred)
+   *
+   * This method will resume the coroutine until completion if not already done.
+   *
+   * @return The result value
+   * @throws std::runtime_error if coroutine not done
+   * @throws Any exception thrown by the coroutine
+   */
+  T get() {
+    // Resume until done
+    while (handle_ && !handle_.done()) {
+      handle_.resume();
     }
 
-    /**
-     * @brief Awaitable interface - suspend and transfer control
-     */
-    void await_suspend([[maybe_unused]] std::coroutine_handle<> awaiting) {
-        // For now, immediately resume the awaited coroutine
-        // In a full scheduler, this would schedule the coroutine
-        if (handle_ && !handle_.done()) {
-            handle_.resume();
-        }
+    if (!handle_) {
+      throw std::runtime_error("Task: Invalid coroutine handle");
     }
 
-    /**
-     * @brief Awaitable interface - get the result
-     */
-    T await_resume() {
-        return get();
+    // Check for exception
+    if (handle_.promise().exception) {
+      std::rethrow_exception(handle_.promise().exception);
     }
 
-    /**
-     * @brief Get the underlying coroutine handle
-     *
-     * WARNING: Use with caution. The handle is managed by this Task object.
-     * Do not call destroy() on the returned handle.
-     */
-    std::coroutine_handle<> get_handle() const {
-        return handle_;
+    // Check for result
+    if (!handle_.promise().result.has_value()) {
+      throw std::runtime_error("Task: No result available");
     }
 
-private:
-    std::coroutine_handle<promise_type> handle_;
+    return std::move(handle_.promise().result.value());
+  }
+
+  /**
+   * @brief Awaitable interface - check if result is ready
+   */
+  bool await_ready() const noexcept { return handle_ && handle_.done(); }
+
+  /**
+   * @brief Awaitable interface - suspend and transfer control
+   */
+  void await_suspend([[maybe_unused]] std::coroutine_handle<> awaiting) {
+    // For now, immediately resume the awaited coroutine
+    // In a full scheduler, this would schedule the coroutine
+    if (handle_ && !handle_.done()) {
+      handle_.resume();
+    }
+  }
+
+  /**
+   * @brief Awaitable interface - get the result
+   */
+  T await_resume() { return get(); }
+
+  /**
+   * @brief Get the underlying coroutine handle
+   *
+   * WARNING: Use with caution. The handle is managed by this Task object.
+   * Do not call destroy() on the returned handle.
+   */
+  std::coroutine_handle<> get_handle() const { return handle_; }
+
+ private:
+  std::coroutine_handle<promise_type> handle_;
 };
 
 /**
  * @brief Specialization of Task for void return type
  */
-template<>
+template <>
 class Task<void> {
-public:
-    struct promise_type {
-        std::exception_ptr exception;
+ public:
+  struct promise_type {
+    std::exception_ptr exception;
 
-        Task get_return_object() {
-            return Task{std::coroutine_handle<promise_type>::from_promise(*this)};
-        }
-
-        std::suspend_always initial_suspend() noexcept {
-            return {};
-        }
-
-        std::suspend_always final_suspend() noexcept {
-            return {};
-        }
-
-        void return_void() noexcept {}
-
-        void unhandled_exception() {
-            exception = std::current_exception();
-        }
-    };
-
-    explicit Task(std::coroutine_handle<promise_type> handle)
-        : handle_(handle) {}
-
-    Task(const Task&) = delete;
-    Task& operator=(const Task&) = delete;
-
-    Task(Task&& other) noexcept
-        : handle_(std::exchange(other.handle_, nullptr)) {}
-
-    Task& operator=(Task&& other) noexcept {
-        if (this != &other) {
-            if (handle_) {
-                handle_.destroy();
-            }
-            handle_ = std::exchange(other.handle_, nullptr);
-        }
-        return *this;
+    Task get_return_object() {
+      return Task{std::coroutine_handle<promise_type>::from_promise(*this)};
     }
 
-    ~Task() {
-        if (handle_) {
-            handle_.destroy();
-        }
+    std::suspend_always initial_suspend() noexcept { return {}; }
+
+    std::suspend_always final_suspend() noexcept { return {}; }
+
+    void return_void() noexcept {}
+
+    void unhandled_exception() { exception = std::current_exception(); }
+  };
+
+  explicit Task(std::coroutine_handle<promise_type> handle) : handle_(handle) {}
+
+  Task(const Task&) = delete;
+  Task& operator=(const Task&) = delete;
+
+  Task(Task&& other) noexcept : handle_(std::exchange(other.handle_, nullptr)) {}
+
+  Task& operator=(Task&& other) noexcept {
+    if (this != &other) {
+      if (handle_) {
+        handle_.destroy();
+      }
+      handle_ = std::exchange(other.handle_, nullptr);
+    }
+    return *this;
+  }
+
+  ~Task() {
+    if (handle_) {
+      handle_.destroy();
+    }
+  }
+
+  bool done() const { return handle_ && handle_.done(); }
+
+  void resume() {
+    if (handle_ && !handle_.done()) {
+      handle_.resume();
+    }
+  }
+
+  void get() {
+    // Resume until done
+    while (handle_ && !handle_.done()) {
+      handle_.resume();
     }
 
-    bool done() const {
-        return handle_ && handle_.done();
+    if (!handle_) {
+      throw std::runtime_error("Task: Invalid coroutine handle");
     }
 
-    void resume() {
-        if (handle_ && !handle_.done()) {
-            handle_.resume();
-        }
+    // Check for exception
+    if (handle_.promise().exception) {
+      std::rethrow_exception(handle_.promise().exception);
     }
+  }
 
-    void get() {
-        // Resume until done
-        while (handle_ && !handle_.done()) {
-            handle_.resume();
-        }
+  bool await_ready() const noexcept { return handle_ && handle_.done(); }
 
-        if (!handle_) {
-            throw std::runtime_error("Task: Invalid coroutine handle");
-        }
-
-        // Check for exception
-        if (handle_.promise().exception) {
-            std::rethrow_exception(handle_.promise().exception);
-        }
+  void await_suspend([[maybe_unused]] std::coroutine_handle<> awaiting) {
+    if (handle_ && !handle_.done()) {
+      handle_.resume();
     }
+  }
 
-    bool await_ready() const noexcept {
-        return handle_ && handle_.done();
-    }
+  void await_resume() { get(); }
 
-    void await_suspend([[maybe_unused]] std::coroutine_handle<> awaiting) {
-        if (handle_ && !handle_.done()) {
-            handle_.resume();
-        }
-    }
+  /**
+   * @brief Get the underlying coroutine handle
+   *
+   * WARNING: Use with caution. The handle is managed by this Task object.
+   * Do not call destroy() on the returned handle.
+   */
+  std::coroutine_handle<> get_handle() const { return handle_; }
 
-    void await_resume() {
-        get();
-    }
-
-    /**
-     * @brief Get the underlying coroutine handle
-     *
-     * WARNING: Use with caution. The handle is managed by this Task object.
-     * Do not call destroy() on the returned handle.
-     */
-    std::coroutine_handle<> get_handle() const {
-        return handle_;
-    }
-
-private:
-    std::coroutine_handle<promise_type> handle_;
+ private:
+  std::coroutine_handle<promise_type> handle_;
 };
 
-} // namespace concurrency
-} // namespace keystone
+}  // namespace concurrency
+}  // namespace keystone

@@ -2,7 +2,7 @@
 # Multi-stage build for efficient image size
 
 # Stage 1: Build environment
-FROM ubuntu:24.04 as builder
+FROM ubuntu:24.04 AS builder
 
 # Avoid interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
@@ -31,6 +31,8 @@ COPY CMakeLists.txt ./
 COPY include/ ./include/
 COPY src/ ./src/
 COPY tests/ ./tests/
+COPY benchmarks/ ./benchmarks/
+COPY fuzz/ ./fuzz/
 
 # Build the project
 RUN mkdir -p build && cd build \
@@ -38,7 +40,7 @@ RUN mkdir -p build && cd build \
     && ninja
 
 # Stage 2: Runtime environment (smaller image)
-FROM ubuntu:24.04 as runtime
+FROM ubuntu:24.04 AS runtime
 
 # Install only runtime dependencies
 RUN apt-get update && apt-get install -y \
@@ -55,7 +57,7 @@ WORKDIR /app
 CMD ["phase1_e2e_tests"]
 
 # Stage 3: Production environment (Kubernetes deployment)
-FROM ubuntu:24.04 as production
+FROM ubuntu:24.04 AS production
 
 # Install runtime dependencies + Python3 for health checks
 RUN apt-get update && apt-get install -y \
@@ -100,7 +102,7 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 CMD ["/usr/local/bin/hmas-server.sh"]
 
 # Stage 4: Development environment (for iterative development)
-FROM builder as development
+FROM builder AS development
 
 # Install additional development tools
 RUN apt-get update && apt-get install -y \
