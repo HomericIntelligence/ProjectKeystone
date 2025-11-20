@@ -22,6 +22,7 @@
 #include <vector>
 
 using namespace keystone;
+using namespace keystone::core;
 
 // Minimal test agent for fuzzing
 class FuzzAgent : public BaseAgent {
