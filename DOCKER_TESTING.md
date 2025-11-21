@@ -1,3 +1,4 @@
+**FIXME** This needs to be built into scripts and the testing instructions needs to be integrated into CI/CD and README.md
 # Docker Testing Guide
 
 This document provides instructions for testing the Docker setup for ProjectKeystone HMAS.

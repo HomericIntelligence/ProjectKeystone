@@ -1,3 +1,4 @@
+**FIXME** - Integrate this into the documentation and remove this file
 # P0 Critical Architecture Issues - RESOLVED ✅
 
 ## Overview

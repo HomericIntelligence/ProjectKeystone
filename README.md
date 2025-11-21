@@ -1,3 +1,4 @@
+**FIXME** - All install/test/build steps here need to be covered by CI/CD tests and scripts
 # ProjectKeystone - Hierarchical Multi-Agent System (HMAS)
 
 **C++20-based hierarchical agent system implementing TDD principles**

@@ -1,3 +1,4 @@
+**FIXME** - Integrate this into the documentation and remove this file
 # Complete Production-Ready HMAS Implementation
 
 This PR implements a complete, production-ready Hierarchical Multi-Agent System (HMAS) with async
