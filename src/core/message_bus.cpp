@@ -27,6 +27,12 @@ void MessageBus::registerAgent(const std::string& agent_id, std::shared_ptr<agen
 
   std::lock_guard<std::mutex> lock(registry_mutex_);
 
+  // FIX P2-10: Enforce maximum agent limit to prevent DoS
+  if (agents_.size() >= Config::MAX_AGENTS) {
+    throw std::runtime_error("Maximum agent count exceeded: " +
+                             std::to_string(Config::MAX_AGENTS));
+  }
+
   if (agents_.find(agent_id) != agents_.end()) {
     throw std::runtime_error("Agent ID already registered: " + agent_id);
   }

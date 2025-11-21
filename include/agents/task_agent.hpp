@@ -60,11 +60,21 @@ class TaskAgent : public BaseAgent {
   using PipeHandle = std::unique_ptr<FILE, PipeDeleter>;
 
   /**
-   * @brief Execute a bash command
+   * @brief Validate command for security (FIX P1-03: Command injection prevention)
+   *
+   * @param command Command to validate
+   * @throws std::runtime_error if command contains unsafe characters or is not whitelisted
+   */
+  void validateCommand(const std::string& command);
+
+  /**
+   * @brief Execute a bash command with security validation
+   *
+   * FIX P1-03: Now validates command before execution to prevent injection attacks.
    *
    * @param command The bash command to execute
    * @return std::string The stdout output
-   * @throws std::runtime_error if command fails
+   * @throws std::runtime_error if command fails or is invalid
    */
   std::string executeBash(const std::string& command);
 

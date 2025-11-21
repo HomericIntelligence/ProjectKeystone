@@ -2,6 +2,7 @@
 
 #include <concurrentqueue.h>
 
+#include <cassert>
 #include <coroutine>
 #include <functional>
 #include <memory>
@@ -13,6 +14,9 @@ namespace concurrency {
 
 /**
  * @brief WorkItem - A unit of work (function or coroutine)
+ *
+ * FIX P3-02: Default constructor is private to prevent invalid WorkItems.
+ * Always use makeFunction() or makeCoroutine() factory methods.
  */
 struct WorkItem {
   enum class Type { Function, Coroutine };
@@ -20,8 +24,6 @@ struct WorkItem {
   Type type;
   std::function<void()> func;
   std::coroutine_handle<> handle;
-
-  WorkItem() : type(Type::Function), func(nullptr), handle(nullptr) {}
 
   static WorkItem makeFunction(std::function<void()> f) {
     WorkItem item;
@@ -38,6 +40,9 @@ struct WorkItem {
   }
 
   void execute() {
+    // FIX P3-02: Assert valid state before execution
+    assert(valid() && "Cannot execute invalid WorkItem");
+
     if (type == Type::Function && func) {
       func();
     } else if (type == Type::Coroutine && handle) {
@@ -49,6 +54,10 @@ struct WorkItem {
     return (type == Type::Function && func != nullptr) ||
            (type == Type::Coroutine && handle != nullptr);
   }
+
+ private:
+  // FIX P3-02: Private default constructor prevents accidental creation of invalid WorkItems
+  WorkItem() : type(Type::Function), func(nullptr), handle(nullptr) {}
 };
 
 /**
