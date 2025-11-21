@@ -12,7 +12,8 @@
 #include "network/task_router.hpp"
 #include "network/yaml_parser.hpp"
 
-namespace keystone::network {
+namespace keystone {
+namespace network {
 
 /// Task state tracking
 struct TaskState {
@@ -125,4 +126,5 @@ class HMASCoordinatorServiceImpl final
   mutable std::mutex mutex_;
 };
 
-}  // namespace keystone::network
+}  // namespace network
+}  // namespace keystone

@@ -7,7 +7,8 @@
 
 #include "yaml-cpp/yaml.h"
 
-namespace keystone::network {
+namespace keystone {
+namespace network {
 
 /// Retry policy configuration
 struct RetryPolicy {
@@ -172,4 +173,5 @@ class YamlParser {
       const std::vector<SubtaskStatus>& subtasks);
 };
 
-}  // namespace keystone::network
+}  // namespace network
+}  // namespace keystone

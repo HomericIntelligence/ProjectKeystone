@@ -8,7 +8,8 @@
 #include "hmas_coordinator.grpc.pb.h"
 #include "service_registry.grpc.pb.h"
 
-namespace keystone::network {
+namespace keystone {
+namespace network {
 
 /// gRPC Client configuration
 struct GrpcClientConfig {
@@ -151,4 +152,5 @@ class ServiceRegistryClient {
   std::unique_ptr<hmas::ServiceRegistry::Stub> stub_;
 };
 
-}  // namespace keystone::network
+}  // namespace network
+}  // namespace keystone
