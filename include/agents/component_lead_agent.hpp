@@ -1,10 +1,19 @@
 #pragma once
 
+#include <atomic>
 #include <map>
+#include <memory>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "base_agent.hpp"
+
+#ifdef ENABLE_GRPC
+#include "network/grpc_client.hpp"
+#include "network/result_aggregator.hpp"
+#include "network/yaml_parser.hpp"
+#endif
 
 namespace keystone {
 namespace agents {
@@ -88,6 +97,43 @@ class ComponentLeadAgent : public BaseAgent {
    */
   State getCurrentState() const { return current_state_; }
 
+#ifdef ENABLE_GRPC
+  /**
+   * @brief Initialize gRPC clients and register with ServiceRegistry
+   *
+   * @param coordinator_address HMASCoordinator server address
+   * @param registry_address ServiceRegistry server address
+   * @param agent_type Agent type (default: "ComponentLeadAgent")
+   * @param level Agent level (default: 1)
+   */
+  void initializeGrpc(const std::string& coordinator_address,
+                      const std::string& registry_address,
+                      const std::string& agent_type = "ComponentLeadAgent",
+                      int level = 1);
+
+  /**
+   * @brief Process incoming YAML task specification
+   *
+   * @param yaml_spec YAML component specification
+   */
+  void processYamlComponent(const std::string& yaml_spec);
+
+  /**
+   * @brief Start heartbeat thread (sends heartbeat every 1s)
+   */
+  void startHeartbeat();
+
+  /**
+   * @brief Stop heartbeat thread
+   */
+  void stopHeartbeat();
+
+  /**
+   * @brief Shutdown agent and unregister from ServiceRegistry
+   */
+  void shutdown();
+#endif
+
  private:
   /**
    * @brief Decompose component goal into module goals
@@ -119,6 +165,20 @@ class ComponentLeadAgent : public BaseAgent {
    */
   std::string stateToString(State state) const;
 
+#ifdef ENABLE_GRPC
+  /**
+   * @brief Heartbeat loop (runs in separate thread)
+   */
+  void heartbeatLoop();
+
+  /**
+   * @brief Query ServiceRegistry for available ModuleLeadAgents
+   *
+   * @return std::vector<std::string> List of available ModuleLeadAgent IDs
+   */
+  std::vector<std::string> queryAvailableModuleLeads();
+#endif
+
   // State management
   State current_state_{State::IDLE};
   std::vector<std::string> execution_trace_;
@@ -134,6 +194,26 @@ class ComponentLeadAgent : public BaseAgent {
   // Module tracking
   int expected_module_results_{0};
   int received_module_results_{0};
+
+#ifdef ENABLE_GRPC
+  // gRPC clients
+  std::unique_ptr<network::HMASCoordinatorClient> coordinator_client_;
+  std::unique_ptr<network::ServiceRegistryClient> registry_client_;
+
+  // Result aggregator
+  std::unique_ptr<network::ResultAggregator> result_aggregator_;
+
+  // Heartbeat thread
+  std::thread heartbeat_thread_;
+  std::atomic<bool> heartbeat_running_{false};
+
+  // Agent metadata
+  std::string agent_type_{"ComponentLeadAgent"};
+  int agent_level_{1};
+
+  // Current task being processed
+  std::string current_task_id_;
+#endif
 };
 
 }  // namespace agents

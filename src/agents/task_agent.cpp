@@ -1,14 +1,20 @@
 #include "agents/task_agent.hpp"
 
 #include <array>
+#include <chrono>
 #include <cstdio>
 #include <regex>
 #include <sstream>
 #include <stdexcept>
+#include <thread>
 #include <unordered_set>
 
 #include "core/error_sanitizer.hpp"
 #include "core/metrics.hpp"
+
+#ifdef ENABLE_GRPC
+#include "hmas_coordinator.pb.h"
+#endif
 
 namespace keystone {
 namespace agents {
@@ -170,6 +176,158 @@ std::string TaskAgent::executeBash(const std::string& command) {
 
   return result;
 }
+
+#ifdef ENABLE_GRPC
+void TaskAgent::initializeGrpc(const std::string& coordinator_address,
+                               const std::string& registry_address,
+                               const std::string& agent_type, int level) {
+  agent_type_ = agent_type;
+  agent_level_ = level;
+
+  // Create gRPC clients
+  network::GrpcClientConfig coordinator_config;
+  coordinator_config.server_address = coordinator_address;
+  coordinator_client_ =
+      std::make_unique<network::HMASCoordinatorClient>(coordinator_config);
+
+  network::GrpcClientConfig registry_config;
+  registry_config.server_address = registry_address;
+  registry_client_ =
+      std::make_unique<network::ServiceRegistryClient>(registry_config);
+
+  // Register with ServiceRegistry
+  hmas::AgentRegistration registration;
+  registration.set_agent_id(agent_id_);
+  registration.set_agent_type(agent_type_);
+  registration.set_level(level);
+  registration.add_capabilities("bash_execution");
+  registration.set_max_concurrent_tasks(1);
+
+  try {
+    auto response = registry_client_->registerAgent(registration);
+    if (response.success()) {
+      // Start heartbeat thread
+      startHeartbeat();
+    } else {
+      throw std::runtime_error("Failed to register with ServiceRegistry: " +
+                               response.message());
+    }
+  } catch (const std::exception& e) {
+    throw std::runtime_error("gRPC registration failed: " +
+                             std::string(e.what()));
+  }
+}
+
+void TaskAgent::processYamlTask(const std::string& yaml_spec) {
+  // Parse YAML task specification
+  auto spec_opt = network::YamlParser::parseTaskSpec(yaml_spec);
+  if (!spec_opt) {
+    throw std::runtime_error("Failed to parse YAML task specification");
+  }
+
+  auto spec = *spec_opt;
+
+  // Execute bash command from payload
+  std::string result;
+  try {
+    result = executeBash(spec.payload.command);
+    spec.status.phase = "COMPLETED";
+    spec.status.result = result;
+  } catch (const std::exception& e) {
+    spec.status.phase = "FAILED";
+    spec.status.error = e.what();
+    result = std::string("ERROR: ") + e.what();
+  }
+
+  // Update status timestamps
+  auto now = std::chrono::system_clock::now();
+  auto time_t_now = std::chrono::system_clock::to_time_t(now);
+  char time_buf[100];
+  std::strftime(time_buf, sizeof(time_buf), "%Y-%m-%dT%H:%M:%SZ",
+                std::gmtime(&time_t_now));
+  spec.status.completion_time = std::string(time_buf);
+
+  if (!spec.status.start_time) {
+    spec.status.start_time = std::string(time_buf);
+  }
+
+  // Generate result YAML
+  std::string result_yaml = network::YamlParser::generateTaskSpec(spec);
+
+  // Submit result back to parent via gRPC
+  if (coordinator_client_ && spec.metadata.parent_task_id) {
+    hmas::TaskResult task_result;
+    task_result.set_task_id(spec.metadata.task_id);
+    task_result.set_result_yaml(result_yaml);
+    task_result.set_success(spec.status.phase == "COMPLETED");
+    if (spec.status.error) {
+      task_result.set_error_message(*spec.status.error);
+    }
+
+    try {
+      coordinator_client_->submitResult(task_result);
+    } catch (const std::exception& e) {
+      // Log error but don't fail the task
+      std::cerr << "Failed to submit result via gRPC: " << e.what()
+                << std::endl;
+    }
+  }
+}
+
+void TaskAgent::startHeartbeat() {
+  if (heartbeat_running_) {
+    return;  // Already running
+  }
+
+  heartbeat_running_ = true;
+  heartbeat_thread_ = std::thread(&TaskAgent::heartbeatLoop, this);
+}
+
+void TaskAgent::stopHeartbeat() {
+  if (!heartbeat_running_) {
+    return;
+  }
+
+  heartbeat_running_ = false;
+  if (heartbeat_thread_.joinable()) {
+    heartbeat_thread_.join();
+  }
+}
+
+void TaskAgent::heartbeatLoop() {
+  while (heartbeat_running_) {
+    try {
+      if (registry_client_) {
+        registry_client_->heartbeat(agent_id_, 0.0f, 0.0f, 0);
+      }
+    } catch (const std::exception& e) {
+      // Log error but continue heartbeating
+      std::cerr << "Heartbeat failed: " << e.what() << std::endl;
+    }
+
+    // Sleep for 1 second
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+  }
+}
+
+void TaskAgent::shutdown() {
+  // Stop heartbeat
+  stopHeartbeat();
+
+  // Unregister from ServiceRegistry
+  if (registry_client_) {
+    try {
+      registry_client_->unregisterAgent(agent_id_, "Shutdown requested");
+    } catch (const std::exception& e) {
+      std::cerr << "Failed to unregister agent: " << e.what() << std::endl;
+    }
+  }
+
+  // Clear gRPC clients
+  coordinator_client_.reset();
+  registry_client_.reset();
+}
+#endif
 
 }  // namespace agents
 }  // namespace keystone

@@ -76,8 +76,8 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user for security
-RUN groupadd -g 1000 hmas && \
-    useradd -r -u 1000 -g hmas hmas && \
+RUN groupadd -g 1001 hmas || true && \
+    useradd -r -u 1001 -g 1001 hmas && \
     mkdir -p /app && \
     chown -R hmas:hmas /app
 

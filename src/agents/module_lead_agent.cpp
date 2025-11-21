@@ -1,9 +1,15 @@
 #include "agents/module_lead_agent.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <numeric>
 #include <regex>
 #include <sstream>
+#include <thread>
+
+#ifdef ENABLE_GRPC
+#include "hmas_coordinator.pb.h"
+#endif
 
 namespace keystone {
 namespace agents {
@@ -155,6 +161,243 @@ std::string ModuleLeadAgent::stateToString(State state) const {
       return "UNKNOWN";
   }
 }
+
+#ifdef ENABLE_GRPC
+void ModuleLeadAgent::initializeGrpc(const std::string& coordinator_address,
+                                     const std::string& registry_address,
+                                     const std::string& agent_type, int level) {
+  agent_type_ = agent_type;
+  agent_level_ = level;
+
+  // Create gRPC clients
+  network::GrpcClientConfig coordinator_config;
+  coordinator_config.server_address = coordinator_address;
+  coordinator_client_ =
+      std::make_unique<network::HMASCoordinatorClient>(coordinator_config);
+
+  network::GrpcClientConfig registry_config;
+  registry_config.server_address = registry_address;
+  registry_client_ =
+      std::make_unique<network::ServiceRegistryClient>(registry_config);
+
+  // Register with ServiceRegistry
+  hmas::AgentRegistration registration;
+  registration.set_agent_id(agent_id_);
+  registration.set_agent_type(agent_type_);
+  registration.set_level(level);
+  registration.add_capabilities("task_coordination");
+  registration.add_capabilities("result_synthesis");
+  registration.set_max_concurrent_tasks(5);
+
+  try {
+    auto response = registry_client_->registerAgent(registration);
+    if (response.success()) {
+      // Start heartbeat thread
+      startHeartbeat();
+    } else {
+      throw std::runtime_error("Failed to register with ServiceRegistry: " +
+                               response.message());
+    }
+  } catch (const std::exception& e) {
+    throw std::runtime_error("gRPC registration failed: " +
+                             std::string(e.what()));
+  }
+}
+
+void ModuleLeadAgent::processYamlModule(const std::string& yaml_spec) {
+  // Parse YAML module specification
+  auto spec_opt = network::YamlParser::parseTaskSpec(yaml_spec);
+  if (!spec_opt) {
+    throw std::runtime_error("Failed to parse YAML module specification");
+  }
+
+  auto spec = *spec_opt;
+  current_task_id_ = spec.metadata.task_id;
+
+  transitionTo(State::PLANNING);
+
+  // Decompose module into tasks
+  auto tasks = decomposeTasks(spec.hierarchy.level2_module.value_or(""));
+
+  if (tasks.empty()) {
+    spec.status.phase = "FAILED";
+    spec.status.error = "Failed to decompose module goal";
+    transitionTo(State::ERROR);
+
+    // Generate error result YAML
+    std::string result_yaml = network::YamlParser::generateTaskSpec(spec);
+
+    // Submit error result
+    if (coordinator_client_ && spec.metadata.parent_task_id) {
+      hmas::TaskResult task_result;
+      task_result.set_task_id(spec.metadata.task_id);
+      task_result.set_result_yaml(result_yaml);
+      task_result.set_success(false);
+      task_result.set_error_message(*spec.status.error);
+      coordinator_client_->submitResult(task_result);
+    }
+    return;
+  }
+
+  // Query for available TaskAgents
+  available_task_agents_ = queryAvailableTaskAgents();
+
+  if (available_task_agents_.empty()) {
+    spec.status.phase = "FAILED";
+    spec.status.error = "No TaskAgents available";
+    transitionTo(State::ERROR);
+
+    std::string result_yaml = network::YamlParser::generateTaskSpec(spec);
+    if (coordinator_client_ && spec.metadata.parent_task_id) {
+      hmas::TaskResult task_result;
+      task_result.set_task_id(spec.metadata.task_id);
+      task_result.set_result_yaml(result_yaml);
+      task_result.set_success(false);
+      task_result.set_error_message(*spec.status.error);
+      coordinator_client_->submitResult(task_result);
+    }
+    return;
+  }
+
+  // Create result aggregator
+  auto timeout = network::YamlParser::parseDuration(spec.aggregation.timeout);
+  result_aggregator_ = std::make_unique<network::ResultAggregator>(
+      network::stringToStrategy(spec.aggregation.strategy),
+      std::chrono::milliseconds(timeout.value_or(25 * 60 * 1000)),
+      tasks.size());
+
+  // Generate child task YAMLs and submit to TaskAgents
+  transitionTo(State::WAITING_FOR_TASKS);
+  expected_results_ = static_cast<int>(tasks.size());
+  received_results_ = 0;
+  task_results_.clear();
+
+  for (size_t i = 0; i < tasks.size(); ++i) {
+    // Create child task spec
+    network::HierarchicalTaskSpec child_spec;
+    child_spec.api_version = "v1";
+    child_spec.kind = "HierarchicalTask";
+    child_spec.metadata.name = "task-" + std::to_string(i);
+    child_spec.metadata.task_id =
+        spec.metadata.task_id + "-subtask-" + std::to_string(i);
+    child_spec.metadata.parent_task_id = spec.metadata.task_id;
+    child_spec.metadata.session_id = spec.metadata.session_id;
+
+    // Set routing
+    size_t agent_index = i % available_task_agents_.size();
+    child_spec.routing.target_agent_id = available_task_agents_[agent_index];
+    child_spec.routing.target_level = 3;
+    child_spec.routing.target_agent_type = "TaskAgent";
+
+    // Set payload
+    child_spec.payload.command = tasks[i];
+
+    // Set action
+    child_spec.action.type = "EXECUTE";
+
+    // Set hierarchy
+    child_spec.hierarchy.level0_goal = spec.hierarchy.level0_goal;
+    child_spec.hierarchy.level2_module = spec.hierarchy.level2_module;
+    child_spec.hierarchy.level3_task = tasks[i];
+
+    // Generate YAML
+    std::string child_yaml = network::YamlParser::generateTaskSpec(child_spec);
+
+    // Submit task via gRPC
+    try {
+      auto deadline_ms = network::YamlParser::parseDuration(
+                             spec.metadata.deadline.value_or("25m"))
+                             .value_or(25 * 60 * 1000);
+      auto response = coordinator_client_->submitTask(
+          child_yaml, spec.metadata.session_id.value_or(""), deadline_ms,
+          hmas::TASK_PRIORITY_NORMAL, spec.metadata.task_id);
+
+      pending_tasks_[child_spec.metadata.task_id] =
+          available_task_agents_[agent_index];
+    } catch (const std::exception& e) {
+      std::cerr << "Failed to submit task: " << e.what() << std::endl;
+    }
+  }
+
+  // Wait for results (in a real implementation, this would be async)
+  // For now, we'll rely on processTaskResult being called externally
+}
+
+void ModuleLeadAgent::startHeartbeat() {
+  if (heartbeat_running_) {
+    return;
+  }
+
+  heartbeat_running_ = true;
+  heartbeat_thread_ = std::thread(&ModuleLeadAgent::heartbeatLoop, this);
+}
+
+void ModuleLeadAgent::stopHeartbeat() {
+  if (!heartbeat_running_) {
+    return;
+  }
+
+  heartbeat_running_ = false;
+  if (heartbeat_thread_.joinable()) {
+    heartbeat_thread_.join();
+  }
+}
+
+void ModuleLeadAgent::heartbeatLoop() {
+  while (heartbeat_running_) {
+    try {
+      if (registry_client_) {
+        registry_client_->heartbeat(agent_id_, 0.0f, 0.0f, expected_results_);
+      }
+    } catch (const std::exception& e) {
+      std::cerr << "Heartbeat failed: " << e.what() << std::endl;
+    }
+
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+  }
+}
+
+void ModuleLeadAgent::shutdown() {
+  stopHeartbeat();
+
+  if (registry_client_) {
+    try {
+      registry_client_->unregisterAgent(agent_id_, "Shutdown requested");
+    } catch (const std::exception& e) {
+      std::cerr << "Failed to unregister agent: " << e.what() << std::endl;
+    }
+  }
+
+  coordinator_client_.reset();
+  registry_client_.reset();
+  result_aggregator_.reset();
+}
+
+std::vector<std::string> ModuleLeadAgent::queryAvailableTaskAgents() {
+  std::vector<std::string> agent_ids;
+
+  if (!registry_client_) {
+    return agent_ids;
+  }
+
+  try {
+    hmas::AgentQuery query;
+    query.set_agent_type("TaskAgent");
+    query.set_level(3);
+    query.set_only_alive(true);
+
+    auto agent_list = registry_client_->queryAgents(query);
+
+    for (const auto& agent : agent_list.agents()) {
+      agent_ids.push_back(agent.agent_id());
+    }
+  } catch (const std::exception& e) {
+    std::cerr << "Failed to query TaskAgents: " << e.what() << std::endl;
+  }
+
+  return agent_ids;
+}
+#endif
 
 }  // namespace agents
 }  // namespace keystone

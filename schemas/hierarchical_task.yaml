@@ -1,0 +1,371 @@
+# JSON Schema for ProjectKeystone Hierarchical Task Specification
+# Based on Argo Workflows DAG format with HMAS-specific extensions
+
+$schema: "http://json-schema.org/draft-07/schema#"
+$id: "https://keystone.hmas.io/schemas/v1alpha1/hierarchical-task.json"
+title: "HierarchicalTask"
+description: "YAML specification for hierarchical agent task coordination"
+type: "object"
+
+required:
+  - apiVersion
+  - kind
+  - metadata
+  - spec
+
+properties:
+  apiVersion:
+    type: "string"
+    description: "API version (e.g., keystone.hmas.io/v1alpha1)"
+    pattern: "^keystone\\.hmas\\.io/v[0-9]+((alpha|beta)[0-9]+)?$"
+    example: "keystone.hmas.io/v1alpha1"
+
+  kind:
+    type: "string"
+    description: "Resource kind"
+    enum: ["HierarchicalTask"]
+
+  metadata:
+    type: "object"
+    description: "Task metadata"
+    required:
+      - name
+      - taskId
+      - createdAt
+    properties:
+      name:
+        type: "string"
+        description: "Human-readable task name (kebab-case)"
+        pattern: "^[a-z0-9-]+$"
+        example: "implement-core-messaging"
+      taskId:
+        type: "string"
+        description: "Unique task identifier (UUID or hierarchical ID)"
+        example: "task-uuid-12345"
+      parentTaskId:
+        type: "string"
+        description: "Parent task ID (if this is a subtask)"
+        example: "task-uuid-12340"
+      sessionId:
+        type: "string"
+        description: "Session identifier for tracing"
+        example: "session-abc-789"
+      createdAt:
+        type: "string"
+        format: "date-time"
+        description: "Task creation timestamp (ISO 8601)"
+        example: "2025-11-20T10:30:00Z"
+      deadline:
+        type: "string"
+        format: "date-time"
+        description: "Task deadline (ISO 8601)"
+        example: "2025-11-20T11:00:00Z"
+
+  spec:
+    type: "object"
+    description: "Task specification"
+    required:
+      - routing
+      - hierarchy
+      - action
+      - payload
+    properties:
+      routing:
+        type: "object"
+        description: "Task routing information"
+        required:
+          - originNode
+          - targetLevel
+          - targetAgentType
+        properties:
+          originNode:
+            type: "string"
+            description: "Origin node IP:port for result routing"
+            pattern: "^[a-zA-Z0-9.-]+:[0-9]+$"
+            example: "192.168.1.100:50051"
+          targetLevel:
+            type: "integer"
+            description: "Target hierarchy level (0=Chief, 1=Component, 2=Module, 3=Task)"
+            minimum: 0
+            maximum: 3
+            example: 1
+          targetAgentType:
+            type: "string"
+            description: "Target agent type"
+            enum:
+              - "ChiefArchitectAgent"
+              - "ComponentLeadAgent"
+              - "ModuleLeadAgent"
+              - "TaskAgent"
+            example: "ComponentLeadAgent"
+          targetAgentId:
+            type: "string"
+            description: "Specific target agent ID (optional, if not specified will query registry)"
+            example: "component-lead-core-1"
+
+      hierarchy:
+        type: "object"
+        description: "Hierarchical context from all levels"
+        required:
+          - level0_goal
+        properties:
+          level0_goal:
+            type: "string"
+            description: "Top-level goal from ChiefArchitect"
+            example: "Build complete HMAS system"
+          level1_directive:
+            type: "string"
+            description: "Component-level directive (if L1+)"
+            example: "Implement Core component"
+          level2_module:
+            type: "string"
+            description: "Module name (if L2+)"
+            example: "Messaging"
+          level3_task:
+            type: "string"
+            description: "Concrete task description (if L3)"
+            example: "Implement MessageQueue::push()"
+
+      action:
+        type: "object"
+        description: "Action specification"
+        required:
+          - type
+        properties:
+          type:
+            type: "string"
+            description: "Action type"
+            enum:
+              - "DECOMPOSE"        # Decompose into subtasks
+              - "EXECUTE"          # Execute concrete task
+              - "RETURN_RESULT"    # Return result to parent
+              - "SHUTDOWN"         # Shutdown agent
+            example: "DECOMPOSE"
+          contentType:
+            type: "string"
+            description: "Payload content type"
+            enum:
+              - "TEXT_PLAIN"
+              - "BINARY_CISTA"
+              - "JSON"
+            default: "TEXT_PLAIN"
+          priority:
+            type: "string"
+            description: "Task priority"
+            enum:
+              - "LOW"
+              - "NORMAL"
+              - "HIGH"
+              - "CRITICAL"
+            default: "NORMAL"
+
+      payload:
+        type: "object"
+        description: "Task payload"
+        required:
+          - command
+        properties:
+          command:
+            type: "string"
+            description: "Command or directive to execute"
+            example: "Implement Core.Messaging component"
+          data:
+            type: "string"
+            description: "Additional data or instructions (multiline)"
+            example: |
+              Implement the following modules:
+              - MessageQueue with push/pop operations
+              - MessageBus with routing
+          metadata:
+            type: "object"
+            description: "Additional metadata"
+            properties:
+              estimatedDuration:
+                type: "string"
+                description: "Estimated duration (e.g., '15m', '2h')"
+                example: "15m"
+              requiredCapabilities:
+                type: "array"
+                description: "Required agent capabilities"
+                items:
+                  type: "string"
+                example: ["cpp20", "cmake", "catch2"]
+
+      tasks:
+        type: "array"
+        description: "DAG of subtasks (for L0/L1/L2 agents)"
+        items:
+          type: "object"
+          required:
+            - name
+            - agentType
+            - depends
+          properties:
+            name:
+              type: "string"
+              description: "Subtask name (unique within task)"
+              example: "messaging-module"
+            agentType:
+              type: "string"
+              description: "Agent type to execute this subtask"
+              enum:
+                - "ComponentLeadAgent"
+                - "ModuleLeadAgent"
+                - "TaskAgent"
+              example: "ModuleLeadAgent"
+            depends:
+              type: "string"
+              description: "Dependency expression (empty = no deps, 'task-a && task-b' = AND)"
+              example: "messaging-module"
+            spec:
+              type: "object"
+              description: "Subtask-specific specification"
+              additionalProperties: true
+
+      aggregation:
+        type: "object"
+        description: "Result aggregation strategy"
+        required:
+          - strategy
+          - timeout
+        properties:
+          strategy:
+            type: "string"
+            description: "Aggregation strategy"
+            enum:
+              - "WAIT_ALL"         # Wait for all subtasks
+              - "FIRST_SUCCESS"    # Return on first success
+              - "MAJORITY"         # Wait for majority
+            default: "WAIT_ALL"
+          timeout:
+            type: "string"
+            description: "Timeout duration (e.g., '25m', '1h')"
+            example: "25m"
+          retryPolicy:
+            type: "object"
+            description: "Retry policy for failed subtasks"
+            properties:
+              maxRetries:
+                type: "integer"
+                description: "Maximum retry attempts"
+                minimum: 0
+                default: 3
+              backoff:
+                type: "string"
+                description: "Backoff strategy"
+                enum:
+                  - "constant"
+                  - "linear"
+                  - "exponential"
+                default: "exponential"
+              initialDelay:
+                type: "string"
+                description: "Initial delay (e.g., '1s', '500ms')"
+                default: "1s"
+              maxDelay:
+                type: "string"
+                description: "Maximum delay (e.g., '30s', '1m')"
+                default: "30s"
+
+  status:
+    type: "object"
+    description: "Task execution status (updated by agents)"
+    properties:
+      phase:
+        type: "string"
+        description: "Current execution phase"
+        enum:
+          - "PENDING"
+          - "PLANNING"
+          - "WAITING"
+          - "EXECUTING"
+          - "SYNTHESIZING"
+          - "COMPLETED"
+          - "FAILED"
+          - "TIMEOUT"
+          - "CANCELLED"
+        example: "PLANNING"
+      startTime:
+        type: "string"
+        format: "date-time"
+        description: "Start timestamp"
+        example: "2025-11-20T10:30:15Z"
+      completionTime:
+        type: "string"
+        format: "date-time"
+        description: "Completion timestamp"
+        example: "2025-11-20T10:45:30Z"
+      result:
+        type: "string"
+        description: "Task result (multiline)"
+        example: |
+          MessageQueue implementation complete:
+          - Implemented push() and try_pop()
+          - 12 unit tests passing
+      error:
+        type: "string"
+        description: "Error message (if failed)"
+        example: "Compilation failed: missing header file"
+      subtasks:
+        type: "array"
+        description: "Status of subtasks"
+        items:
+          type: "object"
+          properties:
+            name:
+              type: "string"
+              description: "Subtask name"
+            status:
+              type: "string"
+              description: "Subtask status"
+              enum: ["PENDING", "EXECUTING", "COMPLETED", "FAILED"]
+            assignedNode:
+              type: "string"
+              description: "Node assigned to this subtask"
+
+# Example YAML document
+examples:
+  - description: "ChiefArchitect → ComponentLead task"
+    yaml: |
+      apiVersion: keystone.hmas.io/v1alpha1
+      kind: HierarchicalTask
+      metadata:
+        name: core-component-implementation
+        taskId: "chief-task-001"
+        sessionId: "session-xyz-456"
+        createdAt: "2025-11-20T14:00:00Z"
+        deadline: "2025-11-20T15:00:00Z"
+      spec:
+        routing:
+          originNode: "192.168.1.100:50051"
+          targetLevel: 1
+          targetAgentType: "ComponentLeadAgent"
+          targetAgentId: "component-lead-core"
+        hierarchy:
+          level0_goal: "Build HMAS infrastructure"
+          level1_directive: "Implement Core component"
+        action:
+          type: "DECOMPOSE"
+          priority: "HIGH"
+        payload:
+          command: "Implement Core component"
+          data: |
+            Component: Core
+            Modules: Messaging, Concurrency
+        tasks:
+          - name: messaging-module
+            agentType: "ModuleLeadAgent"
+            depends: ""
+            spec:
+              module: "Messaging"
+          - name: concurrency-module
+            agentType: "ModuleLeadAgent"
+            depends: "messaging-module"
+            spec:
+              module: "Concurrency"
+        aggregation:
+          strategy: "WAIT_ALL"
+          timeout: "55m"
+          retryPolicy:
+            maxRetries: 3
+            backoff: "exponential"

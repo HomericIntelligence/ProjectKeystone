@@ -561,12 +561,56 @@ Task<void> processMessageAsync(const KeystoneMessage& msg) {
 - ✅ 17/17 total tests passing (100%)
 - ✅ Complete hierarchical architecture working end-to-end
 
+### Phase 8 Success (Optional: Distributed Multi-Node Communication)
+
+**Status**: ✅ COMPLETE (Optional feature - disabled by default)
+
+Phase 8 adds distributed multi-node communication via gRPC, YAML task specifications, and service discovery.
+
+**Enabled with**: `-DENABLE_GRPC=ON` during CMake configuration
+
+**Core Features**:
+
+- ✅ gRPC-based distributed communication between nodes
+- ✅ Protocol Buffers message serialization
+- ✅ YAML task specification format (Kubernetes-style)
+- ✅ ServiceRegistry for multi-node agent discovery
+- ✅ HMASCoordinator service for task routing and tracking
+- ✅ Load balancing strategies (ROUND_ROBIN, LEAST_LOADED, RANDOM)
+- ✅ Result aggregation (WAIT_ALL, FIRST_SUCCESS, MAJORITY)
+- ✅ Heartbeat monitoring (1s interval, 3s timeout)
+- ✅ Docker Compose multi-node deployment (7 nodes)
+
+**Testing**:
+
+- ✅ 26 E2E test cases in distributed_grpc_tests
+- ✅ YAML parsing and generation
+- ✅ ServiceRegistry registration and queries
+- ✅ Load balancing verification
+- ✅ Result aggregation strategies
+- ✅ Integration tests
+
+**Documentation**:
+
+- See [docs/PHASE_8_OPTIONAL_BUILD.md](docs/PHASE_8_OPTIONAL_BUILD.md) for build instructions
+- See [docs/PHASE_8_COMPLETE.md](docs/PHASE_8_COMPLETE.md) for architecture
+- See [docs/NETWORK_PROTOCOL.md](docs/NETWORK_PROTOCOL.md) for gRPC APIs
+- See [docs/YAML_SPECIFICATION.md](docs/YAML_SPECIFICATION.md) for YAML format
+
+**Important Notes**:
+
+- Phase 8 is OPTIONAL and disabled by default
+- Base system (Phases 1-7) works without gRPC dependencies
+- Agents support both local MessageBus AND distributed gRPC modes
+- Conditional compilation using `#ifdef ENABLE_GRPC`
+
 ### Overall Success
 
-- All 4 layers implemented
+- All 4 layers implemented (Phases 1-3)
 - E2E tests for all phases passing
 - Performance benchmarks met (100+ agents)
 - Chaos testing passes (20 random failures tolerated)
+- Optional distributed features (Phase 8) available
 
 ## Common Pitfalls
 
@@ -591,12 +635,16 @@ Task<void> processMessageAsync(const KeystoneMessage& msg) {
 ### Current Phase
 
 **Phase 3 COMPLETE**: Full 4-layer hierarchy (L0 ↔ L1 ↔ L2 ↔ L3) ✅
+**Phase 8 COMPLETE (Optional)**: Distributed multi-node communication ✅
 
 ### Current Achievement
 
 ✅ Complete hierarchical agent system with ComponentLead coordinating ModuleLeads and TaskAgents
+✅ Optional distributed gRPC features for multi-node deployments
 
 ### Quick Commands
+
+**Base System (Phases 1-7):**
 
 ```bash
 # Run tests in Docker
@@ -610,12 +658,27 @@ docker-compose exec dev bash
 docker-compose build --no-cache
 ```
 
+**With Phase 8 (Distributed Features):**
+
+```bash
+# Local build with gRPC
+mkdir -p build && cd build
+cmake -G Ninja -DENABLE_GRPC=ON ..
+ninja
+./distributed_grpc_tests
+
+# Multi-node deployment
+docker-compose -f docker-compose-distributed.yaml up
+```
+
+See [docs/PHASE_8_OPTIONAL_BUILD.md](docs/PHASE_8_OPTIONAL_BUILD.md) for detailed instructions.
+
 ### Current Branch
 
 `claude/first-agent-test-<session-id>`
 
 ---
 
-**Last Updated**: 2025-11-17
-**Version**: 1.1 (Docker-based build)
+**Last Updated**: 2025-11-21
+**Version**: 1.2 (Phase 8 Optional)
 **Project**: ProjectKeystone HMAS (C++20)
