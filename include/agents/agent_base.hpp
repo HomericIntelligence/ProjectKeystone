@@ -21,7 +21,6 @@ namespace keystone {
 // without including their headers.
 namespace core { class MessageBus; }
 namespace concurrency { class WorkStealingScheduler; }
-
 namespace agents {
 
 /**
