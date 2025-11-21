@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 
+#include <chrono>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "agents/agent_base.hpp"
@@ -188,4 +190,159 @@ TEST(MessagePriorityTest, GetMessageRespectsPriority) {
   // No more messages
   auto msg4 = agent->getMessage();
   EXPECT_FALSE(msg4.has_value());
+}
+
+// ========================================================================
+// Issue #23: Configurable Fairness Check Interval Tests
+// ========================================================================
+
+/**
+ * @brief Test that default fairness interval is set from Config
+ */
+TEST(MessagePriorityTest, DefaultFairnessIntervalFromConfig) {
+  auto agent = std::make_shared<TestPriorityAgent>("test_agent");
+
+  // Default should be 100ms from Config::AGENT_LOW_PRIORITY_CHECK_INTERVAL
+  auto interval = agent->getLowPriorityCheckInterval();
+  EXPECT_EQ(interval, std::chrono::milliseconds{100});
+}
+
+/**
+ * @brief Test setting custom fairness interval
+ */
+TEST(MessagePriorityTest, SetCustomFairnessInterval) {
+  auto agent = std::make_shared<TestPriorityAgent>("test_agent");
+
+  // Set to 50ms (low-latency agent)
+  agent->setLowPriorityCheckInterval(std::chrono::milliseconds{50});
+  EXPECT_EQ(agent->getLowPriorityCheckInterval(),
+            std::chrono::milliseconds{50});
+
+  // Set to 500ms (high-throughput agent)
+  agent->setLowPriorityCheckInterval(std::chrono::milliseconds{500});
+  EXPECT_EQ(agent->getLowPriorityCheckInterval(),
+            std::chrono::milliseconds{500});
+
+  // Set to 10ms (ultra-low-latency)
+  agent->setLowPriorityCheckInterval(std::chrono::milliseconds{10});
+  EXPECT_EQ(agent->getLowPriorityCheckInterval(),
+            std::chrono::milliseconds{10});
+}
+
+/**
+ * @brief Test different agents can have different intervals
+ */
+TEST(MessagePriorityTest, DifferentAgentsDifferentIntervals) {
+  auto low_latency_agent = std::make_shared<TestPriorityAgent>("low_latency");
+  auto high_throughput_agent =
+      std::make_shared<TestPriorityAgent>("high_throughput");
+
+  // Configure different intervals
+  low_latency_agent->setLowPriorityCheckInterval(std::chrono::milliseconds{10});
+  high_throughput_agent->setLowPriorityCheckInterval(
+      std::chrono::milliseconds{500});
+
+  // Verify they retain separate configurations
+  EXPECT_EQ(low_latency_agent->getLowPriorityCheckInterval(),
+            std::chrono::milliseconds{10});
+  EXPECT_EQ(high_throughput_agent->getLowPriorityCheckInterval(),
+            std::chrono::milliseconds{500});
+}
+
+/**
+ * @brief Test that fairness mechanism uses configured interval
+ *
+ * This test verifies that the fairness check actually honors the configured
+ * interval by testing with a very short interval (1ms) and ensuring LOW
+ * priority messages get processed even with continuous HIGH priority load.
+ */
+TEST(MessagePriorityTest, FairnessMechanismUsesConfiguredInterval) {
+  auto agent = std::make_shared<TestPriorityAgent>("test_agent");
+
+  // Set very short interval (1ms) to make fairness trigger quickly
+  agent->setLowPriorityCheckInterval(std::chrono::milliseconds{1});
+
+  // Send one LOW priority message
+  auto low_msg = KeystoneMessage::create("sender", "test_agent", "cmd", "LOW");
+  low_msg.priority = Priority::LOW;
+  agent->receiveMessage(low_msg);
+
+  // Send many HIGH priority messages after
+  for (int i = 0; i < 5; ++i) {
+    auto high_msg = KeystoneMessage::create("sender", "test_agent", "cmd",
+                                            "HIGH" + std::to_string(i));
+    high_msg.priority = Priority::HIGH;
+    agent->receiveMessage(high_msg);
+  }
+
+  // Wait for fairness interval to elapse (1ms + safety margin)
+  std::this_thread::sleep_for(std::chrono::milliseconds{5});
+
+  // First getMessage should process HIGH (normal priority order)
+  auto msg1 = agent->getMessage();
+  ASSERT_TRUE(msg1.has_value());
+  EXPECT_EQ(*msg1->payload, "HIGH0");
+
+  // Continue processing HIGH messages
+  auto msg2 = agent->getMessage();
+  ASSERT_TRUE(msg2.has_value());
+  EXPECT_EQ(*msg2->payload, "HIGH1");
+
+  // Wait for another fairness interval
+  std::this_thread::sleep_for(std::chrono::milliseconds{5});
+
+  // Now the fairness mechanism should kick in and process LOW
+  // (even though HIGH messages are still available)
+  auto msg3 = agent->getMessage();
+  ASSERT_TRUE(msg3.has_value());
+  EXPECT_EQ(*msg3->payload, "LOW");
+}
+
+/**
+ * @brief Test thread safety of setting interval concurrently
+ *
+ * Verifies that setLowPriorityCheckInterval is thread-safe using atomics
+ */
+TEST(MessagePriorityTest, ConcurrentIntervalSettingThreadSafe) {
+  auto agent = std::make_shared<TestPriorityAgent>("test_agent");
+
+  // Launch multiple threads setting different intervals
+  std::vector<std::thread> threads;
+  for (int i = 0; i < 10; ++i) {
+    threads.emplace_back([&agent, i]() {
+      agent->setLowPriorityCheckInterval(
+          std::chrono::milliseconds{10 + i * 10});
+    });
+  }
+
+  // Wait for all threads
+  for (auto& t : threads) {
+    t.join();
+  }
+
+  // Should have one of the set values (exact value is non-deterministic due to
+  // race)
+  auto final_interval = agent->getLowPriorityCheckInterval();
+  EXPECT_GE(final_interval.count(), 10);
+  EXPECT_LE(final_interval.count(), 100);
+}
+
+/**
+ * @brief Test extreme interval values
+ */
+TEST(MessagePriorityTest, ExtremeIntervalValues) {
+  auto agent = std::make_shared<TestPriorityAgent>("test_agent");
+
+  // Very short interval (1μs)
+  agent->setLowPriorityCheckInterval(std::chrono::microseconds{1});
+  EXPECT_EQ(agent->getLowPriorityCheckInterval(), std::chrono::microseconds{1});
+
+  // Very long interval (10 seconds)
+  agent->setLowPriorityCheckInterval(std::chrono::seconds{10});
+  EXPECT_EQ(agent->getLowPriorityCheckInterval(), std::chrono::seconds{10});
+
+  // Zero interval (should work but may cause constant fairness checks)
+  agent->setLowPriorityCheckInterval(std::chrono::milliseconds{0});
+  EXPECT_EQ(agent->getLowPriorityCheckInterval(),
+            std::chrono::milliseconds{0});
 }
