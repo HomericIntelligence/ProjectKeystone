@@ -1,3 +1,4 @@
+**FIXME** - Integrate this file contents into the documentation, agentic framework, and CLAUDE.md and remove this file
 # ProjectKeystone HMAS - Continuation Prompt
 
 ## Current Status Summary
