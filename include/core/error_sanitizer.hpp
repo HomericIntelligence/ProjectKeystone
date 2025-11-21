@@ -37,7 +37,7 @@ inline std::string sanitizeErrorMessage(const std::string& error_message,
   // 3. Remove C++ namespace paths (e.g., keystone::agents::TaskAgent)
   // Only in production mode to keep debugging info in dev
   if (production_mode) {
-    std::regex namespace_regex(R"(\w+::\w+(::)?)+");
+    std::regex namespace_regex(R"((\w+::)+)");
     sanitized = std::regex_replace(sanitized, namespace_regex, "[class]");
   }
 
