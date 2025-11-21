@@ -213,7 +213,8 @@ add_library(
   keystone_concurrency
   src/concurrency/task.cpp src/concurrency/thread_pool.cpp
   src/concurrency/work_stealing_queue.cpp src/concurrency/logger.cpp
-  src/concurrency/pull_or_steal.cpp src/concurrency/work_stealing_scheduler.cpp)
+  src/concurrency/pull_or_steal.cpp src/concurrency/work_stealing_scheduler.cpp
+  src/concurrency/scheduler_accessor.cpp)
 
 target_include_directories(
   keystone_concurrency PUBLIC ${PROJECT_SOURCE_DIR}/include

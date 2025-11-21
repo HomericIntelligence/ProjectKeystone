@@ -1,8 +1,10 @@
 #pragma once
 
 #include <atomic>
+#include <condition_variable>
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <thread>
 #include <vector>
 
@@ -170,6 +172,10 @@ class WorkStealingScheduler {
   std::atomic<bool> shutdown_requested_{false};
   std::atomic<bool> running_{false};
   std::atomic<size_t> next_worker_index_{0};  // Round-robin counter
+
+  // FIX Issue #18: Condition variable for fast shutdown notification
+  std::condition_variable shutdown_cv_;
+  std::mutex shutdown_mutex_;
 };
 
 }  // namespace concurrency
