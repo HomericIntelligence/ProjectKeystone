@@ -141,10 +141,10 @@ TEST_F(AsyncTaskAgentTest, AgentIdPreserved) {
 
 TEST_F(AsyncTaskAgentTest, MessageBusIntegration) {
   // Create second agent to receive responses
-  auto receiver = std::make_unique<AsyncTaskAgent>("receiver");
+  auto receiver = std::make_shared<TaskAgent>("receiver");
   receiver->setMessageBus(bus_.get());
   receiver->setScheduler(scheduler_.get());
-  bus_->registerAgent(receiver->getAgentId(), receiver.get());
+  bus_->registerAgent(receiver->getAgentId(), receiver);
 
   // Send message from agent to receiver
   auto msg = KeystoneMessage::create(agent_->getAgentId(), receiver->getAgentId(), "echo test");
@@ -176,11 +176,11 @@ TEST_F(AsyncTaskAgentTest, CoawaitSyntaxInCoroutine) {
 
 TEST_F(AsyncTaskAgentTest, SchedulerRequired) {
   // Create agent without scheduler
-  auto no_sched_agent = std::make_unique<AsyncTaskAgent>("no_sched");
+  auto no_sched_agent = std::make_shared<TaskAgent>("no_sched");
   no_sched_agent->setMessageBus(bus_.get());
   // Don't set scheduler
 
-  bus_->registerAgent(no_sched_agent->getAgentId(), no_sched_agent.get());
+  bus_->registerAgent(no_sched_agent->getAgentId(), no_sched_agent);
 
   auto msg = KeystoneMessage::create("test", no_sched_agent->getAgentId(), "echo test");
 

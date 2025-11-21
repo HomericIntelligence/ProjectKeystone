@@ -44,14 +44,14 @@ class CountingAgent : public BaseAgent {
 // Test: MessageBus without scheduler (synchronous routing)
 TEST(MessageBusAsyncTest, SynchronousRoutingWithoutScheduler) {
   MessageBus bus;
-  CountingAgent agent1("agent1");
-  CountingAgent agent2("agent2");
+  auto agent1 = std::make_shared<CountingAgent>("agent1");
+  auto agent2 = std::make_shared<CountingAgent>("agent2");
 
-  bus.registerAgent("agent1", &agent1);
-  bus.registerAgent("agent2", &agent2);
+  bus.registerAgent("agent1", agent1);
+  bus.registerAgent("agent2", agent2);
 
-  agent1.setMessageBus(&bus);
-  agent2.setMessageBus(&bus);
+  agent1->setMessageBus(&bus);
+  agent2->setMessageBus(&bus);
 
   // No scheduler set - should use synchronous routing
   EXPECT_EQ(bus.getScheduler(), nullptr);
@@ -64,8 +64,8 @@ TEST(MessageBusAsyncTest, SynchronousRoutingWithoutScheduler) {
   bus.routeMessage(msg2);
 
   // Messages delivered synchronously - inbox should have them immediately
-  auto received1 = agent2.getMessage();
-  auto received2 = agent2.getMessage();
+  auto received1 = agent2->getMessage();
+  auto received2 = agent2->getMessage();
 
   EXPECT_TRUE(received1.has_value());
   EXPECT_TRUE(received2.has_value());
@@ -81,14 +81,14 @@ TEST(MessageBusAsyncTest, AsyncRoutingWithScheduler) {
   MessageBus bus;
   bus.setScheduler(&scheduler);
 
-  CountingAgent agent1("agent1");
-  CountingAgent agent2("agent2");
+  auto agent1 = std::make_shared<CountingAgent>("agent1");
+  auto agent2 = std::make_shared<CountingAgent>("agent2");
 
-  bus.registerAgent("agent1", &agent1);
-  bus.registerAgent("agent2", &agent2);
+  bus.registerAgent("agent1", agent1);
+  bus.registerAgent("agent2", agent2);
 
-  agent1.setMessageBus(&bus);
-  agent2.setMessageBus(&bus);
+  agent1->setMessageBus(&bus);
+  agent2->setMessageBus(&bus);
 
   // Scheduler should be set
   EXPECT_EQ(bus.getScheduler(), &scheduler);
@@ -105,7 +105,7 @@ TEST(MessageBusAsyncTest, AsyncRoutingWithScheduler) {
 
   // Check that messages were received
   int received_count = 0;
-  while (auto msg = agent2.getMessage()) {
+  while (auto msg = agent2->getMessage()) {
     received_count++;
   }
 
@@ -122,17 +122,17 @@ TEST(MessageBusAsyncTest, MultipleAgentsAsyncRouting) {
   MessageBus bus;
   bus.setScheduler(&scheduler);
 
-  CountingAgent agent1("agent1");
-  CountingAgent agent2("agent2");
-  CountingAgent agent3("agent3");
+  auto agent1 = std::make_shared<CountingAgent>("agent1");
+  auto agent2 = std::make_shared<CountingAgent>("agent2");
+  auto agent3 = std::make_shared<CountingAgent>("agent3");
 
-  bus.registerAgent("agent1", &agent1);
-  bus.registerAgent("agent2", &agent2);
-  bus.registerAgent("agent3", &agent3);
+  bus.registerAgent("agent1", agent1);
+  bus.registerAgent("agent2", agent2);
+  bus.registerAgent("agent3", agent3);
 
-  agent1.setMessageBus(&bus);
-  agent2.setMessageBus(&bus);
-  agent3.setMessageBus(&bus);
+  agent1->setMessageBus(&bus);
+  agent2->setMessageBus(&bus);
+  agent3->setMessageBus(&bus);
 
   // Send messages to multiple agents
   for (int i = 0; i < 20; ++i) {
@@ -149,8 +149,8 @@ TEST(MessageBusAsyncTest, MultipleAgentsAsyncRouting) {
 
   // Check both agents received messages
   int count2 = 0, count3 = 0;
-  while (agent2.getMessage()) count2++;
-  while (agent3.getMessage()) count3++;
+  while (agent2->getMessage()) count2++;
+  while (agent3->getMessage()) count3++;
 
   EXPECT_EQ(count2, 20);
   EXPECT_EQ(count3, 20);
@@ -161,14 +161,14 @@ TEST(MessageBusAsyncTest, MultipleAgentsAsyncRouting) {
 // Test: Switching from sync to async
 TEST(MessageBusAsyncTest, SwitchFromSyncToAsync) {
   MessageBus bus;
-  CountingAgent agent1("agent1");
-  CountingAgent agent2("agent2");
+  auto agent1 = std::make_shared<CountingAgent>("agent1");
+  auto agent2 = std::make_shared<CountingAgent>("agent2");
 
-  bus.registerAgent("agent1", &agent1);
-  bus.registerAgent("agent2", &agent2);
+  bus.registerAgent("agent1", agent1);
+  bus.registerAgent("agent2", agent2);
 
-  agent1.setMessageBus(&bus);
-  agent2.setMessageBus(&bus);
+  agent1->setMessageBus(&bus);
+  agent2->setMessageBus(&bus);
 
   // Start with synchronous routing
   EXPECT_EQ(bus.getScheduler(), nullptr);
@@ -177,7 +177,7 @@ TEST(MessageBusAsyncTest, SwitchFromSyncToAsync) {
   bus.routeMessage(msg1);
 
   // Should be delivered immediately
-  EXPECT_TRUE(agent2.getMessage().has_value());
+  EXPECT_TRUE(agent2->getMessage().has_value());
 
   // Now enable async routing
   WorkStealingScheduler scheduler(2);
@@ -190,7 +190,7 @@ TEST(MessageBusAsyncTest, SwitchFromSyncToAsync) {
   // Wait for async delivery
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  EXPECT_TRUE(agent2.getMessage().has_value());
+  EXPECT_TRUE(agent2->getMessage().has_value());
 
   scheduler.shutdown();
 }
@@ -203,14 +203,14 @@ TEST(MessageBusAsyncTest, HighLoadAsyncRouting) {
   MessageBus bus;
   bus.setScheduler(&scheduler);
 
-  CountingAgent agent1("agent1");
-  CountingAgent agent2("agent2");
+  auto agent1 = std::make_shared<CountingAgent>("agent1");
+  auto agent2 = std::make_shared<CountingAgent>("agent2");
 
-  bus.registerAgent("agent1", &agent1);
-  bus.registerAgent("agent2", &agent2);
+  bus.registerAgent("agent1", agent1);
+  bus.registerAgent("agent2", agent2);
 
-  agent1.setMessageBus(&bus);
-  agent2.setMessageBus(&bus);
+  agent1->setMessageBus(&bus);
+  agent2->setMessageBus(&bus);
 
   // Send many messages
   const int num_messages = 1000;
@@ -225,7 +225,7 @@ TEST(MessageBusAsyncTest, HighLoadAsyncRouting) {
 
   // Count received messages
   int received = 0;
-  while (agent2.getMessage()) {
+  while (agent2->getMessage()) {
     received++;
   }
 
@@ -242,14 +242,14 @@ TEST(MessageBusAsyncTest, SchedulerShutdownGraceful) {
   MessageBus bus;
   bus.setScheduler(&scheduler);
 
-  CountingAgent agent1("agent1");
-  CountingAgent agent2("agent2");
+  auto agent1 = std::make_shared<CountingAgent>("agent1");
+  auto agent2 = std::make_shared<CountingAgent>("agent2");
 
-  bus.registerAgent("agent1", &agent1);
-  bus.registerAgent("agent2", &agent2);
+  bus.registerAgent("agent1", agent1);
+  bus.registerAgent("agent2", agent2);
 
-  agent1.setMessageBus(&bus);
-  agent2.setMessageBus(&bus);
+  agent1->setMessageBus(&bus);
+  agent2->setMessageBus(&bus);
 
   // Send messages
   for (int i = 0; i < 5; ++i) {
@@ -263,7 +263,7 @@ TEST(MessageBusAsyncTest, SchedulerShutdownGraceful) {
 
   // All messages should have been delivered before shutdown completed
   int received = 0;
-  while (agent2.getMessage()) {
+  while (agent2->getMessage()) {
     received++;
   }
 
