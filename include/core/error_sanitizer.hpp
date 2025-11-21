@@ -42,8 +42,8 @@ inline std::string sanitizeErrorMessage(const std::string& error_message,
   }
 
   // 4. Remove "what(): " prefix if present (redundant in responses)
-  std::regex what_regex(R"(what\(\):\s*)");
-  sanitized = std::regex_replace(sanitized, what_regex, "");
+  std::regex what_prefix_regex(R"(what\(\):\s*)");
+  sanitized = std::regex_replace(sanitized, what_prefix_regex, "");
 
   // 5. In production, redact specific keywords that might leak info
   if (production_mode) {
