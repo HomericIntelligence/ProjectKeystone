@@ -87,7 +87,7 @@ TEST(E2E_PhaseB, FullAsync4LayerHierarchy) {
   //   - Module 2: "Calculate Concurrency: 40+50+60" → tasks: echo 40, echo 50, echo 60 → sum = 150
   //   - Component aggregates: "Module result: Sum = 60, Module result: Sum = 150"
 
-  chief->sendCommandAsync("Component: Messaging(10+20+30) and Concurrency(40+50+60)", "comp_lead");
+  chief->sendCommand("Component: Messaging(10+20+30) and Concurrency(40+50+60)", "comp_lead");
 
   // Wait for async processing through all 4 layers
   std::this_thread::sleep_for(std::chrono::milliseconds(500));
@@ -174,7 +174,7 @@ TEST(E2E_PhaseB, Async4LayerConcurrentExecution) {
   auto start = std::chrono::steady_clock::now();
 
   // Send component goal with slow tasks: sleep 0.05 && echo NUMBER
-  chief->sendCommandAsync("Component: Slow(1+2+3) and Fast(4+5+6)", "comp_lead");
+  chief->sendCommand("Component: Slow(1+2+3) and Fast(4+5+6)", "comp_lead");
 
   // Wait for completion
   std::this_thread::sleep_for(std::chrono::milliseconds(400));

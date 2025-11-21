@@ -146,8 +146,8 @@ TEST(WorkStealingQueueTest, WorkStealingMultipleThreads) {
 
 // Test: WorkItem validity
 TEST(WorkStealingQueueTest, WorkItemValidity) {
-  WorkItem empty_item;
-  EXPECT_FALSE(empty_item.valid());
+  // FIX: WorkItem default constructor is private (FIX P3-02)
+  // Always use factory methods: makeFunction() or makeCoroutine()
 
   WorkItem func_item = WorkItem::makeFunction([]() {});
   EXPECT_TRUE(func_item.valid());
