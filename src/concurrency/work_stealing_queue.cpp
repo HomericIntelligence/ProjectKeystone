@@ -15,7 +15,7 @@ WorkStealingQueue::WorkStealingQueue()
 void WorkStealingQueue::push(WorkItem item) { queue_.enqueue(std::move(item)); }
 
 std::optional<WorkItem> WorkStealingQueue::pop() {
-  WorkItem item;
+  WorkItem item = WorkItem::makeFunction(nullptr);
   if (queue_.try_dequeue(item)) {
     return item;
   }
@@ -23,7 +23,7 @@ std::optional<WorkItem> WorkStealingQueue::pop() {
 }
 
 std::optional<WorkItem> WorkStealingQueue::steal() {
-  WorkItem item;
+  WorkItem item = WorkItem::makeFunction(nullptr);
   if (queue_.try_dequeue(item)) {
     return item;
   }
