@@ -1,0 +1,116 @@
+#pragma once
+
+#include <atomic>
+#include <functional>
+#include <memory>
+#include <string>
+#include <thread>
+
+namespace keystone {
+namespace monitoring {
+
+/**
+ * @brief Health check server for Kubernetes liveness and readiness probes
+ *
+ * Exposes health check endpoints via HTTP on port 8080:
+ * - GET /healthz - Liveness probe (is process alive?)
+ * - GET /ready - Readiness probe (is process ready for traffic?)
+ *
+ * Kubernetes deployment expectations:
+ * - Liveness: Returns 200 OK with {"status":"healthy"} if process is alive
+ * - Readiness: Returns 200 OK with {"status":"ready"} if ready for traffic
+ *
+ * Implementation follows PrometheusExporter pattern for consistency.
+ */
+class HealthCheckServer {
+ public:
+  /**
+   * @brief Readiness check function type
+   *
+   * User-supplied function that determines if the system is ready.
+   * - Return true if ready for traffic
+   * - Return false if not ready (will return 503 Service Unavailable)
+   */
+  using ReadinessCheck = std::function<bool()>;
+
+  /**
+   * @brief Construct health check server with configuration
+   * @param port HTTP server port (default: 8080 for Kubernetes)
+   * @param readiness_check Optional custom readiness check function
+   */
+  explicit HealthCheckServer(
+      int port = 8080,
+      ReadinessCheck readiness_check = nullptr);
+
+  /**
+   * @brief Destructor - stops server if running
+   */
+  ~HealthCheckServer();
+
+  // Prevent copying
+  HealthCheckServer(const HealthCheckServer&) = delete;
+  HealthCheckServer& operator=(const HealthCheckServer&) = delete;
+
+  /**
+   * @brief Start HTTP server in background thread
+   * @return true if started successfully, false if already running or error
+   */
+  bool start();
+
+  /**
+   * @brief Stop HTTP server
+   */
+  void stop();
+
+  /**
+   * @brief Check if server is running
+   */
+  bool isRunning() const;
+
+  /**
+   * @brief Get current port
+   */
+  int getPort() const;
+
+  /**
+   * @brief Set readiness check function
+   *
+   * Allows dynamic configuration of readiness logic.
+   * If not set, readiness will always return true.
+   */
+  void setReadinessCheck(ReadinessCheck check);
+
+ private:
+  /**
+   * @brief HTTP server loop (runs in background thread)
+   */
+  void serverLoop();
+
+  /**
+   * @brief Handle HTTP request and send response
+   * @param client_fd Client socket file descriptor
+   */
+  void handleRequest(int client_fd);
+
+  /**
+   * @brief Generate liveness response
+   * @return JSON response: {"status":"healthy"}
+   */
+  static std::string generateLivenessResponse();
+
+  /**
+   * @brief Generate readiness response
+   * @param ready True if system is ready
+   * @return JSON response: {"status":"ready"} or {"status":"not_ready"}
+   */
+  static std::string generateReadinessResponse(bool ready);
+
+  int port_;
+  std::atomic<bool> running_{false};
+  std::unique_ptr<std::thread> server_thread_;
+  int server_fd_{-1};
+  ReadinessCheck readiness_check_;
+};
+
+}  // namespace monitoring
+}  // namespace keystone

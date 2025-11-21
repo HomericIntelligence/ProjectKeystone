@@ -9,11 +9,19 @@
 #include "core/config.hpp"  // FIX m3: Centralized configuration
 #include "core/message.hpp"
 
-// Forward declaration (must be outside namespace keystone to avoid nesting)
-namespace keystone { namespace core { class MessageBus; } }
-namespace keystone { namespace concurrency { class WorkStealingScheduler; } }
-
 namespace keystone {
+
+// Forward declarations from core and concurrency namespaces
+// CRITICAL: These declarations must be INSIDE keystone namespace but OUTSIDE agents namespace
+// to prevent C++ namespace collision. If placed before "namespace keystone {}", the compiler
+// creates "keystone::core::MessageBus" but the actual class is defined as "keystone::core::MessageBus",
+// causing a doubling bug where both "keystone::core::MessageBus" and "keystone::keystone::core::MessageBus"
+// exist in the symbol table. By placing them here, we correctly forward-declare the classes in the
+// keystone::core and keystone::concurrency namespaces while allowing agent_base.hpp to use them
+// without including their headers.
+namespace core { class MessageBus; }
+namespace concurrency { class WorkStealingScheduler; }
+
 namespace agents {
 
 /**
