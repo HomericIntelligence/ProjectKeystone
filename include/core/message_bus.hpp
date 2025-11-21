@@ -13,6 +13,9 @@
 namespace keystone { namespace agents { class AgentBase; } }
 namespace keystone { namespace concurrency { class WorkStealingScheduler; } }
 
+// Include concepts for compile-time agent interface verification
+#include "agents/concepts.hpp"
+
 namespace keystone {
 namespace core {
 
@@ -66,6 +69,48 @@ class MessageBus {
    * @throws std::runtime_error if agent_id already registered
    */
   void registerAgent(const std::string& agent_id, std::shared_ptr<agents::AgentBase> agent);
+
+  /**
+   * @brief Register an agent with compile-time interface verification (Issue #24)
+   *
+   * This templated version uses C++20 concepts to verify at compile time
+   * that the agent implements the required interface:
+   * - getAgentId() -> string
+   * - sendMessage(KeystoneMessage) -> void
+   * - receiveMessage(KeystoneMessage) -> void
+   * - processMessage(KeystoneMessage) -> Task<Response>
+   *
+   * Benefits:
+   * - Compile-time errors for missing methods
+   * - Better error messages than SFINAE
+   * - Self-documenting code (concept is the contract)
+   * - Enables generic agent algorithms
+   *
+   * Example:
+   * @code
+   * auto agent = std::make_shared<ChiefArchitectAgent>("chief");
+   * bus.registerAgent(agent);  // Compile error if interface incomplete
+   * @endcode
+   *
+   * @tparam A Agent type satisfying the Agent concept
+   * @param agent Shared pointer to the agent
+   * @throws std::runtime_error if agent_id already registered
+   */
+  template <agents::Agent A>
+  void registerAgent(std::shared_ptr<A> agent) {
+    if (!agent) {
+      throw std::runtime_error("MessageBus::registerAgent: null agent pointer");
+    }
+
+    // Use the agent's ID
+    std::string agent_id = agent->getAgentId();
+
+    // Convert to AgentBase pointer for storage
+    std::shared_ptr<agents::AgentBase> base_agent = agent;
+
+    // Delegate to the existing implementation
+    registerAgent(agent_id, base_agent);
+  }
 
   /**
    * @brief Unregister an agent from the bus

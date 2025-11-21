@@ -371,6 +371,7 @@ add_executable(
   # heartbeat monitoring
   tests/unit/test_circuit_breaker.cpp # Phase 5.4: Chaos engineering - circuit
   # breaker
+  tests/unit/test_agent_concepts.cpp # Issue #24: Agent concepts type safety
 )
 
 target_link_libraries(unit_tests keystone_agents keystone_core
