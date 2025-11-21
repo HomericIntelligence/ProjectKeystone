@@ -18,6 +18,16 @@ struct Config {
   // ========================================================================
 
   /**
+   * @brief Maximum number of agents that can be registered in MessageBus
+   *
+   * FIX P2-10: Prevents DoS via agent registration flooding.
+   * Limits memory consumption to ~10GB (assuming 1MB per agent avg).
+   *
+   * Default: 10,000 agents
+   */
+  static constexpr size_t MAX_AGENTS = 10000;
+
+  /**
    * @brief Maximum total messages per agent inbox across all priorities
    *
    * Prevents memory exhaustion under high load. When exceeded, backpressure
@@ -94,6 +104,16 @@ struct Config {
   // ========================================================================
 
   /**
+   * @brief Maximum number of worker threads in WorkStealingScheduler
+   *
+   * FIX P2-10: Prevents DoS via excessive thread creation.
+   * Limits system resource exhaustion.
+   *
+   * Default: 256 threads
+   */
+  static constexpr size_t MAX_WORKER_THREADS = 256;
+
+  /**
    * @brief Maximum adaptive backoff sleep duration for idle workers
    *
    * Workers use exponential backoff (1μs, 2μs, 4μs, ...) up to this cap.
@@ -102,6 +122,43 @@ struct Config {
    * Default: 1000μs (1ms)
    */
   static constexpr size_t SCHEDULER_MAX_BACKOFF_MICROSECONDS = 1000;
+
+  /**
+   * @brief Maximum backoff shift for exponential backoff calculation
+   *
+   * FIX P3-05: Extracted magic number from work_stealing_scheduler.cpp:185
+   * Used to cap idle_count in backoff calculation: sleep = min(1 << shift, MAX_BACKOFF)
+   *
+   * Default: 10 (results in max 2^10 = 1024μs)
+   */
+  static constexpr size_t SCHEDULER_MAX_BACKOFF_SHIFT = 10;
+
+  // ========================================================================
+  // Constexpr Helper Functions (FIX P3-03)
+  // ========================================================================
+
+  /**
+   * @brief Calculate queue low watermark threshold
+   *
+   * Returns the queue depth at which backpressure is cleared (hysteresis).
+   *
+   * @return Queue depth threshold for clearing backpressure
+   */
+  static constexpr size_t getQueueLowWatermark() {
+    return static_cast<size_t>(AGENT_MAX_QUEUE_SIZE *
+                                AGENT_QUEUE_LOW_WATERMARK_PERCENT);
+  }
+
+  /**
+   * @brief Get low priority check interval in nanoseconds
+   *
+   * @return Interval in nanoseconds
+   */
+  static constexpr int64_t getLowPriorityCheckIntervalNs() {
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(
+               AGENT_LOW_PRIORITY_CHECK_INTERVAL)
+        .count();
+  }
 
   // ========================================================================
   // HTTP Server Configuration (PrometheusExporter)

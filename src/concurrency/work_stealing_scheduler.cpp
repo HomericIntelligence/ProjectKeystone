@@ -21,6 +21,13 @@ namespace concurrency {
 WorkStealingScheduler::WorkStealingScheduler(size_t num_workers,
                                              bool enable_cpu_affinity)
     : num_workers_(num_workers), enable_cpu_affinity_(enable_cpu_affinity) {
+  // FIX P2-10: Enforce maximum worker thread limit to prevent DoS
+  if (num_workers_ > core::Config::MAX_WORKER_THREADS) {
+    throw std::invalid_argument(
+        "Too many worker threads requested: " + std::to_string(num_workers_) +
+        " (max: " + std::to_string(core::Config::MAX_WORKER_THREADS) + ")");
+  }
+
   if (num_workers_ == 0) {
     num_workers_ = 1;  // At least one worker
   }
@@ -181,8 +188,9 @@ void WorkStealingScheduler::workerLoop(size_t worker_index) {
       // Config::SCHEDULER_MAX_BACKOFF_MICROSECONDS This reduces CPU waste while
       // maintaining low latency
       idle_count++;
+      // FIX P3-05: Use Config constant instead of magic number
       size_t backoff_shift =
-          std::min(idle_count, static_cast<size_t>(10));  // Max 2^10 = 1024
+          std::min(idle_count, core::Config::SCHEDULER_MAX_BACKOFF_SHIFT);
       size_t sleep_us =
           std::min(1UL << backoff_shift,
                    core::Config::SCHEDULER_MAX_BACKOFF_MICROSECONDS);

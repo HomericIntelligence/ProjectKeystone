@@ -2,13 +2,33 @@
 
 #include <array>
 #include <cstdio>
+#include <regex>
 #include <sstream>
 #include <stdexcept>
+#include <unordered_set>
 
 #include "core/metrics.hpp"
 
 namespace keystone {
 namespace agents {
+
+// FIX P1-03: Whitelist of allowed commands to prevent command injection
+// This is a security-critical list - only safe, non-destructive commands allowed
+static const std::unordered_set<std::string> ALLOWED_COMMANDS = {
+    "echo",    // Print text
+    "cat",     // Display file contents
+    "ls",      // List directory
+    "pwd",     // Print working directory
+    "date",    // Show date/time
+    "whoami",  // Show current user
+    "uname",   // Show system info
+    "head",    // Show first lines of file
+    "tail",    // Show last lines of file
+    "wc",      // Word count
+    "grep",    // Search text
+    "find",    // Find files
+    "bc"       // Calculator (for test arithmetic)
+};
 
 TaskAgent::TaskAgent(const std::string& agent_id) : BaseAgent(agent_id) {}
 
@@ -65,7 +85,58 @@ concurrency::Task<core::Response> TaskAgent::processMessage(const core::Keystone
   }
 }
 
+void TaskAgent::validateCommand(const std::string& command) {
+  // FIX P1-03: Security validation to prevent command injection attacks
+
+  // 1. Check for empty command
+  if (command.empty()) {
+    throw std::runtime_error("Command cannot be empty");
+  }
+
+  // 2. Check for dangerous shell metacharacters that enable command chaining/injection
+  // These characters allow attackers to execute additional commands
+  const std::string dangerous_chars = ";|&$`<>(){}[]!";
+  if (command.find_first_of(dangerous_chars) != std::string::npos) {
+    throw std::runtime_error(
+        "Command contains disallowed shell metacharacters. "
+        "Forbidden characters: " + dangerous_chars);
+  }
+
+  // 3. Check for command substitution attempts
+  if (command.find("$(") != std::string::npos ||
+      command.find("`") != std::string::npos) {
+    throw std::runtime_error("Command substitution not allowed");
+  }
+
+  // 4. Extract the base command (first token)
+  std::istringstream iss(command);
+  std::string base_command;
+  iss >> base_command;
+
+  // 5. Validate against whitelist
+  if (ALLOWED_COMMANDS.find(base_command) == ALLOWED_COMMANDS.end()) {
+    std::stringstream ss;
+    ss << "Command not in whitelist: '" << base_command << "'. ";
+    ss << "Allowed commands: ";
+    bool first = true;
+    for (const auto& cmd : ALLOWED_COMMANDS) {
+      if (!first) ss << ", ";
+      ss << cmd;
+      first = false;
+    }
+    throw std::runtime_error(ss.str());
+  }
+
+  // 6. Additional validation: prevent directory traversal in arguments
+  if (command.find("..") != std::string::npos) {
+    throw std::runtime_error("Directory traversal (..) not allowed in command arguments");
+  }
+}
+
 std::string TaskAgent::executeBash(const std::string& command) {
+  // FIX P1-03: Validate command BEFORE execution to prevent injection
+  validateCommand(command);
+
   std::array<char, 4096> buffer;  // Increased from 128 to handle larger outputs
   std::string result;
 

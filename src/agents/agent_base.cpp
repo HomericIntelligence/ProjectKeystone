@@ -30,6 +30,10 @@ void AgentBase::sendMessage(const core::KeystoneMessage& msg) {
 void AgentBase::receiveMessage(const core::KeystoneMessage& msg) {
   // FIX C4: Backpressure - check queue size limit before accepting message
   // THREAD-SAFE: Separate atomic check from side effects to prevent race
+  // FIX P3-01: Note - using size_approx() for performance (lock-free)
+  // This is intentionally a soft limit for backpressure. The approximate count may be off by
+  // ±10 messages due to concurrent access, which is acceptable for this use case.
+  // Backpressure is a protective mechanism, not a hard guarantee.
   size_t total_depth = high_priority_inbox_.size_approx() + normal_priority_inbox_.size_approx() +
                        low_priority_inbox_.size_approx();
 

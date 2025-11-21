@@ -343,17 +343,9 @@ add_executable(distributed_benchmarks benchmarks/distributed_work_stealing.cpp)
 target_link_libraries(distributed_benchmarks keystone_simulation
                       keystone_concurrency keystone_core benchmark::benchmark)
 
-# Phase 9.4: Additional performance benchmarks TODO: Fix compilation errors
-# before enabling add_executable(message_bus_benchmarks
-# benchmarks/message_bus_performance.cpp )
-#
-# target_link_libraries(message_bus_benchmarks keystone_agents keystone_core
-# benchmark::benchmark )
-#
-# add_executable(resilience_benchmarks benchmarks/resilience_performance.cpp )
-#
-# target_link_libraries(resilience_benchmarks keystone_core benchmark::benchmark
-# )
+# FIX P3-10: Removed commented-out benchmarks (message_bus_performance.cpp, resilience_performance.cpp)
+# These had compilation errors and were never enabled. If needed in the future, they should be
+# implemented from scratch with the current API (shared_ptr, async agents).
 
 # Phase 9.2: Fuzz testing targets (requires -DENABLE_FUZZING=ON
 # -DCMAKE_CXX_COMPILER=clang++)
