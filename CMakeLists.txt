@@ -17,6 +17,9 @@ endif()
 # Code coverage (Phase 9.1)
 option(ENABLE_COVERAGE "Enable code coverage" OFF)
 
+# gRPC support for distributed multi-node communication (Phase 8)
+option(ENABLE_GRPC "Enable gRPC support for distributed nodes" OFF)
+
 if(ENABLE_COVERAGE)
   if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     message(STATUS "Code coverage enabled")
@@ -117,7 +120,66 @@ FetchContent_Declare(
   GIT_REPOSITORY https://github.com/gabime/spdlog.git
   GIT_TAG v1.12.0)
 
-FetchContent_MakeAvailable(concurrentqueue cista spdlog)
+# yaml-cpp - YAML parser for task specifications (Phase 8) Disable
+# warnings-as-errors for yaml-cpp to avoid third-party code issues
+set(YAML_CPP_BUILD_TESTS
+    OFF
+    CACHE BOOL "Disable yaml-cpp tests" FORCE)
+set(YAML_CPP_BUILD_TOOLS
+    OFF
+    CACHE BOOL "Disable yaml-cpp tools" FORCE)
+set(YAML_CPP_BUILD_CONTRIB
+    OFF
+    CACHE BOOL "Disable yaml-cpp contrib" FORCE)
+FetchContent_Declare(
+  yaml-cpp
+  GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
+  GIT_TAG yaml-cpp-0.7.0)
+
+FetchContent_MakeAvailable(concurrentqueue cista spdlog yaml-cpp)
+
+# Disable warnings-as-errors for yaml-cpp third-party library
+if(TARGET yaml-cpp)
+  target_compile_options(yaml-cpp PRIVATE -Wno-error -Wno-shadow)
+endif()
+
+# gRPC and Protobuf for distributed communication (Phase 8)
+if(ENABLE_GRPC)
+  message(
+    STATUS "gRPC support enabled for distributed multi-node communication")
+  find_package(Protobuf REQUIRED)
+  find_package(gRPC REQUIRED)
+
+  # Generate protobuf and gRPC source files
+  set(PROTO_FILES
+      ${PROJECT_SOURCE_DIR}/proto/hmas_coordinator.proto
+      ${PROJECT_SOURCE_DIR}/proto/service_registry.proto
+      ${PROJECT_SOURCE_DIR}/proto/common.proto)
+
+  # Create proto directory if it doesn't exist
+  file(MAKE_DIRECTORY ${PROJECT_SOURCE_DIR}/proto)
+
+  # Protobuf generation
+  protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${PROTO_FILES})
+
+  # gRPC generation (if proto files exist)
+  if(EXISTS ${PROJECT_SOURCE_DIR}/proto/hmas_coordinator.proto)
+    set(GRPC_CPP_PLUGIN_EXECUTABLE $<TARGET_FILE:gRPC::grpc_cpp_plugin>)
+
+    foreach(PROTO_FILE ${PROTO_FILES})
+      get_filename_component(PROTO_NAME ${PROTO_FILE} NAME_WE)
+      list(APPEND GRPC_SRCS
+           "${CMAKE_CURRENT_BINARY_DIR}/${PROTO_NAME}.grpc.pb.cc")
+      list(APPEND GRPC_HDRS
+           "${CMAKE_CURRENT_BINARY_DIR}/${PROTO_NAME}.grpc.pb.h")
+    endforeach()
+  endif()
+else()
+  message(
+    STATUS
+      "gRPC support disabled. Use -DENABLE_GRPC=ON to enable Phase 8 distributed features"
+  )
+endif()
 
 enable_testing()
 
@@ -158,6 +220,32 @@ target_include_directories(
                               ${concurrentqueue_SOURCE_DIR})
 
 target_link_libraries(keystone_concurrency PUBLIC keystone_core spdlog::spdlog)
+
+# Network library (Phase 8: Distributed communication)
+if(ENABLE_GRPC AND EXISTS ${PROJECT_SOURCE_DIR}/proto/hmas_coordinator.proto)
+  add_library(
+    keystone_network
+    ${PROTO_SRCS}
+    ${GRPC_SRCS}
+    src/network/grpc_server.cpp
+    src/network/grpc_client.cpp
+    src/network/service_registry.cpp
+    src/network/task_router.cpp
+    src/network/yaml_parser.cpp)
+
+  target_include_directories(
+    keystone_network
+    PUBLIC ${PROJECT_SOURCE_DIR}/include
+           ${CMAKE_CURRENT_BINARY_DIR} # For generated proto headers
+           ${Protobuf_INCLUDE_DIRS})
+
+  target_link_libraries(
+    keystone_network PUBLIC keystone_core protobuf::libprotobuf gRPC::grpc++
+                            gRPC::grpc++_reflection yaml-cpp)
+
+  message(
+    STATUS "keystone_network library configured for distributed communication")
+endif()
 
 # Agents library
 add_library(keystone_agents
@@ -234,6 +322,16 @@ target_link_libraries(distributed_hierarchy_tests keystone_simulation
                       keystone_concurrency keystone_core GTest::gtest_main)
 
 gtest_discover_tests(distributed_hierarchy_tests)
+
+# E2E Tests - Distributed gRPC (Phase 8)
+if(ENABLE_GRPC)
+  add_executable(distributed_grpc_tests tests/e2e/distributed_grpc_test.cpp)
+
+  target_link_libraries(distributed_grpc_tests keystone_network keystone_core
+                        GTest::gtest_main)
+
+  gtest_discover_tests(distributed_grpc_tests)
+endif()
 
 # E2E Tests - Multi-Component Hierarchy
 add_executable(multi_component_tests tests/e2e/multi_component_test.cpp)

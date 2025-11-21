@@ -83,3 +83,4 @@ Testing/
 .DS_Store
 Thumbs.db
 k8s/secrets.yaml
+build_test/

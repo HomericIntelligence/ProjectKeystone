@@ -1,11 +1,18 @@
 #pragma once
 
+#include <atomic>
 #include <cstdio>
 #include <memory>
+#include <thread>
 #include <utility>
 #include <vector>
 
 #include "base_agent.hpp"
+
+#ifdef ENABLE_GRPC
+#include "network/grpc_client.hpp"
+#include "network/yaml_parser.hpp"
+#endif
 
 namespace keystone {
 namespace agents {
@@ -46,6 +53,43 @@ class TaskAgent : public BaseAgent {
     return command_log_;
   }
 
+#ifdef ENABLE_GRPC
+  /**
+   * @brief Initialize gRPC clients and register with ServiceRegistry
+   *
+   * @param coordinator_address HMASCoordinator server address
+   * @param registry_address ServiceRegistry server address
+   * @param agent_type Agent type (default: "TaskAgent")
+   * @param level Agent level (default: 3)
+   */
+  void initializeGrpc(const std::string& coordinator_address,
+                      const std::string& registry_address,
+                      const std::string& agent_type = "TaskAgent",
+                      int level = 3);
+
+  /**
+   * @brief Process incoming YAML task specification
+   *
+   * @param yaml_spec YAML task specification
+   */
+  void processYamlTask(const std::string& yaml_spec);
+
+  /**
+   * @brief Start heartbeat thread (sends heartbeat every 1s)
+   */
+  void startHeartbeat();
+
+  /**
+   * @brief Stop heartbeat thread
+   */
+  void stopHeartbeat();
+
+  /**
+   * @brief Shutdown agent and unregister from ServiceRegistry
+   */
+  void shutdown();
+#endif
+
  private:
   /**
    * @brief RAII wrapper for popen/pclose
@@ -79,6 +123,25 @@ class TaskAgent : public BaseAgent {
   std::string executeBash(const std::string& command);
 
   std::vector<std::pair<std::string, std::string>> command_log_;
+
+#ifdef ENABLE_GRPC
+  /**
+   * @brief Heartbeat loop (runs in separate thread)
+   */
+  void heartbeatLoop();
+
+  // gRPC clients
+  std::unique_ptr<network::HMASCoordinatorClient> coordinator_client_;
+  std::unique_ptr<network::ServiceRegistryClient> registry_client_;
+
+  // Heartbeat thread
+  std::thread heartbeat_thread_;
+  std::atomic<bool> heartbeat_running_{false};
+
+  // Agent metadata
+  std::string agent_type_{"TaskAgent"};
+  int agent_level_{3};
+#endif
 };
 
 }  // namespace agents

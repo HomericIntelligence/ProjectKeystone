@@ -1,0 +1,300 @@
+version: '3.8'
+
+# ProjectKeystone - Distributed Multi-Node HMAS Deployment
+# Phase 8: Distributed agent hierarchy across Docker containers
+
+services:
+  # Main Node: ChiefArchitect + ServiceRegistry + HMASCoordinator
+  chief-node:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    image: projectkeystone:latest
+    container_name: keystone-chief
+    command: /app/build/chief_node_main
+    environment:
+      - NODE_TYPE=chief
+      - NODE_ID=chief-architect-1
+      - SERVER_ADDRESS=0.0.0.0:50051
+      - LOG_LEVEL=info
+    ports:
+      - "50051:50051"
+    networks:
+      hmas_network:
+        ipv4_address: 192.168.100.10
+    volumes:
+      - ./logs/chief:/logs
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=:50051"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  # Component Lead Node (Level 1)
+  component-node-1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    image: projectkeystone:latest
+    container_name: keystone-component-1
+    command: /app/build/component_node_main
+    environment:
+      - NODE_TYPE=component
+      - NODE_ID=component-lead-core-1
+      - AGENT_TYPE=ComponentLeadAgent
+      - LEVEL=1
+      - SERVER_ADDRESS=0.0.0.0:50052
+      - REGISTRY_ADDRESS=192.168.100.10:50051
+      - CAPABILITIES=cpp20,cmake,architecture
+      - LOG_LEVEL=info
+    ports:
+      - "50052:50052"
+    networks:
+      hmas_network:
+        ipv4_address: 192.168.100.20
+    volumes:
+      - ./logs/component-1:/logs
+    depends_on:
+      - chief-node
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=:50052"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # Module Lead Node 1 (Level 2) - Messaging
+  module-node-1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    image: projectkeystone:latest
+    container_name: keystone-module-1
+    command: /app/build/module_node_main
+    environment:
+      - NODE_TYPE=module
+      - NODE_ID=module-lead-messaging-1
+      - AGENT_TYPE=ModuleLeadAgent
+      - LEVEL=2
+      - MODULE_NAME=Messaging
+      - SERVER_ADDRESS=0.0.0.0:50053
+      - REGISTRY_ADDRESS=192.168.100.10:50051
+      - CAPABILITIES=cpp20,cmake,concurrency
+      - LOG_LEVEL=info
+    ports:
+      - "50053:50053"
+    networks:
+      hmas_network:
+        ipv4_address: 192.168.100.30
+    volumes:
+      - ./logs/module-1:/logs
+    depends_on:
+      - chief-node
+      - component-node-1
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=:50053"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # Module Lead Node 2 (Level 2) - Concurrency
+  module-node-2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    image: projectkeystone:latest
+    container_name: keystone-module-2
+    command: /app/build/module_node_main
+    environment:
+      - NODE_TYPE=module
+      - NODE_ID=module-lead-concurrency-1
+      - AGENT_TYPE=ModuleLeadAgent
+      - LEVEL=2
+      - MODULE_NAME=Concurrency
+      - SERVER_ADDRESS=0.0.0.0:50054
+      - REGISTRY_ADDRESS=192.168.100.10:50051
+      - CAPABILITIES=cpp20,cmake,threading
+      - LOG_LEVEL=info
+    ports:
+      - "50054:50054"
+    networks:
+      hmas_network:
+        ipv4_address: 192.168.100.31
+    volumes:
+      - ./logs/module-2:/logs
+    depends_on:
+      - chief-node
+      - component-node-1
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=:50054"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # Task Agent Node 1 (Level 3)
+  task-node-1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    image: projectkeystone:latest
+    container_name: keystone-task-1
+    command: /app/build/task_node_main
+    environment:
+      - NODE_TYPE=task
+      - NODE_ID=task-agent-pool-1
+      - AGENT_TYPE=TaskAgent
+      - LEVEL=3
+      - SERVER_ADDRESS=0.0.0.0:50060
+      - REGISTRY_ADDRESS=192.168.100.10:50051
+      - CAPABILITIES=cpp20,cmake,catch2,bash,git
+      - LOG_LEVEL=info
+    ports:
+      - "50060:50060"
+    networks:
+      hmas_network:
+        ipv4_address: 192.168.100.40
+    volumes:
+      - ./logs/task-1:/logs
+      - ./workspace/task-1:/workspace
+    depends_on:
+      - chief-node
+      - module-node-1
+      - module-node-2
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=:50060"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  # Task Agent Node 2 (Level 3)
+  task-node-2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    image: projectkeystone:latest
+    container_name: keystone-task-2
+    command: /app/build/task_node_main
+    environment:
+      - NODE_TYPE=task
+      - NODE_ID=task-agent-pool-2
+      - AGENT_TYPE=TaskAgent
+      - LEVEL=3
+      - SERVER_ADDRESS=0.0.0.0:50061
+      - REGISTRY_ADDRESS=192.168.100.10:50051
+      - CAPABILITIES=cpp20,cmake,catch2,bash,git
+      - LOG_LEVEL=info
+    ports:
+      - "50061:50061"
+    networks:
+      hmas_network:
+        ipv4_address: 192.168.100.41
+    volumes:
+      - ./logs/task-2:/logs
+      - ./workspace/task-2:/workspace
+    depends_on:
+      - chief-node
+      - module-node-1
+      - module-node-2
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=:50061"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  # Task Agent Node 3 (Level 3)
+  task-node-3:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    image: projectkeystone:latest
+    container_name: keystone-task-3
+    command: /app/build/task_node_main
+    environment:
+      - NODE_TYPE=task
+      - NODE_ID=task-agent-pool-3
+      - AGENT_TYPE=TaskAgent
+      - LEVEL=3
+      - SERVER_ADDRESS=0.0.0.0:50062
+      - REGISTRY_ADDRESS=192.168.100.10:50051
+      - CAPABILITIES=cpp20,cmake,catch2,python3
+      - LOG_LEVEL=info
+    ports:
+      - "50062:50062"
+    networks:
+      hmas_network:
+        ipv4_address: 192.168.100.42
+    volumes:
+      - ./logs/task-3:/logs
+      - ./workspace/task-3:/workspace
+    depends_on:
+      - chief-node
+      - module-node-1
+      - module-node-2
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=:50062"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+networks:
+  hmas_network:
+    name: keystone_hmas_network
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 192.168.100.0/24
+          gateway: 192.168.100.1
+
+volumes:
+  logs:
+    driver: local
+  workspace:
+    driver: local
+
+# Usage:
+#
+# 1. Build images:
+#    docker-compose -f docker-compose-distributed.yaml build
+#
+# 2. Start all nodes:
+#    docker-compose -f docker-compose-distributed.yaml up
+#
+# 3. Start in detached mode:
+#    docker-compose -f docker-compose-distributed.yaml up -d
+#
+# 4. View logs:
+#    docker-compose -f docker-compose-distributed.yaml logs -f chief-node
+#    docker-compose -f docker-compose-distributed.yaml logs -f --tail=100
+#
+# 5. Check node status:
+#    docker-compose -f docker-compose-distributed.yaml ps
+#
+# 6. Stop all nodes:
+#    docker-compose -f docker-compose-distributed.yaml down
+#
+# 7. Scale task agents:
+#    docker-compose -f docker-compose-distributed.yaml up --scale task-node-1=5
+#
+# 8. Execute command in container:
+#    docker-compose -f docker-compose-distributed.yaml exec chief-node bash
+#
+# Network topology:
+#   192.168.100.10  - Chief Node (ServiceRegistry + HMASCoordinator)
+#   192.168.100.20  - Component Node 1
+#   192.168.100.30  - Module Node 1 (Messaging)
+#   192.168.100.31  - Module Node 2 (Concurrency)
+#   192.168.100.40-42 - Task Nodes 1-3
