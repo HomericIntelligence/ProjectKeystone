@@ -9,7 +9,8 @@
 
 #include "hmas_coordinator.pb.h"
 
-namespace keystone::network {
+namespace keystone {
+namespace network {
 
 /// Aggregation strategy for subtask results
 enum class AggregationStrategy {
@@ -109,4 +110,5 @@ AggregationStrategy stringToStrategy(const std::string& strategy_str);
 /// Helper function to convert AggregationStrategy to string
 std::string strategyToString(AggregationStrategy strategy);
 
-}  // namespace keystone::network
+}  // namespace network
+}  // namespace keystone

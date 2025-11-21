@@ -11,7 +11,8 @@
 #include "service_registry.grpc.pb.h"
 #include "service_registry.pb.h"
 
-namespace keystone::network {
+namespace keystone {
+namespace network {
 
 /// Agent registration information
 struct AgentRegistrationInfo {
@@ -177,4 +178,5 @@ class ServiceRegistryServiceImpl final
   std::shared_ptr<ServiceRegistry> registry_;
 };
 
-}  // namespace keystone::network
+}  // namespace network
+}  // namespace keystone

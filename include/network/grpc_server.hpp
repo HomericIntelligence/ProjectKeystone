@@ -6,7 +6,8 @@
 #include <string>
 #include <vector>
 
-namespace keystone::network {
+namespace keystone {
+namespace network {
 
 /// gRPC Server configuration
 struct GrpcServerConfig {
@@ -64,4 +65,5 @@ class GrpcServer {
   bool started_{false};
 };
 
-}  // namespace keystone::network
+}  // namespace network
+}  // namespace keystone

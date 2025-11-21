@@ -8,7 +8,8 @@
 #include "network/service_registry.hpp"
 #include "network/yaml_parser.hpp"
 
-namespace keystone::network {
+namespace keystone {
+namespace network {
 
 /// Load balancing strategy for agent selection
 enum class LoadBalancingStrategy {
@@ -87,4 +88,5 @@ class TaskRouter {
   size_t round_robin_index_{0};
 };
 
-}  // namespace keystone::network
+}  // namespace network
+}  // namespace keystone

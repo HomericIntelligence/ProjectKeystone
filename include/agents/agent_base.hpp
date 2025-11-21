@@ -9,13 +9,10 @@
 #include "core/config.hpp"  // FIX m3: Centralized configuration
 #include "core/message.hpp"
 
+// Forward declaration (must be outside namespace keystone to avoid nesting)
+namespace keystone { namespace core { class MessageBus; } }
+
 namespace keystone {
-
-// Forward declaration
-namespace core {
-class MessageBus;
-}
-
 namespace agents {
 
 /**

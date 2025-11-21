@@ -9,17 +9,11 @@
 
 #include "message.hpp"
 
+// Forward declarations (must be outside namespace keystone to avoid nesting)
+namespace keystone { namespace agents { class AgentBase; } }
+namespace keystone { namespace concurrency { class WorkStealingScheduler; } }
+
 namespace keystone {
-
-// Forward declarations
-namespace agents {
-class AgentBase;
-}
-
-namespace concurrency {
-class WorkStealingScheduler;
-}
-
 namespace core {
 
 /**
