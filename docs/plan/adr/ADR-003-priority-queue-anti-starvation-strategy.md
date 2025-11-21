@@ -272,14 +272,28 @@ std::thread low_thread([&]() { while (true) process_low(); });
 ### Configuration
 
 ```cpp
-// config.hpp
+// config.hpp - Global default
 static constexpr std::chrono::milliseconds AGENT_LOW_PRIORITY_CHECK_INTERVAL{100};
 ```
 
+**Per-Agent Configuration** (Issue #23):
+```cpp
+// Each agent can override the default interval
+agent->setLowPriorityCheckInterval(std::chrono::milliseconds{50});  // Low-latency
+agent->setLowPriorityCheckInterval(std::chrono::milliseconds{500}); // High-throughput
+```
+
+**Benefits of Per-Agent Configuration**:
+- **Latency-Sensitive Agents**: Use shorter intervals (10-50ms) for interactive/real-time operations
+- **Throughput-Optimized Agents**: Use longer intervals (200-500ms) for batch processing
+- **Runtime Tunable**: No recompilation required to adjust fairness characteristics
+- **Heterogeneous Workloads**: Different agents in same system can have different latency requirements
+
 **Tuning Guide**:
-- **Latency-Sensitive**: 50ms (higher overhead, better responsiveness)
-- **Throughput-Optimized**: 200ms (lower overhead, acceptable latency)
-- **Default**: 100ms (balanced)
+- **Ultra-Low-Latency** (10ms): Interactive UI updates, real-time control systems
+- **Low-Latency** (50ms): Standard interactive agents, request-response services
+- **Default** (100ms): Balanced - good for most use cases
+- **Throughput-Optimized** (200-500ms): Batch processors, background analytics
 
 ## Validation
 
@@ -313,14 +327,18 @@ if (msg.hasDeadlinePassed()) {
 }
 ```
 
-### Phase 4: Adaptive Fairness Interval
+### Phase 4: Adaptive Fairness Interval (Partially Implemented)
 
-Adjust interval based on queue depths:
+**✅ Issue #23**: Per-agent configurable intervals implemented (runtime tunable)
+
+**Future**: Fully adaptive intervals based on queue depth:
 
 ```cpp
-// Shorter interval when low-priority queue builds up
+// Automatic adjustment when low-priority queue builds up
 if (low_priority_depth > 1000) {
-  interval = 50ms;
+  agent->setLowPriorityCheckInterval(std::chrono::milliseconds{50});
+} else if (low_priority_depth < 100) {
+  agent->setLowPriorityCheckInterval(std::chrono::milliseconds{200});
 }
 ```
 
@@ -353,6 +371,6 @@ check_lower_priority_agents_every(100ms);
 
 ---
 
-**Last Updated**: 2025-11-21
-**Version**: 1.0
+**Last Updated**: 2025-11-21 (Issue #23: Per-agent configurable intervals)
+**Version**: 1.1
 **Project**: ProjectKeystone HMAS (C++20)

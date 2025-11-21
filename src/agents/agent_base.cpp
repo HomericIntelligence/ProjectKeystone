@@ -16,6 +16,14 @@ AgentBase::AgentBase(const std::string& agent_id) : agent_id_(agent_id) {
   last_low_priority_check_ns_.store(
       std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count(),
       std::memory_order_relaxed);
+
+  // Issue #23: Initialize per-agent fairness interval to default from Config
+  low_priority_check_interval_ns_.store(
+      std::chrono::duration_cast<std::chrono::nanoseconds>(
+          core::Config::AGENT_LOW_PRIORITY_CHECK_INTERVAL)
+          .count(),
+      std::memory_order_relaxed);
+
   // Phase C: Priority queues initialized by default constructors
 }
 
@@ -90,21 +98,20 @@ void AgentBase::receiveMessage(const core::KeystoneMessage& msg) {
 
 std::optional<core::KeystoneMessage> AgentBase::getMessage() {
   // FIX C1: Time-based priority fairness to prevent LOW priority starvation
-  // Strategy: Every Config::AGENT_LOW_PRIORITY_CHECK_INTERVAL, force-check NORMAL/LOW
-  // queues to ensure fairness even under sustained HIGH priority load
-  // THREAD-SAFE: Uses atomic for last_low_priority_check_ns_
+  // Issue #23: Now uses per-agent configurable interval instead of global constant
+  // Strategy: Every interval_ns, force-check NORMAL/LOW queues to ensure fairness
+  // even under sustained HIGH priority load
+  // THREAD-SAFE: Uses atomic for last_low_priority_check_ns_ and interval
 
   core::KeystoneMessage msg;
   auto now = std::chrono::steady_clock::now();
   auto now_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();
 
-  // Load last check time (atomic, thread-safe)
+  // Load last check time and interval (atomic, thread-safe)
   int64_t last_check_ns = last_low_priority_check_ns_.load(std::memory_order_relaxed);
-  auto interval_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                         core::Config::AGENT_LOW_PRIORITY_CHECK_INTERVAL)
-                         .count();
+  int64_t interval_ns = low_priority_check_interval_ns_.load(std::memory_order_relaxed);
 
-  // Every 100ms, force-check lower priorities regardless of HIGH queue state
+  // Every interval_ns, force-check lower priorities regardless of HIGH queue state
   if (now_ns - last_check_ns >= interval_ns) {
     // Try to update last check time (only one thread succeeds)
     last_low_priority_check_ns_.store(now_ns, std::memory_order_relaxed);

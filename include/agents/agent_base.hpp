@@ -93,6 +93,44 @@ class AgentBase {
     (void)scheduler;  // Suppress unused parameter warning
   }
 
+  /**
+   * @brief Configure the low-priority message check interval
+   *
+   * Issue #23: Per-agent configurable fairness check interval.
+   *
+   * Controls how frequently this agent force-checks NORMAL/LOW priority queues
+   * to prevent starvation under sustained HIGH priority load. Different agents
+   * may have different latency requirements:
+   * - Latency-sensitive: use shorter intervals (e.g., 10ms-50ms)
+   * - Throughput-optimized: use longer intervals (e.g., 200ms-500ms)
+   *
+   * @param interval Check interval duration (default: 100ms from Config)
+   *
+   * Example:
+   * @code
+   * // Low-latency agent (interactive UI updates)
+   * agent->setLowPriorityCheckInterval(std::chrono::milliseconds{10});
+   *
+   * // High-throughput batch processor
+   * agent->setLowPriorityCheckInterval(std::chrono::milliseconds{500});
+   * @endcode
+   */
+  void setLowPriorityCheckInterval(std::chrono::milliseconds interval) {
+    low_priority_check_interval_ns_.store(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(interval).count(),
+        std::memory_order_relaxed);
+  }
+
+  /**
+   * @brief Get the current low-priority check interval
+   *
+   * @return std::chrono::milliseconds Current check interval
+   */
+  std::chrono::milliseconds getLowPriorityCheckInterval() const {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::nanoseconds{low_priority_check_interval_ns_.load(std::memory_order_relaxed)});
+  }
+
  protected:
   /**
    * @brief Update queue depth metrics
@@ -116,6 +154,10 @@ class AgentBase {
   // under sustained HIGH priority load
   // THREAD-SAFE: Using atomic to prevent data races from concurrent getMessage() calls
   std::atomic<int64_t> last_low_priority_check_ns_;
+
+  // Issue #23: Per-agent configurable fairness interval (defaults to Config value)
+  // THREAD-SAFE: Atomic for lock-free read/write from concurrent getMessage() and setter
+  std::atomic<int64_t> low_priority_check_interval_ns_;
 
   // FIX M1: Backpressure - Queue size limits to prevent memory exhaustion
   std::atomic<bool> backpressure_applied_{
