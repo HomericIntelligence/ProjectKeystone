@@ -7,6 +7,7 @@
 #include <stdexcept>
 #include <unordered_set>
 
+#include "core/error_sanitizer.hpp"
 #include "core/metrics.hpp"
 
 namespace keystone {
@@ -70,13 +71,16 @@ concurrency::Task<core::Response> TaskAgent::processMessage(const core::Keystone
     co_return response;  // FIX C3: Use co_return for coroutine
 
   } catch (const std::exception& e) {
-    // Create error response
-    auto response = core::Response::createError(msg, agent_id_, e.what());
+    // FIX P3-08: Sanitize error message to prevent information disclosure
+    std::string sanitized_error = core::sanitizeErrorMessage(e.what());
+
+    // Create error response with sanitized message
+    auto response = core::Response::createError(msg, agent_id_, sanitized_error);
 
     // Send error response back via MessageBus
     auto response_msg =
         core::KeystoneMessage::create(agent_id_, msg.sender_id, "response",
-                                      std::string("ERROR: ") + e.what());
+                                      std::string("ERROR: ") + sanitized_error);
     response_msg.msg_id = msg.msg_id;
 
     sendMessage(response_msg);

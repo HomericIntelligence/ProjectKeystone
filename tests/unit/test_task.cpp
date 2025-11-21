@@ -218,3 +218,147 @@ TEST(TaskTest, MultipleGetCalls) {
   EXPECT_EQ(result1, 42);
   EXPECT_EQ(result2, 42);
 }
+
+// =============================================================================
+// FIX P2-08: Comprehensive exception handling tests
+// =============================================================================
+
+// Test: Exception message preservation
+TEST(TaskTest, ExceptionMessagePreservation) {
+  const std::string error_msg = "Detailed error message with context";
+
+  auto task = [&error_msg]() -> Task<int> {
+    throw std::runtime_error(error_msg);
+    co_return 0;
+  }();
+
+  try {
+    task.get();
+    FAIL() << "Expected exception to be thrown";
+  } catch (const std::runtime_error& e) {
+    EXPECT_EQ(std::string(e.what()), error_msg);
+  }
+}
+
+// Test: Task<void> exception handling
+TEST(TaskTest, VoidTaskExceptionHandling) {
+  auto task = []() -> Task<void> {
+    throw std::logic_error("Void task exception");
+    co_return;
+  }();
+
+  EXPECT_THROW({ task.get(); }, std::logic_error);
+}
+
+// Test: Different exception types
+TEST(TaskTest, DifferentExceptionTypes) {
+  // std::invalid_argument
+  auto task1 = []() -> Task<int> {
+    throw std::invalid_argument("Invalid argument");
+    co_return 0;
+  }();
+  EXPECT_THROW({ task1.get(); }, std::invalid_argument);
+
+  // std::out_of_range
+  auto task2 = []() -> Task<int> {
+    throw std::out_of_range("Out of range");
+    co_return 0;
+  }();
+  EXPECT_THROW({ task2.get(); }, std::out_of_range);
+
+  // Custom exception
+  class CustomException : public std::exception {
+   public:
+    const char* what() const noexcept override { return "Custom exception"; }
+  };
+
+  auto task3 = []() -> Task<int> {
+    throw CustomException();
+    co_return 0;
+  }();
+  EXPECT_THROW({ task3.get(); }, CustomException);
+}
+
+// Test: Exception after partial execution
+TEST(TaskTest, ExceptionAfterPartialExecution) {
+  auto counter = std::make_shared<std::atomic<int>>(0);
+
+  auto task = [counter]() -> Task<int> {
+    counter->fetch_add(1);  // This should execute
+    throw std::runtime_error("Exception after increment");
+    co_return 42;  // Never reached
+  }();
+
+  EXPECT_EQ(counter->load(), 0);  // Not executed yet
+
+  EXPECT_THROW({ task.get(); }, std::runtime_error);
+
+  EXPECT_EQ(counter->load(), 1);  // Should have incremented before exception
+}
+
+// Test: Exception in co_await chain preserves stack
+TEST(TaskTest, ExceptionInCoAwaitChain) {
+  auto innerTask = []() -> Task<int> {
+    throw std::runtime_error("Inner task failed");
+    co_return 10;
+  };
+
+  auto middleTask = [&]() -> Task<int> {
+    int val = co_await innerTask();
+    co_return val * 2;  // Never reached
+  };
+
+  auto outerTask = [&]() -> Task<int> {
+    int val = co_await middleTask();
+    co_return val * 3;  // Never reached
+  }();
+
+  try {
+    outerTask.get();
+    FAIL() << "Expected exception";
+  } catch (const std::runtime_error& e) {
+    EXPECT_EQ(std::string(e.what()), "Inner task failed");
+  }
+}
+
+// Test: Multiple exceptions - only first is captured
+TEST(TaskTest, MultipleExceptionsFirstCaptured) {
+  auto task = []() -> Task<int> {
+    try {
+      throw std::runtime_error("First exception");
+    } catch (...) {
+      // Caught and re-thrown
+      throw std::logic_error("Second exception");
+    }
+    co_return 0;
+  }();
+
+  // Should propagate the last thrown exception (logic_error)
+  EXPECT_THROW({ task.get(); }, std::logic_error);
+}
+
+// Test: Exception with move-only types
+TEST(TaskTest, ExceptionWithMoveOnlyType) {
+  auto task = []() -> Task<std::unique_ptr<int>> {
+    throw std::runtime_error("Move-only exception test");
+    co_return std::make_unique<int>(42);
+  }();
+
+  EXPECT_THROW({ task.get(); }, std::runtime_error);
+}
+
+// Test: Verify exception stored in promise
+TEST(TaskTest, ExceptionStoredInPromise) {
+  auto task = []() -> Task<int> {
+    throw std::runtime_error("Stored in promise");
+    co_return 0;
+  }();
+
+  // Resume to trigger exception capture
+  EXPECT_FALSE(task.done());
+  task.resume();
+  EXPECT_TRUE(task.done());
+
+  // Exception should be stored and re-thrown on get()
+  EXPECT_THROW({ task.get(); }, std::runtime_error);
+}
