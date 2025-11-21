@@ -7,6 +7,7 @@
 
 #include <sstream>
 
+#include "concurrency/scheduler_accessor.hpp"
 #include "core/config.hpp"  // FIX m3: Centralized configuration
 
 // Phase D: CPU affinity support (Linux-specific)
@@ -106,8 +107,13 @@ void WorkStealingScheduler::shutdown() {
 
   Logger::info("WorkStealingScheduler shutting down...");
 
-  // Set shutdown flag
-  shutdown_requested_.store(true);
+  // Set shutdown flag and notify all workers
+  // FIX Issue #18: Wake up all sleeping workers immediately
+  {
+    std::lock_guard<std::mutex> lock(shutdown_mutex_);
+    shutdown_requested_.store(true);
+  }
+  shutdown_cv_.notify_all();
 
   // Wait for all workers to finish
   for (auto& worker : workers_) {
@@ -145,6 +151,10 @@ void WorkStealingScheduler::workerLoop(size_t worker_index) {
   std::ostringstream oss;
   oss << "worker_" << worker_index;
   LogContext::set(oss.str(), static_cast<int>(worker_index), "scheduler");
+
+  // Issue #19: Register this scheduler in thread-local storage
+  // This allows Task<T>::await_suspend() to access the scheduler for async submission
+  setCurrentScheduler(this);
 
   // Phase D: Set CPU affinity if enabled
   if (enable_cpu_affinity_) {
@@ -194,7 +204,11 @@ void WorkStealingScheduler::workerLoop(size_t worker_index) {
       size_t sleep_us =
           std::min(1UL << backoff_shift,
                    core::Config::SCHEDULER_MAX_BACKOFF_MICROSECONDS);
-      std::this_thread::sleep_for(std::chrono::microseconds(sleep_us));
+
+      // FIX Issue #18: Use condition variable to wake up immediately on shutdown
+      std::unique_lock<std::mutex> lock(shutdown_mutex_);
+      shutdown_cv_.wait_for(lock, std::chrono::microseconds(sleep_us),
+                           [this]() { return shutdown_requested_.load(); });
     }
   }
 
@@ -208,6 +222,9 @@ void WorkStealingScheduler::workerLoop(size_t worker_index) {
 
   Logger::debug("Worker {} exiting", worker_index);
   LogContext::clear();
+
+  // Issue #19: Clear the thread-local scheduler when worker exits
+  setCurrentScheduler(nullptr);
 }
 
 void WorkStealingScheduler::setCPUAffinity(size_t worker_index) {

@@ -11,6 +11,7 @@
 
 // Forward declaration (must be outside namespace keystone to avoid nesting)
 namespace keystone { namespace core { class MessageBus; } }
+namespace keystone { namespace concurrency { class WorkStealingScheduler; } }
 
 namespace keystone {
 namespace agents {
@@ -74,6 +75,23 @@ class AgentBase {
    * @param bus Pointer to message bus (must outlive agent)
    */
   void setMessageBus(core::MessageBus* bus);
+
+  /**
+   * @brief Set the work-stealing scheduler for this agent
+   *
+   * Issue #19: Scheduler integration for async Task<T> execution.
+   *
+   * Note: This method is provided for API completeness and testing.
+   * The actual scheduler is accessed via thread-local storage by Task<T>::await_suspend()
+   * when coroutines execute on worker threads.
+   *
+   * @param scheduler Pointer to scheduler (must outlive agent)
+   */
+  void setScheduler(concurrency::WorkStealingScheduler* scheduler) {
+    // Note: Agents don't store scheduler themselves - it's accessed via thread-local
+    // storage. This method exists for API compatibility and future extensions.
+    (void)scheduler;  // Suppress unused parameter warning
+  }
 
  protected:
   /**

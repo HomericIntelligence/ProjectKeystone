@@ -6,6 +6,9 @@
 #include <stdexcept>
 #include <utility>
 
+#include "concurrency/scheduler_accessor.hpp"
+#include "concurrency/work_stealing_scheduler.hpp"
+
 namespace keystone {
 namespace concurrency {
 
@@ -173,18 +176,38 @@ class Task {
   /**
    * @brief Awaitable interface - suspend and transfer control
    *
-   * Uses symmetric transfer to chain coroutines efficiently.
+   * Scheduler-aware version that submits coroutine to WorkStealingScheduler
+   * if available, otherwise uses symmetric transfer for synchronous execution.
+   *
+   * Scheduler Integration (Issue #19):
+   * - If scheduler available: submit this task to scheduler and return noop
+   * - If no scheduler: use symmetric transfer (backward compatible)
+   *
    * The awaiting coroutine is stored as continuation and resumed
    * when this task completes via final_suspend.
    *
    * @param awaiting The coroutine that is awaiting this task
-   * @return Handle to the coroutine to resume next (this task's handle)
+   * @return Handle to the coroutine to resume next
    */
   std::coroutine_handle<> await_suspend(std::coroutine_handle<> awaiting) noexcept {
     // Store the awaiting coroutine as our continuation
+    // This is used in final_suspend regardless of execution mode
     handle_.promise().continuation = awaiting;
 
-    // Return our handle for symmetric transfer
+    // Check if a scheduler is available in the current thread
+    auto scheduler = getCurrentScheduler();
+
+    if (scheduler) {
+      // Submit this coroutine to the scheduler for execution on a worker thread
+      // Cast to std::coroutine_handle<> to disambiguate overload
+      scheduler->submit(std::coroutine_handle<>(handle_));
+
+      // Return noop - the scheduler will resume our coroutine
+      // The continuation will be resumed by final_suspend when we complete
+      return std::noop_coroutine();
+    }
+
+    // Fallback: no scheduler available, use synchronous symmetric transfer
     // The runtime will resume this handle, which will eventually
     // resume the continuation via final_suspend
     return handle_;
@@ -309,18 +332,38 @@ class Task<void> {
   /**
    * @brief Awaitable interface - suspend and transfer control
    *
-   * Uses symmetric transfer to chain coroutines efficiently.
+   * Scheduler-aware version that submits coroutine to WorkStealingScheduler
+   * if available, otherwise uses symmetric transfer for synchronous execution.
+   *
+   * Scheduler Integration (Issue #19):
+   * - If scheduler available: submit this task to scheduler and return noop
+   * - If no scheduler: use symmetric transfer (backward compatible)
+   *
    * The awaiting coroutine is stored as continuation and resumed
    * when this task completes via final_suspend.
    *
    * @param awaiting The coroutine that is awaiting this task
-   * @return Handle to the coroutine to resume next (this task's handle)
+   * @return Handle to the coroutine to resume next
    */
   std::coroutine_handle<> await_suspend(std::coroutine_handle<> awaiting) noexcept {
     // Store the awaiting coroutine as our continuation
+    // This is used in final_suspend regardless of execution mode
     handle_.promise().continuation = awaiting;
 
-    // Return our handle for symmetric transfer
+    // Check if a scheduler is available in the current thread
+    auto scheduler = getCurrentScheduler();
+
+    if (scheduler) {
+      // Submit this coroutine to the scheduler for execution on a worker thread
+      // Cast to std::coroutine_handle<> to disambiguate overload
+      scheduler->submit(std::coroutine_handle<>(handle_));
+
+      // Return noop - the scheduler will resume our coroutine
+      // The continuation will be resumed by final_suspend when we complete
+      return std::noop_coroutine();
+    }
+
+    // Fallback: no scheduler available, use synchronous symmetric transfer
     // The runtime will resume this handle, which will eventually
     // resume the continuation via final_suspend
     return handle_;
