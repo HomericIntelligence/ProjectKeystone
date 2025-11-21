@@ -199,6 +199,8 @@ add_library(
   src/core/circuit_breaker.cpp # Phase 5.4: Chaos engineering - circuit breaker
   src/monitoring/prometheus_exporter.cpp # Phase 6.3: Prometheus metrics
   # exporter
+  src/monitoring/health_check_server.cpp # Phase 6.7: Health check endpoints
+  # (C4)
 )
 
 target_include_directories(
@@ -372,6 +374,7 @@ add_executable(
   tests/unit/test_circuit_breaker.cpp # Phase 5.4: Chaos engineering - circuit
   # breaker
   tests/unit/test_agent_concepts.cpp # Issue #24: Agent concepts type safety
+  tests/unit/test_health_check_server.cpp # Phase 6.7: Health check endpoints (C4)
 )
 
 target_link_libraries(unit_tests keystone_agents keystone_core

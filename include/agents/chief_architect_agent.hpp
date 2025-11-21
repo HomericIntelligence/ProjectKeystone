@@ -5,7 +5,7 @@
 #include <memory>
 #include <thread>
 
-#include "base_agent.hpp"
+#include "agents/base_agent.hpp"
 
 #ifdef ENABLE_GRPC
 #include "network/grpc_client.hpp"
