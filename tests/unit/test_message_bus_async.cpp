@@ -23,7 +23,7 @@ class CountingAgent : public BaseAgent {
   explicit CountingAgent(const std::string& agent_id)
       : BaseAgent(agent_id), count_(std::make_shared<std::atomic<int>>(0)) {}
 
-  Response processMessage(const KeystoneMessage& msg) override {
+  Task<Response> processMessage(const KeystoneMessage& msg) override {
     count_->fetch_add(1);
     Response resp;
     resp.msg_id = msg.msg_id;
@@ -32,7 +32,7 @@ class CountingAgent : public BaseAgent {
     resp.status = Response::Status::Success;
     resp.result = "OK";
     resp.timestamp = std::chrono::system_clock::now();
-    return resp;
+    co_return resp;
   }
 
   int getCount() const { return count_->load(); }
@@ -268,4 +268,241 @@ TEST(MessageBusAsyncTest, SchedulerShutdownGraceful) {
   }
 
   EXPECT_EQ(received, 5);
+}
+
+// =============================================================================
+// FIX P2-09: Concurrent lifecycle stress test
+// =============================================================================
+
+// Test: Concurrent agent registration, unregistration, and message routing
+TEST(MessageBusAsyncTest, ConcurrentLifecycleStressTest) {
+  WorkStealingScheduler scheduler(4);
+  scheduler.start();
+
+  MessageBus bus;
+  bus.setScheduler(&scheduler);
+
+  std::atomic<bool> stop{false};
+  std::atomic<int> agents_created{0};
+  std::atomic<int> agents_destroyed{0};
+  std::atomic<int> messages_sent{0};
+  std::atomic<int> registration_errors{0};
+
+  // Helper to generate unique agent IDs
+  auto get_agent_id = [](int counter) {
+    return "stress_agent_" + std::to_string(counter);
+  };
+
+  // Thread 1: Register agents
+  std::thread register_thread([&]() {
+    int counter = 0;
+    while (!stop.load(std::memory_order_relaxed)) {
+      try {
+        auto agent_id = get_agent_id(counter++);
+        auto agent = std::make_shared<CountingAgent>(agent_id);
+        agent->setMessageBus(&bus);
+        bus.registerAgent(agent_id, agent);
+        agents_created.fetch_add(1, std::memory_order_relaxed);
+
+        // Small delay to allow interleaving
+        std::this_thread::sleep_for(std::chrono::microseconds(100));
+      } catch (const std::exception& e) {
+        registration_errors.fetch_add(1, std::memory_order_relaxed);
+      }
+    }
+  });
+
+  // Thread 2: Unregister agents
+  std::thread unregister_thread([&]() {
+    int counter = 0;
+    while (!stop.load(std::memory_order_relaxed)) {
+      auto agent_id = get_agent_id(counter++);
+
+      // Only unregister if agent exists
+      if (bus.hasAgent(agent_id)) {
+        bus.unregisterAgent(agent_id);
+        agents_destroyed.fetch_add(1, std::memory_order_relaxed);
+      }
+
+      std::this_thread::sleep_for(std::chrono::microseconds(150));
+    }
+  });
+
+  // Thread 3: Route messages to existing agents
+  std::thread route_thread([&]() {
+    int counter = 0;
+    while (!stop.load(std::memory_order_relaxed)) {
+      // Get list of registered agents
+      auto agents = bus.listAgents();
+
+      if (!agents.empty()) {
+        // Pick random agent from list
+        size_t idx = counter % agents.size();
+        auto target = agents[idx];
+
+        // Send message
+        auto msg = KeystoneMessage::create("test_sender", target,
+                                           "stress_test_" + std::to_string(counter));
+        bool routed = bus.routeMessage(msg);
+        if (routed) {
+          messages_sent.fetch_add(1, std::memory_order_relaxed);
+        }
+      }
+
+      counter++;
+      std::this_thread::sleep_for(std::chrono::microseconds(50));
+    }
+  });
+
+  // Thread 4: Additional concurrent registration (stress test)
+  std::thread register_thread2([&]() {
+    int counter = 10000;  // Different range to avoid ID conflicts
+    while (!stop.load(std::memory_order_relaxed)) {
+      try {
+        auto agent_id = get_agent_id(counter++);
+        auto agent = std::make_shared<CountingAgent>(agent_id);
+        agent->setMessageBus(&bus);
+        bus.registerAgent(agent_id, agent);
+        agents_created.fetch_add(1, std::memory_order_relaxed);
+
+        std::this_thread::sleep_for(std::chrono::microseconds(120));
+      } catch (const std::exception& e) {
+        registration_errors.fetch_add(1, std::memory_order_relaxed);
+      }
+    }
+  });
+
+  // Run stress test for 2 seconds
+  std::this_thread::sleep_for(std::chrono::seconds(2));
+  stop.store(true, std::memory_order_relaxed);
+
+  // Wait for all threads to finish
+  register_thread.join();
+  unregister_thread.join();
+  route_thread.join();
+  register_thread2.join();
+
+  // Shutdown scheduler
+  scheduler.shutdown();
+
+  // Verify no crashes occurred and operations completed
+  EXPECT_GT(agents_created.load(), 0)
+      << "Should have created some agents";
+  EXPECT_GT(messages_sent.load(), 0)
+      << "Should have sent some messages";
+
+  // Some registration errors are expected due to duplicate IDs
+  // but the system should handle them gracefully
+  std::cout << "Stress test results:\n"
+            << "  Agents created: " << agents_created.load() << "\n"
+            << "  Agents destroyed: " << agents_destroyed.load() << "\n"
+            << "  Messages sent: " << messages_sent.load() << "\n"
+            << "  Registration errors (expected): " << registration_errors.load() << "\n";
+
+  // The fact that we got here without crashing means the test passed
+  SUCCEED();
+}
+
+// Test: Concurrent unregistration doesn't cause use-after-free
+TEST(MessageBusAsyncTest, ConcurrentUnregistrationSafety) {
+  WorkStealingScheduler scheduler(2);
+  scheduler.start();
+
+  MessageBus bus;
+  bus.setScheduler(&scheduler);
+
+  // Create agents
+  auto agent1 = std::make_shared<CountingAgent>("agent1");
+  auto agent2 = std::make_shared<CountingAgent>("agent2");
+
+  agent1->setMessageBus(&bus);
+  agent2->setMessageBus(&bus);
+
+  bus.registerAgent("agent1", agent1);
+  bus.registerAgent("agent2", agent2);
+
+  std::atomic<bool> stop{false};
+
+  // Thread 1: Continuously send messages to agent2
+  std::thread sender([&]() {
+    int counter = 0;
+    while (!stop.load()) {
+      auto msg = KeystoneMessage::create("agent1", "agent2",
+                                         "msg_" + std::to_string(counter++));
+      bus.routeMessage(msg);
+      std::this_thread::sleep_for(std::chrono::microseconds(100));
+    }
+  });
+
+  // Thread 2: Unregister and re-register agent2
+  std::thread lifecycle([&]() {
+    for (int i = 0; i < 10; ++i) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+      // Unregister
+      bus.unregisterAgent("agent2");
+
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+      // Re-register (need to create new agent with same ID)
+      auto new_agent2 = std::make_shared<CountingAgent>("agent2");
+      new_agent2->setMessageBus(&bus);
+      bus.registerAgent("agent2", new_agent2);
+      agent2 = new_agent2;  // Update reference
+    }
+  });
+
+  // Run for 1 second
+  std::this_thread::sleep_for(std::chrono::seconds(1));
+  stop.store(true);
+
+  sender.join();
+  lifecycle.join();
+
+  scheduler.shutdown();
+
+  // If we got here without crashes/use-after-free, test passes
+  SUCCEED();
+}
+
+// Test: Message routing to non-existent agent (concurrent deletion)
+TEST(MessageBusAsyncTest, MessageToDeletedAgentGraceful) {
+  WorkStealingScheduler scheduler(2);
+  scheduler.start();
+
+  MessageBus bus;
+  bus.setScheduler(&scheduler);
+
+  auto agent1 = std::make_shared<CountingAgent>("agent1");
+  auto agent2 = std::make_shared<CountingAgent>("agent2");
+
+  agent1->setMessageBus(&bus);
+  agent2->setMessageBus(&bus);
+
+  bus.registerAgent("agent1", agent1);
+  bus.registerAgent("agent2", agent2);
+
+  // Send messages to agent2
+  for (int i = 0; i < 10; ++i) {
+    auto msg = KeystoneMessage::create("agent1", "agent2", "msg_" + std::to_string(i));
+    bus.routeMessage(msg);
+  }
+
+  // Immediately unregister agent2 (messages may still be in-flight)
+  bus.unregisterAgent("agent2");
+
+  // Try to send more messages (should fail gracefully)
+  for (int i = 10; i < 20; ++i) {
+    auto msg = KeystoneMessage::create("agent1", "agent2", "msg_" + std::to_string(i));
+    bool routed = bus.routeMessage(msg);
+    // May or may not route depending on timing
+    (void)routed;
+  }
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+  scheduler.shutdown();
+
+  // No crash = success
+  SUCCEED();
 }
