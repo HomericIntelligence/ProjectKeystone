@@ -39,6 +39,7 @@ class Task {
   struct promise_type {
     std::optional<T> result;
     std::exception_ptr exception;
+    std::coroutine_handle<> continuation;  // Stores awaiting coroutine
 
     /**
      * @brief Creates the Task object from the promise
@@ -53,9 +54,32 @@ class Task {
     std::suspend_always initial_suspend() noexcept { return {}; }
 
     /**
-     * @brief Coroutine stays suspended after completion
+     * @brief Coroutine suspends after completion and resumes continuation
+     *
+     * Uses symmetric transfer to efficiently chain coroutines without
+     * consuming stack space.
      */
-    std::suspend_always final_suspend() noexcept { return {}; }
+    auto final_suspend() noexcept {
+      struct final_awaiter {
+        std::coroutine_handle<> continuation;
+
+        bool await_ready() noexcept { return false; }
+
+        std::coroutine_handle<> await_suspend(
+            [[maybe_unused]] std::coroutine_handle<promise_type> h) noexcept {
+          // If we have a continuation, resume it via symmetric transfer
+          if (continuation) {
+            return continuation;
+          }
+          // No continuation, suspend indefinitely
+          return std::noop_coroutine();
+        }
+
+        void await_resume() noexcept {}
+      };
+
+      return final_awaiter{continuation};
+    }
 
     /**
      * @brief Stores the return value
@@ -148,13 +172,22 @@ class Task {
 
   /**
    * @brief Awaitable interface - suspend and transfer control
+   *
+   * Uses symmetric transfer to chain coroutines efficiently.
+   * The awaiting coroutine is stored as continuation and resumed
+   * when this task completes via final_suspend.
+   *
+   * @param awaiting The coroutine that is awaiting this task
+   * @return Handle to the coroutine to resume next (this task's handle)
    */
-  void await_suspend([[maybe_unused]] std::coroutine_handle<> awaiting) {
-    // For now, immediately resume the awaited coroutine
-    // In a full scheduler, this would schedule the coroutine
-    if (handle_ && !handle_.done()) {
-      handle_.resume();
-    }
+  std::coroutine_handle<> await_suspend(std::coroutine_handle<> awaiting) noexcept {
+    // Store the awaiting coroutine as our continuation
+    handle_.promise().continuation = awaiting;
+
+    // Return our handle for symmetric transfer
+    // The runtime will resume this handle, which will eventually
+    // resume the continuation via final_suspend
+    return handle_;
   }
 
   /**
@@ -182,6 +215,7 @@ class Task<void> {
  public:
   struct promise_type {
     std::exception_ptr exception;
+    std::coroutine_handle<> continuation;  // Stores awaiting coroutine
 
     Task get_return_object() {
       return Task{std::coroutine_handle<promise_type>::from_promise(*this)};
@@ -189,7 +223,33 @@ class Task<void> {
 
     std::suspend_always initial_suspend() noexcept { return {}; }
 
-    std::suspend_always final_suspend() noexcept { return {}; }
+    /**
+     * @brief Coroutine suspends after completion and resumes continuation
+     *
+     * Uses symmetric transfer to efficiently chain coroutines without
+     * consuming stack space.
+     */
+    auto final_suspend() noexcept {
+      struct final_awaiter {
+        std::coroutine_handle<> continuation;
+
+        bool await_ready() noexcept { return false; }
+
+        std::coroutine_handle<> await_suspend(
+            [[maybe_unused]] std::coroutine_handle<promise_type> h) noexcept {
+          // If we have a continuation, resume it via symmetric transfer
+          if (continuation) {
+            return continuation;
+          }
+          // No continuation, suspend indefinitely
+          return std::noop_coroutine();
+        }
+
+        void await_resume() noexcept {}
+      };
+
+      return final_awaiter{continuation};
+    }
 
     void return_void() noexcept {}
 
@@ -246,10 +306,24 @@ class Task<void> {
 
   bool await_ready() const noexcept { return handle_ && handle_.done(); }
 
-  void await_suspend([[maybe_unused]] std::coroutine_handle<> awaiting) {
-    if (handle_ && !handle_.done()) {
-      handle_.resume();
-    }
+  /**
+   * @brief Awaitable interface - suspend and transfer control
+   *
+   * Uses symmetric transfer to chain coroutines efficiently.
+   * The awaiting coroutine is stored as continuation and resumed
+   * when this task completes via final_suspend.
+   *
+   * @param awaiting The coroutine that is awaiting this task
+   * @return Handle to the coroutine to resume next (this task's handle)
+   */
+  std::coroutine_handle<> await_suspend(std::coroutine_handle<> awaiting) noexcept {
+    // Store the awaiting coroutine as our continuation
+    handle_.promise().continuation = awaiting;
+
+    // Return our handle for symmetric transfer
+    // The runtime will resume this handle, which will eventually
+    // resume the continuation via final_suspend
+    return handle_;
   }
 
   void await_resume() { get(); }

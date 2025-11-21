@@ -6,9 +6,11 @@
 #include <gtest/gtest.h>
 
 #include <atomic>
+#include <functional>
 #include <iostream>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "concurrency/task.hpp"
 
@@ -361,4 +363,168 @@ TEST(TaskTest, ExceptionStoredInPromise) {
 
   // Exception should be stored and re-thrown on get()
   EXPECT_THROW({ task.get(); }, std::runtime_error);
+}
+
+// =============================================================================
+// Symmetric Transfer Tests (FIX P1: await_suspend)
+// =============================================================================
+
+// Test: Verify symmetric transfer chains coroutines properly
+TEST(TaskTest, SymmetricTransferChaining) {
+  std::vector<int> execution_order;
+
+  auto task1 = [&]() -> Task<int> {
+    execution_order.push_back(1);
+    co_return 10;
+  };
+
+  auto task2 = [&]() -> Task<int> {
+    execution_order.push_back(2);
+    int val = co_await task1();
+    execution_order.push_back(3);
+    co_return val * 2;
+  }();
+
+  EXPECT_EQ(task2.get(), 20);
+
+  // Execution order: task2 starts (2), awaits task1 (1), resumes task2 (3)
+  std::vector<int> expected = {2, 1, 3};
+  EXPECT_EQ(execution_order, expected);
+}
+
+// Test: Verify continuation is properly stored and resumed
+TEST(TaskTest, ContinuationStorageAndResumption) {
+  bool inner_executed = false;
+  bool outer_resumed = false;
+
+  auto inner = [&]() -> Task<int> {
+    inner_executed = true;
+    co_return 42;
+  };
+
+  auto outer = [&]() -> Task<int> {
+    int result = co_await inner();
+    outer_resumed = true;
+    co_return result;
+  }();
+
+  EXPECT_FALSE(inner_executed);
+  EXPECT_FALSE(outer_resumed);
+
+  int result = outer.get();
+
+  EXPECT_TRUE(inner_executed);
+  EXPECT_TRUE(outer_resumed);
+  EXPECT_EQ(result, 42);
+}
+
+// Test: Multiple levels of coroutine chaining
+TEST(TaskTest, DeepCoroutineChaining) {
+  auto level3 = []() -> Task<int> { co_return 1; };
+
+  auto level2 = [&]() -> Task<int> {
+    int val = co_await level3();
+    co_return val + 10;
+  };
+
+  auto level1 = [&]() -> Task<int> {
+    int val = co_await level2();
+    co_return val + 100;
+  }();
+
+  EXPECT_EQ(level1.get(), 111);  // 1 + 10 + 100
+}
+
+// Test: Symmetric transfer with Task<void>
+TEST(TaskTest, SymmetricTransferVoidTask) {
+  std::vector<int> execution_order;
+
+  auto voidTask = [&]() -> Task<void> {
+    execution_order.push_back(1);
+    co_return;
+  };
+
+  auto wrapper = [&]() -> Task<int> {
+    execution_order.push_back(2);
+    co_await voidTask();
+    execution_order.push_back(3);
+    co_return 42;
+  }();
+
+  EXPECT_EQ(wrapper.get(), 42);
+
+  std::vector<int> expected = {2, 1, 3};
+  EXPECT_EQ(execution_order, expected);
+}
+
+// Test: Verify no stack overflow with many chained coroutines
+TEST(TaskTest, NoStackOverflowWithManyChainedCoroutines) {
+  // Create a chain of 1000 coroutines
+  const int chain_length = 1000;
+  std::atomic<int> counter{0};
+
+  std::function<Task<int>(int)> chainedTask;
+  chainedTask = [&](int depth) -> Task<int> {
+    counter.fetch_add(1);
+    if (depth <= 0) {
+      co_return 0;
+    }
+    int result = co_await chainedTask(depth - 1);
+    co_return result + 1;
+  };
+
+  auto task = chainedTask(chain_length);
+  int result = task.get();
+
+  EXPECT_EQ(result, chain_length);
+  EXPECT_EQ(counter.load(), chain_length + 1);
+}
+
+// Test: Exception propagation through symmetric transfer
+TEST(TaskTest, ExceptionPropagationThroughSymmetricTransfer) {
+  auto throwingTask = []() -> Task<int> {
+    throw std::runtime_error("Inner exception");
+    co_return 0;
+  };
+
+  auto catchingTask = [&]() -> Task<int> {
+    int val = co_await throwingTask();
+    co_return val;  // Never reached
+  }();
+
+  EXPECT_THROW({ catchingTask.get(); }, std::runtime_error);
+}
+
+// Test: Multiple co_awaits with symmetric transfer
+TEST(TaskTest, MultipleCoAwaitsWithSymmetricTransfer) {
+  std::vector<int> execution_order;
+
+  auto task1 = [&]() -> Task<int> {
+    execution_order.push_back(1);
+    co_return 10;
+  };
+
+  auto task2 = [&]() -> Task<int> {
+    execution_order.push_back(2);
+    co_return 20;
+  };
+
+  auto task3 = [&]() -> Task<int> {
+    execution_order.push_back(3);
+    co_return 30;
+  };
+
+  auto aggregator = [&]() -> Task<int> {
+    execution_order.push_back(0);
+    int a = co_await task1();
+    int b = co_await task2();
+    int c = co_await task3();
+    co_return a + b + c;
+  }();
+
+  EXPECT_EQ(aggregator.get(), 60);
+
+  // Execution order: aggregator starts, then task1, task2, task3
+  std::vector<int> expected = {0, 1, 2, 3};
+  EXPECT_EQ(execution_order, expected);
 }
