@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <arpa/inet.h>
 #include <chrono>
 #include <netinet/in.h>
 #include <sys/socket.h>
