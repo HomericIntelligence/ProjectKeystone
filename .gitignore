@@ -84,5 +84,7 @@ Testing/
 Thumbs.db
 k8s/secrets.yaml
 build_test/
-build-native/
 notes/
+
+# CMake build directories (sanitizers, etc.)
+build-*/
