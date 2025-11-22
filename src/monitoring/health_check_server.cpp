@@ -1,6 +1,7 @@
 #include "monitoring/health_check_server.hpp"
 
 #include <netinet/in.h>
+#include <poll.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
@@ -144,10 +145,33 @@ void HealthCheckServer::setReadinessCheck(ReadinessCheck check) {
 
 void HealthCheckServer::serverLoop() {
   while (running_.load()) {
+    // Use poll() with timeout to check for incoming connections
+    // This allows periodic checking of running_ flag without blocking indefinitely
+    struct pollfd pfd;
+    pfd.fd = server_fd_;
+    pfd.events = POLLIN;
+    pfd.revents = 0;
+
+    // Poll with 100ms timeout - allows responsive shutdown
+    int poll_result = poll(&pfd, 1, 100);
+
+    if (poll_result < 0) {
+      // Poll error
+      if (running_.load()) {
+        std::cerr << "HealthCheckServer: Poll failed" << std::endl;
+      }
+      break;
+    }
+
+    if (poll_result == 0) {
+      // Timeout - no incoming connections, loop again to check running_ flag
+      continue;
+    }
+
+    // Data available - proceed with accept()
     struct sockaddr_in client_address;
     socklen_t client_len = sizeof(client_address);
 
-    // Accept connection
     int client_fd =
         accept(server_fd_, (struct sockaddr*)&client_address, &client_len);
     if (client_fd < 0) {
