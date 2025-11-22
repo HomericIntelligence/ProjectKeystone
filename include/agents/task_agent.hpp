@@ -7,7 +7,7 @@
 #include <utility>
 #include <vector>
 
-#include "agents/base_agent.hpp"
+#include "agents/async_agent.hpp"
 
 #ifdef ENABLE_GRPC
 #include "network/grpc_client.hpp"
@@ -23,7 +23,7 @@ namespace agents {
  * Executes concrete tasks including bash commands.
  * Returns results to the commanding agent.
  */
-class TaskAgent : public BaseAgent {
+class TaskAgent : public AsyncAgent {
  public:
   /**
    * @brief Construct a new Task Agent

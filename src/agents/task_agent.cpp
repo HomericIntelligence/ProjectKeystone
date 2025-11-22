@@ -38,7 +38,7 @@ static const std::unordered_set<std::string> ALLOWED_COMMANDS = {
     "bc"       // Calculator (for test arithmetic)
 };
 
-TaskAgent::TaskAgent(const std::string& agent_id) : BaseAgent(agent_id) {}
+TaskAgent::TaskAgent(const std::string& agent_id) : AsyncAgent(agent_id) {}
 
 concurrency::Task<core::Response> TaskAgent::processMessage(const core::KeystoneMessage& msg) {
   // FIX C3: Changed to async (returns Task<Response>)

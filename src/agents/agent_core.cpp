@@ -1,4 +1,4 @@
-#include "agents/agent_base.hpp"
+#include "agents/agent_core.hpp"
 
 #include <iostream>  // FIX M1: For std::cerr (backpressure logging)
 #include <stdexcept>
@@ -10,7 +10,7 @@
 namespace keystone {
 namespace agents {
 
-AgentBase::AgentBase(const std::string& agent_id) : agent_id_(agent_id) {
+AgentCore::AgentCore(const std::string& agent_id) : agent_id_(agent_id) {
   // FIX C1: Initialize time-based fairness timer (thread-safe atomic)
   // FIX P1-003: Initialize to 0 (sentinel) to skip fairness on first HIGH message
   // This ensures fairness only kicks in BETWEEN messages, not before first message
@@ -26,7 +26,7 @@ AgentBase::AgentBase(const std::string& agent_id) : agent_id_(agent_id) {
   // Phase C: Priority queues initialized by default constructors
 }
 
-void AgentBase::sendMessage(const core::KeystoneMessage& msg) {
+void AgentCore::sendMessage(const core::KeystoneMessage& msg) {
   if (!message_bus_) {
     throw std::runtime_error("Message bus not set for agent: " + agent_id_);
   }
@@ -34,7 +34,7 @@ void AgentBase::sendMessage(const core::KeystoneMessage& msg) {
   message_bus_->routeMessage(msg);
 }
 
-void AgentBase::receiveMessage(const core::KeystoneMessage& msg) {
+void AgentCore::receiveMessage(const core::KeystoneMessage& msg) {
   // FIX C4: Backpressure - check queue size limit before accepting message
   // THREAD-SAFE: Separate atomic check from side effects to prevent race
   // FIX P3-01: Note - using size_approx() for performance (lock-free)
@@ -95,7 +95,7 @@ void AgentBase::receiveMessage(const core::KeystoneMessage& msg) {
   }
 }
 
-std::optional<core::KeystoneMessage> AgentBase::getMessage() {
+std::optional<core::KeystoneMessage> AgentCore::getMessage() {
   // FIX P1-003: Time-based priority fairness to prevent LOW priority starvation
   // FIX SAFE-002: Fixed race condition with proper memory ordering
   // Issue #23: Now uses per-agent configurable interval instead of global constant
@@ -167,7 +167,7 @@ std::optional<core::KeystoneMessage> AgentBase::getMessage() {
   return std::nullopt;
 }
 
-void AgentBase::updateQueueDepthMetrics() {
+void AgentCore::updateQueueDepthMetrics() {
   // FIX: Calculate total queue depth across all priority levels
   size_t total_depth = high_priority_inbox_.size_approx() +
                        normal_priority_inbox_.size_approx() +
@@ -176,7 +176,7 @@ void AgentBase::updateQueueDepthMetrics() {
   core::Metrics::getInstance().recordQueueDepth(agent_id_, total_depth);
 }
 
-void AgentBase::setMessageBus(core::MessageBus* bus) { message_bus_ = bus; }
+void AgentCore::setMessageBus(core::MessageBus* bus) { message_bus_ = bus; }
 
 }  // namespace agents
 }  // namespace keystone

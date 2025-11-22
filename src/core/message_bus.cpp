@@ -2,7 +2,7 @@
 
 #include <stdexcept>
 
-#include "agents/agent_base.hpp"
+#include "agents/agent_core.hpp"
 #include "concurrency/work_stealing_scheduler.hpp"
 #include "core/metrics.hpp"
 
@@ -19,7 +19,7 @@ concurrency::WorkStealingScheduler* MessageBus::getScheduler() const {
   return scheduler_.load(std::memory_order_acquire);
 }
 
-void MessageBus::registerAgent(const std::string& agent_id, std::shared_ptr<agents::AgentBase> agent) {
+void MessageBus::registerAgent(const std::string& agent_id, std::shared_ptr<agents::AgentCore> agent) {
   // FIX C2: Use shared_ptr for safe lifetime management
   if (!agent) {
     throw std::invalid_argument("Cannot register null agent");
@@ -50,7 +50,7 @@ bool MessageBus::routeMessage(const KeystoneMessage& msg) {
   // before making external calls (agent->receiveMessage or scheduler->submit)
   // FIX C2: Use shared_ptr to keep agent alive during async routing
   // FIX C5: Scheduler loaded atomically (no mutex needed)
-  std::shared_ptr<agents::AgentBase> agent;
+  std::shared_ptr<agents::AgentCore> agent;
 
   {
     std::lock_guard<std::mutex> lock(registry_mutex_);
