@@ -315,8 +315,3 @@ TEST(AgentConcepts, UsageDocumentation) {
   EXPECT_TRUE(bus.hasAgent("task"));
   EXPECT_TRUE(bus.hasAgent("chief"));
 }
-
-int main(int argc, char** argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
-}

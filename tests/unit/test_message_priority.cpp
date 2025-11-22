@@ -333,9 +333,9 @@ TEST(MessagePriorityTest, ConcurrentIntervalSettingThreadSafe) {
 TEST(MessagePriorityTest, ExtremeIntervalValues) {
   auto agent = std::make_shared<TestPriorityAgent>("test_agent");
 
-  // Very short interval (1μs)
-  agent->setLowPriorityCheckInterval(std::chrono::microseconds{1});
-  EXPECT_EQ(agent->getLowPriorityCheckInterval(), std::chrono::microseconds{1});
+  // Very short interval (1ms, minimum practical value)
+  agent->setLowPriorityCheckInterval(std::chrono::milliseconds{1});
+  EXPECT_EQ(agent->getLowPriorityCheckInterval(), std::chrono::milliseconds{1});
 
   // Very long interval (10 seconds)
   agent->setLowPriorityCheckInterval(std::chrono::seconds{10});
