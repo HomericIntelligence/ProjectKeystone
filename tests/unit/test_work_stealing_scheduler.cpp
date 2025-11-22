@@ -49,8 +49,14 @@ TEST(WorkStealingSchedulerTest, SubmitFunction) {
 }
 
 // Test: Submit coroutine work items
-// DISABLED: Direct coroutine handle submission has issues - async agents use
-// function wrappers instead
+// DISABLED P2-001: Test segfaults despite using lambda wrapper pattern
+// Root cause: Coroutine handle lifetime and thread safety issue
+// - Task<void> owns the coroutine handle
+// - get_handle() returns a copy of the handle (just a pointer)
+// - Lambda captures this handle and calls resume() on worker thread
+// - Race condition: Task destruction vs handle.resume() on worker thread
+// - Even with tasks kept alive, resuming handle from worker thread is unsafe
+// TODO: Investigate proper coroutine scheduler integration (symmetric transfer?)
 TEST(WorkStealingSchedulerTest, DISABLED_SubmitCoroutine) {
   WorkStealingScheduler scheduler(2);
   scheduler.start();
