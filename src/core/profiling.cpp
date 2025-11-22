@@ -91,10 +91,9 @@ void ProfilingSession::recordDuration(const std::string& section_name,
   section.durations_us.push_back(duration_us);
 }
 
-std::optional<ProfilingSession::SectionStats> ProfilingSession::getStats(
-    const std::string& section_name) {
-  std::lock_guard<std::mutex> global_lock(getGlobalMutex());
-
+// Internal helper: Assumes global mutex already held by caller
+std::optional<ProfilingSession::SectionStats>
+ProfilingSession::getStatsUnlocked(const std::string& section_name) {
   auto& data = getSectionData();
   auto it = data.find(section_name);
   if (it == data.end()) {
@@ -137,6 +136,13 @@ std::optional<ProfilingSession::SectionStats> ProfilingSession::getStats(
   return stats;
 }
 
+// Public API: Acquires global mutex then calls getStatsUnlocked
+std::optional<ProfilingSession::SectionStats> ProfilingSession::getStats(
+    const std::string& section_name) {
+  std::lock_guard<std::mutex> global_lock(getGlobalMutex());
+  return getStatsUnlocked(section_name);
+}
+
 std::string ProfilingSession::generateReport() {
   std::lock_guard<std::mutex> global_lock(getGlobalMutex());
 
@@ -157,7 +163,7 @@ std::string ProfilingSession::generateReport() {
   oss << std::string(112, '-') << "\n";
 
   for (const auto& [section_name, section_data] : data) {
-    auto stats_opt = getStats(section_name);
+    auto stats_opt = getStatsUnlocked(section_name);
     if (!stats_opt) continue;
 
     const auto& stats = *stats_opt;
