@@ -555,6 +555,67 @@ See `k8s/prometheus-alerts.yaml` for complete list.
 
 ---
 
+## Security (Phase 6.8 M4)
+
+### Metrics Security
+
+ProjectKeystone implements comprehensive security for metrics endpoints including authentication, encryption, and access control.
+
+**Security Layers**:
+
+1. **Network Isolation**: NetworkPolicy restricts access to Prometheus pods only
+2. **Authentication**: HTTP Basic Auth with bcrypt-hashed passwords
+3. **Encryption**: TLS 1.2+ for metrics in transit
+4. **Authorization**: RBAC with principle of least privilege
+5. **Secrets Management**: Kubernetes secrets for credentials and certificates
+
+**Deploy Metrics Security**:
+
+```bash
+# Generate authentication credentials
+htpasswd -nBc auth prometheus
+
+# Generate TLS certificate (development)
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout tls.key -out tls.crt \
+  -subj "/CN=hmas-metrics.projectkeystone.svc.cluster.local"
+
+# Create secrets
+kubectl create secret generic prometheus-scrape-credentials \
+  --from-file=htpasswd=auth -n projectkeystone
+
+kubectl create secret tls metrics-tls \
+  --cert=tls.crt --key=tls.key -n projectkeystone
+
+# Deploy security configuration
+kubectl apply -f k8s/metrics-security.yaml
+
+# Restart Prometheus to pick up changes
+kubectl rollout restart deployment/prometheus -n projectkeystone
+```
+
+**Access Secured Metrics**:
+
+```bash
+# Test with credentials
+curl -k -u prometheus:PASSWORD https://hmas:9443/metrics
+
+# Expected: Prometheus metrics output
+```
+
+**Security Features**:
+
+- **TLS 1.2+ encryption** for metrics scraping
+- **Basic Auth** with bcrypt password hashing
+- **NetworkPolicy** restricts metrics port access
+- **RBAC** limits Prometheus ServiceAccount permissions
+- **PodSecurityPolicy** enforces security standards
+- **Security headers** (HSTS, X-Frame-Options, CSP)
+
+For detailed security configuration, see [METRICS_SECURITY.md](METRICS_SECURITY.md).
+
+---
+
 ## Next Steps
 
 ### Phase 6.2: Helm Chart
