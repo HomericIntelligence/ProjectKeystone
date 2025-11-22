@@ -294,6 +294,7 @@ endif()
 add_library(keystone_agents
     src/agents/agent_core.cpp
     src/agents/async_agent.cpp
+    src/agents/task_execution_strategy.cpp  # ARCH-007: Strategy pattern
     src/agents/chief_architect_agent.cpp
     src/agents/component_lead_agent.cpp
     src/agents/module_lead_agent.cpp
