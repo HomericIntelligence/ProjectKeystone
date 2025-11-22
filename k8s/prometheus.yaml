@@ -20,8 +20,7 @@ data:
       alertmanagers:
         - static_configs:
             - targets:
-              # Uncomment when Alertmanager is deployed
-              # - alertmanager:9093
+              - alertmanager:9093  # Phase 6.7 M3: Alertmanager deployed
 
     # Alert rule files
     rule_files:

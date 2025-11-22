@@ -1,0 +1,302 @@
+# Alertmanager deployment for ProjectKeystone HMAS
+# Phase 6.7 M3: Alert routing, grouping, and notification management
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+  namespace: projectkeystone
+  labels:
+    app: alertmanager
+data:
+  alertmanager.yml: |
+    # Global configuration
+    global:
+      # Resolve timeout - how long to wait before marking alert as resolved
+      resolve_timeout: 5m
+
+      # Slack configuration (uncomment and configure when ready)
+      # slack_api_url: 'https://hooks.slack.com/services/YOUR/WEBHOOK/URL'
+
+      # PagerDuty configuration (uncomment and configure when ready)
+      # pagerduty_url: 'https://events.pagerduty.com/v2/enqueue'
+
+    # Templates for notification formatting
+    templates:
+      - '/etc/alertmanager/templates/*.tmpl'
+
+    # Route tree - defines how alerts are routed to receivers
+    route:
+      # Default receiver for all alerts
+      receiver: 'default'
+
+      # Group alerts by these labels to reduce notification noise
+      group_by: ['alertname', 'cluster', 'service', 'severity']
+
+      # Wait time before sending notification for new alert group
+      group_wait: 30s
+
+      # Wait time before sending notification about new alerts in existing group
+      group_interval: 5m
+
+      # Minimum time between notifications for same alert group
+      repeat_interval: 4h
+
+      # Sub-routes for specific alert types
+      routes:
+        # Critical alerts - immediate notification
+        - match:
+            severity: critical
+          receiver: 'critical-alerts'
+          group_wait: 10s
+          group_interval: 1m
+          repeat_interval: 1h
+          continue: true  # Also send to default receiver
+
+        # Warning alerts - less urgent
+        - match:
+            severity: warning
+          receiver: 'warning-alerts'
+          group_wait: 30s
+          group_interval: 5m
+          repeat_interval: 6h
+
+        # SLO/SLA violations - send to dedicated channel
+        - match:
+            component: slo
+          receiver: 'slo-alerts'
+          group_wait: 1m
+          group_interval: 5m
+          repeat_interval: 12h
+
+        # Infrastructure alerts
+        - match:
+            component: infrastructure
+          receiver: 'infrastructure-alerts'
+          group_wait: 30s
+          group_interval: 5m
+          repeat_interval: 6h
+
+        # Monitoring stack alerts
+        - match:
+            component: monitoring
+          receiver: 'monitoring-alerts'
+          group_wait: 1m
+          group_interval: 5m
+          repeat_interval: 6h
+
+    # Inhibition rules - suppress certain alerts when others are firing
+    inhibit_rules:
+      # Suppress warning alerts if critical alert for same instance is firing
+      - source_match:
+          severity: 'critical'
+        target_match:
+          severity: 'warning'
+        equal: ['alertname', 'instance', 'cluster']
+
+      # Suppress pod alerts if node is down
+      - source_match:
+          alertname: 'NodeDown'
+        target_match_re:
+          alertname: '^(Pod|Container).*'
+        equal: ['node']
+
+      # Suppress SLO alerts if HMAS pods are down
+      - source_match:
+          alertname: 'HMASPodsDown'
+        target_match:
+          component: 'slo'
+        equal: ['instance']
+
+    # Receivers - define notification endpoints
+    receivers:
+      # Default receiver - logs only (for development)
+      - name: 'default'
+        # No notification channels configured - alerts will be visible in Alertmanager UI
+
+      # Critical alerts receiver
+      - name: 'critical-alerts'
+        # Uncomment and configure when ready:
+        # slack_configs:
+        #   - channel: '#projectkeystone-critical'
+        #     title: 'CRITICAL: {{ .GroupLabels.alertname }}'
+        #     text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+        #     send_resolved: true
+        #
+        # pagerduty_configs:
+        #   - service_key: 'YOUR_PAGERDUTY_SERVICE_KEY'
+        #     description: '{{ .GroupLabels.alertname }}: {{ .GroupLabels.instance }}'
+
+      # Warning alerts receiver
+      - name: 'warning-alerts'
+        # Uncomment and configure when ready:
+        # slack_configs:
+        #   - channel: '#projectkeystone-warnings'
+        #     title: 'WARNING: {{ .GroupLabels.alertname }}'
+        #     text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+        #     send_resolved: true
+
+      # SLO/SLA alerts receiver
+      - name: 'slo-alerts'
+        # Uncomment and configure when ready:
+        # slack_configs:
+        #   - channel: '#projectkeystone-slo'
+        #     title: 'SLO Violation: {{ .GroupLabels.alertname }}'
+        #     text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+        #     send_resolved: true
+
+      # Infrastructure alerts receiver
+      - name: 'infrastructure-alerts'
+        # Uncomment and configure when ready:
+        # slack_configs:
+        #   - channel: '#projectkeystone-infra'
+        #     title: 'Infrastructure Alert: {{ .GroupLabels.alertname }}'
+        #     text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+        #     send_resolved: true
+
+      # Monitoring stack alerts receiver
+      - name: 'monitoring-alerts'
+        # Uncomment and configure when ready:
+        # slack_configs:
+        #   - channel: '#projectkeystone-monitoring'
+        #     title: 'Monitoring Alert: {{ .GroupLabels.alertname }}'
+        #     text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+        #     send_resolved: true
+
+---
+# ConfigMap for Alertmanager notification templates
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-templates
+  namespace: projectkeystone
+  labels:
+    app: alertmanager
+data:
+  default.tmpl: |
+    {{ define "slack.default.title" }}
+    [{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] {{ .GroupLabels.alertname }}
+    {{ end }}
+
+    {{ define "slack.default.text" }}
+    {{ range .Alerts }}
+    *Alert:* {{ .Labels.alertname }} - {{ .Labels.severity }}
+    *Description:* {{ .Annotations.description }}
+    *Summary:* {{ .Annotations.summary }}
+    {{ if .Annotations.runbook_url }}*Runbook:* {{ .Annotations.runbook_url }}{{ end }}
+    *Details:*
+      {{ range .Labels.SortedPairs }} • *{{ .Name }}:* `{{ .Value }}`
+      {{ end }}
+    {{ end }}
+    {{ end }}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alertmanager
+  namespace: projectkeystone
+  labels:
+    app: alertmanager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alertmanager
+  template:
+    metadata:
+      labels:
+        app: alertmanager
+    spec:
+      containers:
+        - name: alertmanager
+          image: prom/alertmanager:v0.26.0
+          args:
+            - '--config.file=/etc/alertmanager/alertmanager.yml'
+            - '--storage.path=/alertmanager'
+            - '--web.external-url=http://alertmanager:9093'
+            - '--cluster.advertise-address=0.0.0.0:9094'
+          ports:
+            - name: web
+              containerPort: 9093
+              protocol: TCP
+            - name: cluster
+              containerPort: 9094
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          volumeMounts:
+            - name: config
+              mountPath: /etc/alertmanager
+            - name: templates
+              mountPath: /etc/alertmanager/templates
+            - name: storage
+              mountPath: /alertmanager
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: web
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: web
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: config
+          configMap:
+            name: alertmanager-config
+        - name: templates
+          configMap:
+            name: alertmanager-templates
+        - name: storage
+          persistentVolumeClaim:
+            claimName: alertmanager-data
+
+---
+# PersistentVolumeClaim for Alertmanager storage
+# Stores notification state and silences across pod restarts
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: alertmanager-data
+  namespace: projectkeystone
+  labels:
+    app: alertmanager
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+      # storageClassName: standard  # Uncomment and set appropriate storage class
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager
+  namespace: projectkeystone
+  labels:
+    app: alertmanager
+spec:
+  type: ClusterIP
+  selector:
+    app: alertmanager
+  ports:
+    - name: web
+      port: 9093
+      targetPort: web
+      protocol: TCP
+    - name: cluster
+      port: 9094
+      targetPort: cluster
+      protocol: TCP
