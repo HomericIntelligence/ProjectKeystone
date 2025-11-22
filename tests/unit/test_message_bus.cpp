@@ -221,8 +221,3 @@ TEST(MessageBus, BidirectionalMessageFlow) {
   EXPECT_EQ(received2->sender_id, "task");
   EXPECT_EQ(received2->payload.value_or(""), "result");
 }
-
-int main(int argc, char** argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
-}
