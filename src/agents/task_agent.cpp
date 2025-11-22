@@ -96,51 +96,66 @@ concurrency::Task<core::Response> TaskAgent::processMessage(const core::Keystone
 }
 
 void TaskAgent::validateCommand(const std::string& command) {
-  // FIX P1-03: Security validation to prevent command injection attacks
+  // FIX P0-001: Security validation with pattern matching for safe operations
+  // Strategy: Whitelist specific safe patterns, reject everything else
 
   // 1. Check for empty command
   if (command.empty()) {
     throw std::runtime_error("Command cannot be empty");
   }
 
-  // 2. Check for dangerous shell metacharacters that enable command chaining/injection
-  // These characters allow attackers to execute additional commands
-  const std::string dangerous_chars = ";|&$`<>(){}[]!";
-  if (command.find_first_of(dangerous_chars) != std::string::npos) {
-    throw std::runtime_error(
-        "Command contains disallowed shell metacharacters. "
-        "Forbidden characters: " + dangerous_chars);
+  // 2. PATTERN MATCHING: Allow specific safe command patterns
+
+  // Pattern 1: Shell arithmetic - echo $((arithmetic expression))
+  // Regex: ^echo \$\(\([-+*/0-9 ()]+\)\)$
+  // Allows: echo $((5 + 3)), echo $((91 + 13)), echo $((10 * (5 + 2)))
+  std::regex arithmetic_pattern(R"(^echo \$\(\([-+*/0-9 ()]+\)\)$)");
+  if (std::regex_match(command, arithmetic_pattern)) {
+    // Validate arithmetic expression doesn't contain command substitution
+    // The regex already ensures only digits, operators, spaces, and parens
+    return;  // SAFE: Arithmetic operation
   }
 
-  // 3. Check for command substitution attempts
-  if (command.find("$(") != std::string::npos ||
-      command.find("`") != std::string::npos) {
-    throw std::runtime_error("Command substitution not allowed");
+  // Pattern 2: Simple echo with safe characters (alphanumeric, spaces, basic punctuation)
+  // Regex: ^echo [-a-zA-Z0-9 .,!?'"]+$
+  std::regex simple_echo_pattern(R"(^echo [-a-zA-Z0-9 .,!?'"]+$)");
+  if (std::regex_match(command, simple_echo_pattern)) {
+    return;  // SAFE: Simple text echo
   }
 
-  // 4. Extract the base command (first token)
+  // Pattern 3: Whitelisted commands with no arguments
   std::istringstream iss(command);
   std::string base_command;
   iss >> base_command;
 
-  // 5. Validate against whitelist
-  if (ALLOWED_COMMANDS.find(base_command) == ALLOWED_COMMANDS.end()) {
-    std::stringstream ss;
-    ss << "Command not in whitelist: '" << base_command << "'. ";
-    ss << "Allowed commands: ";
-    bool first = true;
-    for (const auto& cmd : ALLOWED_COMMANDS) {
-      if (!first) ss << ", ";
-      ss << cmd;
-      first = false;
+  // Check if it's a standalone whitelisted command (no dangerous args)
+  if (ALLOWED_COMMANDS.find(base_command) != ALLOWED_COMMANDS.end()) {
+    // For whitelisted commands, check for dangerous characters in arguments
+    std::string args = command.substr(base_command.length());
+
+    // Allow whitelisted command with safe arguments
+    const std::string very_dangerous = ";|&`$<>!{}[]";  // Command injection chars
+    if (args.find_first_of(very_dangerous) == std::string::npos &&
+        args.find("..") == std::string::npos) {  // No directory traversal
+      return;  // SAFE: Whitelisted command with safe arguments
     }
-    throw std::runtime_error(ss.str());
   }
 
-  // 6. Additional validation: prevent directory traversal in arguments
-  if (command.find("..") != std::string::npos) {
-    throw std::runtime_error("Directory traversal (..) not allowed in command arguments");
+  // 3. DEFAULT: REJECT - Command doesn't match any safe pattern
+  std::stringstream ss;
+  ss << "Command does not match any allowed patterns.\n";
+  ss << "Allowed patterns:\n";
+  ss << "  1. Arithmetic: echo $((expression))\n";
+  ss << "  2. Simple echo: echo <text>\n";
+  ss << "  3. Whitelisted commands: ";
+  bool first = true;
+  for (const auto& cmd : ALLOWED_COMMANDS) {
+    if (!first) ss << ", ";
+    ss << cmd;
+    first = false;
   }
+  ss << "\nYour command: " << command;
+  throw std::runtime_error(ss.str());
 }
 
 std::string TaskAgent::executeBash(const std::string& command) {

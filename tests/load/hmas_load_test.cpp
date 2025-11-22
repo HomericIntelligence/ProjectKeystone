@@ -23,6 +23,8 @@
 #include <iomanip>
 #include <iostream>
 #include <memory>
+#include <mutex>
+#include <queue>
 #include <random>
 #include <thread>
 #include <vector>
@@ -226,14 +228,14 @@ class LoadTestHarness {
     // Create Chief Architect (L0)
     chief_ = std::make_shared<agents::ChiefArchitectAgent>("chief_architect");
     chief_->setMessageBus(message_bus_.get());
-    message_bus_->registerAgent(chief_->getAgentId(), chief_.get());
+    message_bus_->registerAgent(chief_->getAgentId(), chief_);
 
     // Create Component Leads (L1)
     for (int i = 0; i < config_.num_component_leads; ++i) {
       auto comp = std::make_shared<agents::ComponentLeadAgent>(
           "component_lead_" + std::to_string(i));
       comp->setMessageBus(message_bus_.get());
-      message_bus_->registerAgent(comp->getAgentId(), comp.get());
+      message_bus_->registerAgent(comp->getAgentId(), comp);
       component_leads_.push_back(comp);
     }
 
@@ -242,7 +244,7 @@ class LoadTestHarness {
       auto mod = std::make_shared<agents::ModuleLeadAgent>(
           "module_lead_" + std::to_string(i));
       mod->setMessageBus(message_bus_.get());
-      message_bus_->registerAgent(mod->getAgentId(), mod.get());
+      message_bus_->registerAgent(mod->getAgentId(), mod);
       module_leads_.push_back(mod);
 
       // Distribute module leads to component leads
@@ -259,7 +261,7 @@ class LoadTestHarness {
       auto task = std::make_shared<agents::TaskAgent>(
           "task_agent_" + std::to_string(i));
       task->setMessageBus(message_bus_.get());
-      message_bus_->registerAgent(task->getAgentId(), task.get());
+      message_bus_->registerAgent(task->getAgentId(), task);
       task_agents_.push_back(task);
 
       // Distribute task agents to module leads
