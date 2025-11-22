@@ -117,6 +117,10 @@ class ProfilingSession {
 
   static std::map<std::string, SectionData>& getSectionData();
   static std::mutex& getGlobalMutex();
+
+  // Internal version that assumes global mutex already held
+  static std::optional<SectionStats> getStatsUnlocked(
+      const std::string& section_name);
 };
 
 }  // namespace core
