@@ -456,6 +456,11 @@ target_link_libraries(distributed_benchmarks keystone_simulation
 # These had compilation errors and were never enabled. If needed in the future, they should be
 # implemented from scratch with the current API (shared_ptr, async agents).
 
+# Phase 6.7 M1: Load testing for production readiness
+add_executable(hmas_load_test tests/load/hmas_load_test.cpp)
+target_link_libraries(hmas_load_test keystone_agents keystone_core
+                      keystone_concurrency)
+
 # Phase 9.2: Fuzz testing targets (requires -DENABLE_FUZZING=ON
 # -DCMAKE_CXX_COMPILER=clang++)
 if(ENABLE_FUZZING)
