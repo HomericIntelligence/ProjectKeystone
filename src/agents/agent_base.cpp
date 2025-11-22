@@ -97,18 +97,21 @@ void AgentBase::receiveMessage(const core::KeystoneMessage& msg) {
 
 std::optional<core::KeystoneMessage> AgentBase::getMessage() {
   // FIX P1-003: Time-based priority fairness to prevent LOW priority starvation
+  // FIX SAFE-002: Fixed race condition with proper memory ordering
   // Issue #23: Now uses per-agent configurable interval instead of global constant
   // Strategy: Track HIGH messages processed; every interval_ns of HIGH processing,
   // force-check NORMAL/LOW queues to ensure fairness
-  // THREAD-SAFE: Uses atomic for last_low_priority_check_ns_ and interval
+  // THREAD-SAFE: Uses acquire/release memory ordering for synchronization
 
   core::KeystoneMessage msg;
   auto now = std::chrono::steady_clock::now();
   auto now_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();
 
-  // Load last check time and interval (atomic, thread-safe)
-  int64_t last_check_ns = last_low_priority_check_ns_.load(std::memory_order_relaxed);
-  int64_t interval_ns = low_priority_check_interval_ns_.load(std::memory_order_relaxed);
+  // FIX SAFE-002: Use acquire ordering to ensure visibility of writes from other threads
+  // Old: memory_order_relaxed (no synchronization guarantee)
+  // New: memory_order_acquire (ensures writes from setLowPriorityCheckInterval are visible)
+  int64_t last_check_ns = last_low_priority_check_ns_.load(std::memory_order_acquire);
+  int64_t interval_ns = low_priority_check_interval_ns_.load(std::memory_order_acquire);
 
   // Try standard priority order first: HIGH -> NORMAL -> LOW
   if (high_priority_inbox_.try_dequeue(msg)) {
@@ -117,42 +120,46 @@ std::optional<core::KeystoneMessage> AgentBase::getMessage() {
     // Skip fairness check if last_check_ns == 0 (no HIGH messages processed yet)
     if (last_check_ns != 0 && now_ns - last_check_ns >= interval_ns) {
       // Fairness interval elapsed while processing HIGH messages
-      // Put this HIGH message back and process one NORMAL/LOW instead
-      high_priority_inbox_.enqueue(msg);
+      // Try to get NORMAL/LOW message to process instead
+      core::KeystoneMessage fairness_msg;
 
       // Try NORMAL first (priority over LOW during fairness)
-      if (normal_priority_inbox_.try_dequeue(msg)) {
-        last_low_priority_check_ns_.store(now_ns, std::memory_order_relaxed);
+      if (normal_priority_inbox_.try_dequeue(fairness_msg)) {
+        // Got NORMAL message - put HIGH back and return NORMAL
+        high_priority_inbox_.enqueue(msg);
+        last_low_priority_check_ns_.store(now_ns, std::memory_order_release);
         updateQueueDepthMetrics();
-        return msg;
+        return fairness_msg;
       }
 
       // Then try LOW
-      if (low_priority_inbox_.try_dequeue(msg)) {
-        last_low_priority_check_ns_.store(now_ns, std::memory_order_relaxed);
+      if (low_priority_inbox_.try_dequeue(fairness_msg)) {
+        // Got LOW message - put HIGH back and return LOW
+        high_priority_inbox_.enqueue(msg);
+        last_low_priority_check_ns_.store(now_ns, std::memory_order_release);
         updateQueueDepthMetrics();
-        return msg;
+        return fairness_msg;
       }
 
-      // No NORMAL/LOW available, take back the HIGH message
-      high_priority_inbox_.try_dequeue(msg);
+      // FIX SAFE-002: No NORMAL/LOW available - keep the HIGH message we already have
+      // Don't re-enqueue and re-dequeue (racy pattern), just fall through
     }
 
     // Reset fairness timer when processing HIGH message
-    // This tracks time spent processing HIGH messages continuously
-    last_low_priority_check_ns_.store(now_ns, std::memory_order_relaxed);
+    // FIX SAFE-002: Use release ordering to ensure this write is visible to other threads
+    last_low_priority_check_ns_.store(now_ns, std::memory_order_release);
     updateQueueDepthMetrics();
     return msg;
   }
 
   if (normal_priority_inbox_.try_dequeue(msg)) {
-    last_low_priority_check_ns_.store(now_ns, std::memory_order_relaxed);
+    last_low_priority_check_ns_.store(now_ns, std::memory_order_release);
     updateQueueDepthMetrics();
     return msg;
   }
 
   if (low_priority_inbox_.try_dequeue(msg)) {
-    last_low_priority_check_ns_.store(now_ns, std::memory_order_relaxed);
+    last_low_priority_check_ns_.store(now_ns, std::memory_order_release);
     updateQueueDepthMetrics();
     return msg;
   }

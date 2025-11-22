@@ -4,6 +4,7 @@
 #include <map>
 #include <mutex>
 #include <optional>
+#include <shared_mutex>
 #include <string>
 #include <vector>
 
@@ -116,9 +117,9 @@ class ProfilingSession {
   };
 
   static std::map<std::string, SectionData>& getSectionData();
-  static std::mutex& getGlobalMutex();
+  static std::shared_mutex& getGlobalMutex();
 
-  // Internal version that assumes global mutex already held
+  // Internal version that assumes global mutex already held (shared or unique)
   static std::optional<SectionStats> getStatsUnlocked(
       const std::string& section_name);
 };
