@@ -486,6 +486,75 @@ kubectl rollout status deployment/hmas -n projectkeystone
 
 ---
 
+## Monitoring Stack (Phase 6.7 M3)
+
+### Prometheus and Alertmanager
+
+The monitoring stack includes Prometheus for metrics collection and Alertmanager for alert management.
+
+**Deploy Monitoring Stack**:
+
+```bash
+# Deploy Prometheus and alert rules
+kubectl apply -f k8s/prometheus.yaml
+kubectl apply -f k8s/prometheus-alerts.yaml
+
+# Deploy Alertmanager
+kubectl apply -f k8s/alertmanager.yaml
+
+# Verify deployments
+kubectl get pods -n projectkeystone | grep -E 'prometheus|alertmanager'
+```
+
+**Access Prometheus**:
+
+```bash
+# Port-forward Prometheus UI
+kubectl port-forward -n projectkeystone svc/prometheus 9090:9090
+
+# Access UI: http://localhost:9090
+# View alerts: http://localhost:9090/alerts
+# View targets: http://localhost:9090/targets
+```
+
+**Access Alertmanager**:
+
+```bash
+# Port-forward Alertmanager UI
+kubectl port-forward -n projectkeystone svc/alertmanager 9093:9093
+
+# Access UI: http://localhost:9093
+# View active alerts: http://localhost:9093/#/alerts
+# View silences: http://localhost:9093/#/silences
+```
+
+**Alert Configuration**:
+
+Alertmanager is configured with routing for:
+- **Critical alerts** - Grouped and sent every 1 hour
+- **Warning alerts** - Grouped and sent every 6 hours
+- **SLO violations** - Dedicated channel for SLA tracking
+- **Infrastructure alerts** - Pod/node issues
+- **Monitoring alerts** - Stack health
+
+To configure notification channels (Slack, PagerDuty), edit `k8s/alertmanager.yaml` and update the receiver configurations.
+
+**Available Alert Rules**:
+
+- `HMASPodsDown` - Critical: Pod down for >1 minute
+- `HighErrorRate` - Critical: Deadline miss rate >10/sec
+- `HighMessageLatency` - Warning: Latency >5ms
+- `HighQueueDepth` - Warning: Queue >1000 messages
+- `CriticalWorkerUtilization` - Critical: >95% utilization
+- `PodRestartLoop` - Warning: Frequent restarts
+- `PodOOMKilled` - Critical: Out of memory
+- `SLOAvailabilityViolation` - Critical: <99.9% uptime
+- `PrometheusDown` - Critical: Monitoring stack down
+
+See `k8s/prometheus-alerts.yaml` for complete list.
+
+---
+
 ## Next Steps
 
 ### Phase 6.2: Helm Chart
