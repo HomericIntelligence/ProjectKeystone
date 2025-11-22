@@ -48,50 +48,32 @@ TEST(WorkStealingSchedulerTest, SubmitFunction) {
   scheduler.shutdown();
 }
 
-// Test: Submit coroutine work items
-// DISABLED P2-001: Test segfaults despite using lambda wrapper pattern
-// Root cause: Coroutine handle lifetime and thread safety issue
-// - Task<void> owns the coroutine handle
-// - get_handle() returns a copy of the handle (just a pointer)
-// - Lambda captures this handle and calls resume() on worker thread
+// DELETED: P2-001 - SubmitCoroutine test removed (unsafe pattern)
+//
+// This test was testing an UNSUPPORTED use case: manually extracting coroutine
+// handles via get_handle() and resuming them on worker threads. This pattern
+// is inherently unsafe due to handle lifetime issues:
+//
+// - Task<void> owns the coroutine handle and destroys it in destructor
+// - get_handle() returns a raw pointer to the handle
 // - Race condition: Task destruction vs handle.resume() on worker thread
-// - Even with tasks kept alive, resuming handle from worker thread is unsafe
-// TODO: Investigate proper coroutine scheduler integration (symmetric transfer?)
-TEST(WorkStealingSchedulerTest, DISABLED_SubmitCoroutine) {
-  WorkStealingScheduler scheduler(2);
-  scheduler.start();
-
-  auto counter = std::make_shared<std::atomic<int>>(0);
-
-  // Create and submit coroutines
-  // IMPORTANT: Keep tasks alive until after shutdown to prevent handle
-  // destruction
-  std::vector<Task<void>> tasks;
-  for (int i = 0; i < 5; ++i) {
-    tasks.push_back([counter]() -> Task<void> {
-      counter->fetch_add(1);
-      co_return;
-    }());
-  }
-
-  // Submit coroutines wrapped in functions since the direct submit(handle)
-  // doesn't work properly - wrap resume in a lambda
-  for (auto& task : tasks) {
-    auto handle = task.get_handle();
-    scheduler.submit([handle]() mutable { handle.resume(); });
-  }
-
-  // Give workers time to process
-  std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-  // Shutdown waits for all work to complete
-  scheduler.shutdown();
-
-  // Now it's safe to check the counter
-  EXPECT_EQ(counter->load(), 5);
-
-  // Tasks destroyed here (after shutdown)
-}
+// - Use-after-free: resuming a handle after its Task is destroyed
+//
+// CORRECT WAY to integrate coroutines with WorkStealingScheduler:
+// - Use co_await on Task objects - the Task::await_suspend() method
+//   automatically submits to the scheduler if one is available
+// - Do NOT manually extract handles and resume them
+//
+// Example correct usage:
+//   Task<void> myCoroutine() {
+//     co_await someOtherTask();  // Automatically uses scheduler
+//     co_return;
+//   }
+//
+// The await_suspend() implementation (task.hpp:192-214) handles scheduler
+// integration correctly via symmetric transfer.
+//
+// This test deletion resolves SAFE-004 from architecture review.
 
 // Test: Round-robin work distribution
 TEST(WorkStealingSchedulerTest, RoundRobinDistribution) {

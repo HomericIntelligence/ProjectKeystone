@@ -11,22 +11,15 @@
 
 using namespace keystone::monitoring;
 
-// DISABLED: P1-001 - HealthCheckServer tests hang indefinitely
-// Issue: Tests hang during execution, likely due to blocking accept() not being
-// properly interrupted by close() on this platform. The serverLoop() blocks in
-// accept() waiting for connections, and closing the socket may not reliably
-// unblock it across all platforms.
+// FIXED: P1-001 - HealthCheckServer tests previously hung indefinitely
+// Issue: Tests hung during execution due to blocking accept() not being
+// properly interrupted by close() on this platform.
 //
-// Potential fixes:
-// 1. Use shutdown() before close() to interrupt accept()
-// 2. Use select()/poll() with timeout instead of blocking accept()
-// 3. Use SO_RCVTIMEO to make accept() non-blocking
-// 4. Send a dummy connection to unblock accept() before stopping
+// Resolution: Implemented poll() with 100ms timeout in serverLoop() instead
+// of blocking accept(). This allows periodic checking of running_ flag and
+// enables clean shutdown without hanging. All 11 tests now enabled.
 //
-// Since HealthCheckServer is a monitoring feature (not core HMAS), disabling
-// these tests doesn't block main functionality. All 11 tests are disabled.
-//
-// TODO: Investigate proper socket shutdown for reliable test execution
+// Fix location: src/monitoring/health_check_server.cpp:146-206
 class HealthCheckServerTest : public ::testing::Test {
  protected:
   void SetUp() override {
@@ -121,7 +114,7 @@ class HealthCheckServerTest : public ::testing::Test {
 /**
  * @brief Test server start and stop
  */
-TEST_F(HealthCheckServerTest, DISABLED_StartStop) {
+TEST_F(HealthCheckServerTest, StartStop) {
   server_ = std::make_unique<HealthCheckServer>(port_);
 
   EXPECT_FALSE(server_->isRunning());
@@ -149,7 +142,7 @@ TEST_F(HealthCheckServerTest, DISABLED_StartStop) {
 /**
  * @brief Test liveness endpoint (/healthz)
  */
-TEST_F(HealthCheckServerTest, DISABLED_LivenessEndpoint) {
+TEST_F(HealthCheckServerTest, LivenessEndpoint) {
   server_ = std::make_unique<HealthCheckServer>(port_);
   ASSERT_TRUE(server_->start());
 
@@ -173,7 +166,7 @@ TEST_F(HealthCheckServerTest, DISABLED_LivenessEndpoint) {
 /**
  * @brief Test readiness endpoint (/ready) - always ready (default)
  */
-TEST_F(HealthCheckServerTest, DISABLED_ReadinessEndpointDefaultReady) {
+TEST_F(HealthCheckServerTest, ReadinessEndpointDefaultReady) {
   server_ = std::make_unique<HealthCheckServer>(port_);
   ASSERT_TRUE(server_->start());
 
@@ -197,7 +190,7 @@ TEST_F(HealthCheckServerTest, DISABLED_ReadinessEndpointDefaultReady) {
 /**
  * @brief Test readiness endpoint with custom check (ready)
  */
-TEST_F(HealthCheckServerTest, DISABLED_ReadinessEndpointCustomReady) {
+TEST_F(HealthCheckServerTest, ReadinessEndpointCustomReady) {
   bool is_ready = true;
   auto readiness_check = [&is_ready]() { return is_ready; };
 
@@ -220,7 +213,7 @@ TEST_F(HealthCheckServerTest, DISABLED_ReadinessEndpointCustomReady) {
 /**
  * @brief Test readiness endpoint with custom check (not ready)
  */
-TEST_F(HealthCheckServerTest, DISABLED_ReadinessEndpointCustomNotReady) {
+TEST_F(HealthCheckServerTest, ReadinessEndpointCustomNotReady) {
   bool is_ready = false;
   auto readiness_check = [&is_ready]() { return is_ready; };
 
@@ -243,7 +236,7 @@ TEST_F(HealthCheckServerTest, DISABLED_ReadinessEndpointCustomNotReady) {
 /**
  * @brief Test readiness state transition
  */
-TEST_F(HealthCheckServerTest, DISABLED_ReadinessStateTransition) {
+TEST_F(HealthCheckServerTest, ReadinessStateTransition) {
   bool is_ready = false;
   auto readiness_check = [&is_ready]() { return is_ready; };
 
@@ -274,7 +267,7 @@ TEST_F(HealthCheckServerTest, DISABLED_ReadinessStateTransition) {
 /**
  * @brief Test setReadinessCheck() method
  */
-TEST_F(HealthCheckServerTest, DISABLED_SetReadinessCheck) {
+TEST_F(HealthCheckServerTest, SetReadinessCheck) {
   server_ = std::make_unique<HealthCheckServer>(port_);
   ASSERT_TRUE(server_->start());
 
@@ -303,7 +296,7 @@ TEST_F(HealthCheckServerTest, DISABLED_SetReadinessCheck) {
 /**
  * @brief Test invalid endpoint (404)
  */
-TEST_F(HealthCheckServerTest, DISABLED_InvalidEndpoint) {
+TEST_F(HealthCheckServerTest, InvalidEndpoint) {
   server_ = std::make_unique<HealthCheckServer>(port_);
   ASSERT_TRUE(server_->start());
 
@@ -322,7 +315,7 @@ TEST_F(HealthCheckServerTest, DISABLED_InvalidEndpoint) {
 /**
  * @brief Test POST method (405 Method Not Allowed)
  */
-TEST_F(HealthCheckServerTest, DISABLED_InvalidMethod) {
+TEST_F(HealthCheckServerTest, InvalidMethod) {
   server_ = std::make_unique<HealthCheckServer>(port_);
   ASSERT_TRUE(server_->start());
 
@@ -361,7 +354,7 @@ TEST_F(HealthCheckServerTest, DISABLED_InvalidMethod) {
 /**
  * @brief Test concurrent requests
  */
-TEST_F(HealthCheckServerTest, DISABLED_ConcurrentRequests) {
+TEST_F(HealthCheckServerTest, ConcurrentRequests) {
   server_ = std::make_unique<HealthCheckServer>(port_);
   ASSERT_TRUE(server_->start());
 
@@ -394,7 +387,7 @@ TEST_F(HealthCheckServerTest, DISABLED_ConcurrentRequests) {
 /**
  * @brief Test server restart
  */
-TEST_F(HealthCheckServerTest, DISABLED_ServerRestart) {
+TEST_F(HealthCheckServerTest, ServerRestart) {
   server_ = std::make_unique<HealthCheckServer>(port_);
 
   // Start

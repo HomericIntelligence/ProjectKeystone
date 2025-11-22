@@ -221,8 +221,43 @@ class Task {
   /**
    * @brief Get the underlying coroutine handle
    *
-   * WARNING: Use with caution. The handle is managed by this Task object.
-   * Do not call destroy() on the returned handle.
+   * ⚠️  DANGER: EXPERT-ONLY API - HIGH RISK OF USE-AFTER-FREE ⚠️
+   *
+   * This method exposes the raw coroutine handle, which is EXTREMELY UNSAFE:
+   *
+   * SAFETY VIOLATIONS:
+   * 1. Task owns the handle and destroys it in ~Task()
+   * 2. Returned handle is just a pointer - no ownership transfer
+   * 3. If Task is destroyed/moved, handle becomes DANGLING
+   * 4. Calling resume() on a dangling handle = UNDEFINED BEHAVIOR (segfault)
+   * 5. No thread-safety - concurrent resume() from multiple threads = DATA RACE
+   *
+   * PROHIBITED USE CASES:
+   * ❌ DO NOT extract handle and submit to WorkStealingScheduler manually
+   * ❌ DO NOT store the handle beyond Task lifetime
+   * ❌ DO NOT call resume() from worker threads
+   * ❌ DO NOT call destroy() on the returned handle (Task owns it)
+   *
+   * CORRECT WAY to schedule coroutines:
+   * ✅ Use co_await - Task::await_suspend() integrates with scheduler automatically
+   * ✅ Let Task manage handle lifetime
+   * ✅ Use symmetric transfer for efficient coroutine chaining
+   *
+   * Example WRONG usage (causes use-after-free):
+   *   Task<void> task = myCoroutine();
+   *   auto h = task.get_handle();
+   *   scheduler.submit([h]() { h.resume(); });  // ❌ CRASH - race with ~Task()
+   *
+   * Example CORRECT usage:
+   *   Task<void> myCoroutine() {
+   *     co_await otherTask();  // ✅ Scheduler integration automatic
+   *     co_return;
+   *   }
+   *
+   * This API exists only for low-level debugging and introspection.
+   * If you think you need this, you probably don't.
+   *
+   * @return Raw coroutine handle (DANGEROUS - see warnings above)
    */
   std::coroutine_handle<> get_handle() const { return handle_; }
 
@@ -374,8 +409,43 @@ class Task<void> {
   /**
    * @brief Get the underlying coroutine handle
    *
-   * WARNING: Use with caution. The handle is managed by this Task object.
-   * Do not call destroy() on the returned handle.
+   * ⚠️  DANGER: EXPERT-ONLY API - HIGH RISK OF USE-AFTER-FREE ⚠️
+   *
+   * This method exposes the raw coroutine handle, which is EXTREMELY UNSAFE:
+   *
+   * SAFETY VIOLATIONS:
+   * 1. Task owns the handle and destroys it in ~Task()
+   * 2. Returned handle is just a pointer - no ownership transfer
+   * 3. If Task is destroyed/moved, handle becomes DANGLING
+   * 4. Calling resume() on a dangling handle = UNDEFINED BEHAVIOR (segfault)
+   * 5. No thread-safety - concurrent resume() from multiple threads = DATA RACE
+   *
+   * PROHIBITED USE CASES:
+   * ❌ DO NOT extract handle and submit to WorkStealingScheduler manually
+   * ❌ DO NOT store the handle beyond Task lifetime
+   * ❌ DO NOT call resume() from worker threads
+   * ❌ DO NOT call destroy() on the returned handle (Task owns it)
+   *
+   * CORRECT WAY to schedule coroutines:
+   * ✅ Use co_await - Task::await_suspend() integrates with scheduler automatically
+   * ✅ Let Task manage handle lifetime
+   * ✅ Use symmetric transfer for efficient coroutine chaining
+   *
+   * Example WRONG usage (causes use-after-free):
+   *   Task<void> task = myCoroutine();
+   *   auto h = task.get_handle();
+   *   scheduler.submit([h]() { h.resume(); });  // ❌ CRASH - race with ~Task()
+   *
+   * Example CORRECT usage:
+   *   Task<void> myCoroutine() {
+   *     co_await otherTask();  // ✅ Scheduler integration automatic
+   *     co_return;
+   *   }
+   *
+   * This API exists only for low-level debugging and introspection.
+   * If you think you need this, you probably don't.
+   *
+   * @return Raw coroutine handle (DANGEROUS - see warnings above)
    */
   std::coroutine_handle<> get_handle() const { return handle_; }
 
