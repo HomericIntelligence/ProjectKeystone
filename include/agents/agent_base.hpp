@@ -123,9 +123,11 @@ class AgentBase {
    * @endcode
    */
   void setLowPriorityCheckInterval(std::chrono::milliseconds interval) {
+    // FIX SAFE-002: Use memory_order_release to ensure visibility to other threads
+    // This ensures getMessage() threads see the updated interval value
     low_priority_check_interval_ns_.store(
         std::chrono::duration_cast<std::chrono::nanoseconds>(interval).count(),
-        std::memory_order_relaxed);
+        std::memory_order_release);
   }
 
   /**
@@ -134,8 +136,9 @@ class AgentBase {
    * @return std::chrono::milliseconds Current check interval
    */
   std::chrono::milliseconds getLowPriorityCheckInterval() const {
+    // FIX SAFE-002: Use memory_order_acquire to see writes from setLowPriorityCheckInterval
     return std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::nanoseconds{low_priority_check_interval_ns_.load(std::memory_order_relaxed)});
+        std::chrono::nanoseconds{low_priority_check_interval_ns_.load(std::memory_order_acquire)});
   }
 
  protected:

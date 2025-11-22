@@ -15,8 +15,8 @@ ProfilingSession::getSectionData() {
   return data;
 }
 
-std::mutex& ProfilingSession::getGlobalMutex() {
-  static std::mutex mutex;
+std::shared_mutex& ProfilingSession::getGlobalMutex() {
+  static std::shared_mutex mutex;
   return mutex;
 }
 
@@ -82,16 +82,30 @@ ProfilingSession& ProfilingSession::operator=(
 
 void ProfilingSession::recordDuration(const std::string& section_name,
                                       double duration_us) {
-  std::lock_guard<std::mutex> global_lock(getGlobalMutex());
+  // FIX SAFE-001: Avoid nested locking by releasing global lock before section lock
+  // Old pattern: Hold global_lock while acquiring section.mutex (nested locks)
+  // New pattern: Acquire global_lock briefly, release, then acquire section.mutex
 
-  auto& data = getSectionData();
-  auto& section = data[section_name];
+  SectionData* section_ptr = nullptr;
 
-  std::lock_guard<std::mutex> section_lock(section.mutex);
-  section.durations_us.push_back(duration_us);
+  // Phase 1: Acquire unique_lock to get/create section reference
+  {
+    std::unique_lock<std::shared_mutex> global_lock(getGlobalMutex());
+    auto& data = getSectionData();
+    section_ptr = &data[section_name];  // Get/create section
+  }  // Release global_lock before acquiring section.mutex
+
+  // Phase 2: Acquire section-specific lock and update data
+  // Global lock released - no nested locking
+  {
+    std::lock_guard<std::mutex> section_lock(section_ptr->mutex);
+    section_ptr->durations_us.push_back(duration_us);
+  }
 }
 
-// Internal helper: Assumes global mutex already held by caller
+// Internal helper: Assumes global shared_lock already held by caller
+// FIX SAFE-001: Caller must hold shared_lock, this acquires section.mutex
+// This is safe because lock order is: shared_lock (read) → section.mutex
 std::optional<ProfilingSession::SectionStats>
 ProfilingSession::getStatsUnlocked(const std::string& section_name) {
   auto& data = getSectionData();
@@ -101,6 +115,9 @@ ProfilingSession::getStatsUnlocked(const std::string& section_name) {
   }
 
   auto& section = it->second;
+
+  // Acquire section lock while holding shared_lock (read-only on map)
+  // This is safe: shared_lock allows concurrent readers
   std::lock_guard<std::mutex> section_lock(section.mutex);
 
   if (section.durations_us.empty()) {
@@ -136,15 +153,17 @@ ProfilingSession::getStatsUnlocked(const std::string& section_name) {
   return stats;
 }
 
-// Public API: Acquires global mutex then calls getStatsUnlocked
+// Public API: Acquires shared_lock (allows concurrent reads) then calls getStatsUnlocked
+// FIX SAFE-001: Use shared_lock for read-only access to map
 std::optional<ProfilingSession::SectionStats> ProfilingSession::getStats(
     const std::string& section_name) {
-  std::lock_guard<std::mutex> global_lock(getGlobalMutex());
+  std::shared_lock<std::shared_mutex> global_lock(getGlobalMutex());
   return getStatsUnlocked(section_name);
 }
 
 std::string ProfilingSession::generateReport() {
-  std::lock_guard<std::mutex> global_lock(getGlobalMutex());
+  // FIX SAFE-001: Use shared_lock for read-only access to map
+  std::shared_lock<std::shared_mutex> global_lock(getGlobalMutex());
 
   auto& data = getSectionData();
 
@@ -185,7 +204,8 @@ std::string ProfilingSession::generateReport() {
 }
 
 void ProfilingSession::reset() {
-  std::lock_guard<std::mutex> global_lock(getGlobalMutex());
+  // FIX SAFE-001: Use unique_lock for write operation
+  std::unique_lock<std::shared_mutex> global_lock(getGlobalMutex());
   getSectionData().clear();
 }
 
