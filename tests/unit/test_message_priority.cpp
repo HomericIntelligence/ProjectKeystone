@@ -5,7 +5,7 @@
 #include <thread>
 #include <vector>
 
-#include "agents/agent_base.hpp"
+#include "agents/agent_core.hpp"
 #include "core/message.hpp"
 #include "core/message_bus.hpp"
 
@@ -16,10 +16,10 @@ using namespace keystone::agents;
 /**
  * @brief Test agent to verify priority-based message processing
  */
-class TestPriorityAgent : public AgentBase {
+class TestPriorityAgent : public AgentCore {
  public:
   explicit TestPriorityAgent(const std::string& agent_id)
-      : AgentBase(agent_id) {}
+      : AgentCore(agent_id) {}
 
   std::vector<std::string> processed_order;
 

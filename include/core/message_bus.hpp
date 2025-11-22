@@ -10,7 +10,7 @@
 #include "message.hpp"
 
 // Forward declarations (must be outside namespace keystone to avoid nesting)
-namespace keystone { namespace agents { class AgentBase; } }
+namespace keystone { namespace agents { class AgentCore; } }
 namespace keystone { namespace concurrency { class WorkStealingScheduler; } }
 
 // Include concepts for compile-time agent interface verification
@@ -68,7 +68,7 @@ class MessageBus {
    * @param agent Shared pointer to the agent (lifetime managed by shared_ptr)
    * @throws std::runtime_error if agent_id already registered
    */
-  void registerAgent(const std::string& agent_id, std::shared_ptr<agents::AgentBase> agent);
+  void registerAgent(const std::string& agent_id, std::shared_ptr<agents::AgentCore> agent);
 
   /**
    * @brief Register an agent with compile-time interface verification (Issue #24)
@@ -105,8 +105,8 @@ class MessageBus {
     // Use the agent's ID
     std::string agent_id = agent->getAgentId();
 
-    // Convert to AgentBase pointer for storage
-    std::shared_ptr<agents::AgentBase> base_agent = agent;
+    // Convert to AgentCore pointer for storage
+    std::shared_ptr<agents::AgentCore> base_agent = agent;
 
     // Delegate to the existing implementation
     registerAgent(agent_id, base_agent);
@@ -150,7 +150,7 @@ class MessageBus {
  private:
   mutable std::mutex registry_mutex_;
   // FIX C2: Use shared_ptr for safe lifetime management in async scenarios
-  std::unordered_map<std::string, std::shared_ptr<agents::AgentBase>> agents_;
+  std::unordered_map<std::string, std::shared_ptr<agents::AgentCore>> agents_;
   // FIX C5: Atomic scheduler pointer for thread-safe access without registry_mutex
   std::atomic<concurrency::WorkStealingScheduler*> scheduler_{nullptr};
 };

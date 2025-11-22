@@ -2,7 +2,7 @@
 
 #include <string>
 
-#include "agent_base.hpp"
+#include "agent_core.hpp"
 #include "concurrency/task.hpp"
 #include "core/message.hpp"
 
@@ -19,16 +19,16 @@ namespace agents {
  * with a single async-by-default base class, enabling polymorphic collections
  * and runtime execution model flexibility.
  */
-class BaseAgent : public AgentBase {
+class AsyncAgent : public AgentCore {
  public:
   /**
-   * @brief Construct a new Base Agent
+   * @brief Construct a new Async Agent
    *
    * @param agent_id Unique identifier for this agent
    */
-  explicit BaseAgent(const std::string& agent_id);
+  explicit AsyncAgent(const std::string& agent_id);
 
-  ~BaseAgent() override = default;
+  ~AsyncAgent() override = default;
 
   /**
    * @brief Process an incoming message asynchronously

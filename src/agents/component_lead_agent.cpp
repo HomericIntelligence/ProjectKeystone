@@ -13,7 +13,7 @@
 namespace keystone {
 namespace agents {
 
-ComponentLeadAgent::ComponentLeadAgent(const std::string& agent_id) : BaseAgent(agent_id) {
+ComponentLeadAgent::ComponentLeadAgent(const std::string& agent_id) : AsyncAgent(agent_id) {
   transitionTo(State::IDLE);
 }
 

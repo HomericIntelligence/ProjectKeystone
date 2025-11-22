@@ -2,7 +2,7 @@
 
 #include <thread>
 
-#include "agents/agent_base.hpp"
+#include "agents/agent_core.hpp"
 #include "core/config.hpp"
 #include "core/message.hpp"
 #include "core/message_bus.hpp"
@@ -12,19 +12,19 @@ using namespace keystone::agents;
 using namespace keystone::core;
 
 // Concrete implementation for testing
-class TestAgent : public AgentBase {
+class TestAgent : public AgentCore {
  public:
-  TestAgent(const std::string& agent_id) : AgentBase(agent_id) {}
+  TestAgent(const std::string& agent_id) : AgentCore(agent_id) {}
 
   // Expose protected methods for testing
-  using AgentBase::getMessage;
-  using AgentBase::receiveMessage;
-  using AgentBase::sendMessage;
-  using AgentBase::setMessageBus;
-  using AgentBase::updateQueueDepthMetrics;
+  using AgentCore::getMessage;
+  using AgentCore::receiveMessage;
+  using AgentCore::sendMessage;
+  using AgentCore::setMessageBus;
+  using AgentCore::updateQueueDepthMetrics;
 };
 
-class AgentBaseTest : public ::testing::Test {
+class AgentCoreTest : public ::testing::Test {
  protected:
   void SetUp() override {
     agent_ = std::make_shared<TestAgent>("test_agent");
@@ -44,7 +44,7 @@ class AgentBaseTest : public ::testing::Test {
 };
 
 // Test: sendMessage without message bus throws exception
-TEST_F(AgentBaseTest, SendMessageWithoutBusThrows) {
+TEST_F(AgentCoreTest, SendMessageWithoutBusThrows) {
   auto agent_no_bus = std::make_unique<TestAgent>("no_bus_agent");
 
   auto msg = KeystoneMessage::create("sender", "receiver", "test");
@@ -53,7 +53,7 @@ TEST_F(AgentBaseTest, SendMessageWithoutBusThrows) {
 }
 
 // Test: receiveMessage routes to correct priority queue
-TEST_F(AgentBaseTest, MessageRoutingByPriority) {
+TEST_F(AgentCoreTest, MessageRoutingByPriority) {
   auto high_msg = KeystoneMessage::create("sender", agent_->getAgentId(), "high");
   high_msg.priority = Priority::HIGH;
 
@@ -87,7 +87,7 @@ TEST_F(AgentBaseTest, MessageRoutingByPriority) {
 }
 
 // Test: Backpressure mechanism - rejecting messages when queue full
-TEST_F(AgentBaseTest, BackpressureApplied) {
+TEST_F(AgentCoreTest, BackpressureApplied) {
   // Fill queue beyond max size
   size_t max_size = Config::AGENT_MAX_QUEUE_SIZE;
 
@@ -110,7 +110,7 @@ TEST_F(AgentBaseTest, BackpressureApplied) {
 }
 
 // Test: Backpressure cleared when queue drains below low watermark
-TEST_F(AgentBaseTest, BackpressureCleared) {
+TEST_F(AgentCoreTest, BackpressureCleared) {
   // Fill queue to trigger backpressure
   size_t max_size = Config::AGENT_MAX_QUEUE_SIZE;
 
@@ -148,7 +148,7 @@ TEST_F(AgentBaseTest, BackpressureCleared) {
 }
 
 // Test: Invalid priority routes to NORMAL queue
-TEST_F(AgentBaseTest, InvalidPriorityRoutesToNormal) {
+TEST_F(AgentCoreTest, InvalidPriorityRoutesToNormal) {
   auto msg = KeystoneMessage::create("sender", agent_->getAgentId(), "invalid");
   msg.priority = static_cast<Priority>(999);  // Invalid priority value
 
@@ -160,7 +160,7 @@ TEST_F(AgentBaseTest, InvalidPriorityRoutesToNormal) {
 }
 
 // Test: updateQueueDepthMetrics called correctly
-TEST_F(AgentBaseTest, UpdateQueueDepthMetrics) {
+TEST_F(AgentCoreTest, UpdateQueueDepthMetrics) {
   // Send some messages
   for (int i = 0; i < 5; ++i) {
     auto msg = KeystoneMessage::create("sender", agent_->getAgentId(), "msg");
@@ -177,7 +177,7 @@ TEST_F(AgentBaseTest, UpdateQueueDepthMetrics) {
 }
 
 // Test: getMessage with fairness mechanism - NORMAL processed during HIGH flood
-TEST_F(AgentBaseTest, FairnessMechanismNormalProcessed) {
+TEST_F(AgentCoreTest, FairnessMechanismNormalProcessed) {
   // Send HIGH messages first
   for (int i = 0; i < 5; ++i) {
     auto msg = KeystoneMessage::create("sender", agent_->getAgentId(), "high_" + std::to_string(i));
@@ -213,7 +213,7 @@ TEST_F(AgentBaseTest, FairnessMechanismNormalProcessed) {
 }
 
 // Test: getMessage with fairness mechanism - LOW processed during HIGH flood
-TEST_F(AgentBaseTest, FairnessMechanismLowProcessed) {
+TEST_F(AgentCoreTest, FairnessMechanismLowProcessed) {
   // Send HIGH messages first
   for (int i = 0; i < 5; ++i) {
     auto msg = KeystoneMessage::create("sender", agent_->getAgentId(), "high_" + std::to_string(i));
@@ -249,7 +249,7 @@ TEST_F(AgentBaseTest, FairnessMechanismLowProcessed) {
 }
 
 // Test: setMessageBus works correctly
-TEST_F(AgentBaseTest, SetMessageBus) {
+TEST_F(AgentCoreTest, SetMessageBus) {
   auto new_agent = std::make_shared<TestAgent>("new_agent");
   auto new_bus = std::make_shared<MessageBus>();
 
@@ -266,13 +266,13 @@ TEST_F(AgentBaseTest, SetMessageBus) {
 }
 
 // Test: Empty queue returns nullopt
-TEST_F(AgentBaseTest, EmptyQueueReturnsNullopt) {
+TEST_F(AgentCoreTest, EmptyQueueReturnsNullopt) {
   auto msg_opt = agent_->getMessage();
   EXPECT_FALSE(msg_opt.has_value());
 }
 
 // Test: Multiple priority levels mixed
-TEST_F(AgentBaseTest, MixedPriorityMessages) {
+TEST_F(AgentCoreTest, MixedPriorityMessages) {
   // Send mixed priority messages
   for (int i = 0; i < 3; ++i) {
     auto high = KeystoneMessage::create("sender", agent_->getAgentId(), "high_" + std::to_string(i));
@@ -314,7 +314,7 @@ TEST_F(AgentBaseTest, MixedPriorityMessages) {
 // TEST-005: Concurrent backpressure triggering test
 // Tests that multiple threads triggering backpressure simultaneously
 // correctly synchronize and only log the message once
-TEST_F(AgentBaseTest, BackpressureConcurrentTrigger) {
+TEST_F(AgentCoreTest, BackpressureConcurrentTrigger) {
   size_t max_size = Config::AGENT_MAX_QUEUE_SIZE;
 
   // Fill queue from multiple threads simultaneously
@@ -352,7 +352,7 @@ TEST_F(AgentBaseTest, BackpressureConcurrentTrigger) {
 
 // TEST-005: Backpressure recovery under load
 // Tests that backpressure can be cleared while messages are still arriving
-TEST_F(AgentBaseTest, BackpressureRecoveryUnderLoad) {
+TEST_F(AgentCoreTest, BackpressureRecoveryUnderLoad) {
   size_t max_size = Config::AGENT_MAX_QUEUE_SIZE;
 
   // Fill to trigger backpressure
@@ -417,7 +417,7 @@ TEST_F(AgentBaseTest, BackpressureRecoveryUnderLoad) {
 
 // TEST-005: Fairness mechanism with proper acquire/release ordering
 // Tests that fairness interval changes are immediately visible
-TEST_F(AgentBaseTest, FairnessIntervalChangeVisibility) {
+TEST_F(AgentCoreTest, FairnessIntervalChangeVisibility) {
   // Send multiple HIGH messages
   for (int i = 0; i < 5; ++i) {
     auto msg = KeystoneMessage::create("sender", agent_->getAgentId(), "high_" + std::to_string(i));
@@ -464,7 +464,7 @@ TEST_F(AgentBaseTest, FairnessIntervalChangeVisibility) {
 
 // TEST-005: Fairness mechanism does not lose messages
 // Tests the fix for SAFE-002 - ensures no message loss during fairness checks
-TEST_F(AgentBaseTest, FairnessDoesNotLoseMessages) {
+TEST_F(AgentCoreTest, FairnessDoesNotLoseMessages) {
   // Send HIGH messages
   for (int i = 0; i < 10; ++i) {
     auto msg =

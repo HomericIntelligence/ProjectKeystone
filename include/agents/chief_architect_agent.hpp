@@ -5,7 +5,7 @@
 #include <memory>
 #include <thread>
 
-#include "agents/base_agent.hpp"
+#include "agents/async_agent.hpp"
 
 #ifdef ENABLE_GRPC
 #include "network/grpc_client.hpp"
@@ -21,7 +21,7 @@ namespace agents {
  * Strategic orchestrator that delegates tasks to lower-level agents.
  * For Phase 1, delegates directly to TaskAgent (L3).
  */
-class ChiefArchitectAgent : public BaseAgent {
+class ChiefArchitectAgent : public AsyncAgent {
  public:
   /**
    * @brief Construct a new Chief Architect Agent

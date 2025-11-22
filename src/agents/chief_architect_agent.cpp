@@ -11,7 +11,7 @@
 namespace keystone {
 namespace agents {
 
-ChiefArchitectAgent::ChiefArchitectAgent(const std::string& agent_id) : BaseAgent(agent_id) {}
+ChiefArchitectAgent::ChiefArchitectAgent(const std::string& agent_id) : AsyncAgent(agent_id) {}
 
 concurrency::Task<core::Response> ChiefArchitectAgent::processMessage(
     const core::KeystoneMessage& msg) {

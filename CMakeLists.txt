@@ -292,8 +292,8 @@ endif()
 
 # Agents library
 add_library(keystone_agents
-    src/agents/agent_base.cpp
-    src/agents/base_agent.cpp
+    src/agents/agent_core.cpp
+    src/agents/async_agent.cpp
     src/agents/chief_architect_agent.cpp
     src/agents/component_lead_agent.cpp
     src/agents/module_lead_agent.cpp
@@ -409,7 +409,7 @@ add_executable(
   # tests/unit/test_message_bus_async.cpp
   # tests/unit/test_async_task_agent.cpp
   tests/unit/test_message_priority.cpp
-  tests/unit/test_agent_base.cpp  # Additional coverage for AgentBase
+  tests/unit/test_agent_core.cpp  # Additional coverage for AgentCore
   tests/unit/test_metrics.cpp
   tests/unit/test_deadline_scheduling.cpp
   tests/unit/test_profiling.cpp # Phase D: Profiling tests

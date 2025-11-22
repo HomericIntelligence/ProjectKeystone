@@ -24,7 +24,7 @@ namespace concurrency { class WorkStealingScheduler; }
 namespace agents {
 
 /**
- * @brief Common base class for all agents (sync and async)
+ * @brief Core base class for all agents (sync and async)
  *
  * Provides inbox management and message routing functionality.
  * Subclasses implement either sync or async message processing.
@@ -32,16 +32,16 @@ namespace agents {
  * Phase C Enhancement: Uses lock-free concurrent queue for inbox
  * to eliminate contention under high message load.
  */
-class AgentBase {
+class AgentCore {
  public:
   /**
-   * @brief Construct a new Agent Base
+   * @brief Construct a new Agent Core
    *
    * @param agent_id Unique identifier for this agent
    */
-  explicit AgentBase(const std::string& agent_id);
+  explicit AgentCore(const std::string& agent_id);
 
-  virtual ~AgentBase() = default;
+  virtual ~AgentCore() = default;
 
   /**
    * @brief Send a message via the message bus

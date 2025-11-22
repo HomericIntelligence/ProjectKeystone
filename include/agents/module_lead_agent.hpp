@@ -7,7 +7,7 @@
 #include <thread>
 #include <vector>
 
-#include "agents/base_agent.hpp"
+#include "agents/async_agent.hpp"
 
 #ifdef ENABLE_GRPC
 #include "network/grpc_client.hpp"
@@ -30,7 +30,7 @@ namespace agents {
  *
  * State Machine: IDLE → PLANNING → WAITING_FOR_TASKS → SYNTHESIZING → IDLE
  */
-class ModuleLeadAgent : public BaseAgent {
+class ModuleLeadAgent : public AsyncAgent {
  public:
   /**
    * @brief Agent state for tracking workflow
