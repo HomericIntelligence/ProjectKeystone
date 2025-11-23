@@ -12,6 +12,10 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # Compiler warnings
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   add_compile_options(-Wall -Wextra -Wpedantic -Werror)
+  # GCC 13+ has stricter dangling-reference warnings that trigger false positives with spdlog/fmt
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 13.0)
+    add_compile_options(-Wno-dangling-reference)
+  endif()
 endif()
 
 # Code coverage (Phase 9.1)
@@ -120,27 +124,38 @@ FetchContent_Declare(
   GIT_REPOSITORY https://github.com/gabime/spdlog.git
   GIT_TAG v1.12.0)
 
-# yaml-cpp - YAML parser for task specifications (Phase 8) Disable
-# warnings-as-errors for yaml-cpp to avoid third-party code issues
-set(YAML_CPP_BUILD_TESTS
-    OFF
-    CACHE BOOL "Disable yaml-cpp tests" FORCE)
-set(YAML_CPP_BUILD_TOOLS
-    OFF
-    CACHE BOOL "Disable yaml-cpp tools" FORCE)
-set(YAML_CPP_BUILD_CONTRIB
-    OFF
-    CACHE BOOL "Disable yaml-cpp contrib" FORCE)
-FetchContent_Declare(
-  yaml-cpp
-  GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
-  GIT_TAG yaml-cpp-0.7.0)
+# yaml-cpp - YAML parser for task specifications (Phase 8 only)
+# Only fetch if ENABLE_GRPC is ON
+if(ENABLE_GRPC)
+  # Disable warnings-as-errors for yaml-cpp to avoid third-party code issues
+  set(YAML_CPP_BUILD_TESTS
+      OFF
+      CACHE BOOL "Disable yaml-cpp tests" FORCE)
+  set(YAML_CPP_BUILD_TOOLS
+      OFF
+      CACHE BOOL "Disable yaml-cpp tools" FORCE)
+  set(YAML_CPP_BUILD_CONTRIB
+      OFF
+      CACHE BOOL "Disable yaml-cpp contrib" FORCE)
+  FetchContent_Declare(
+    yaml-cpp
+    GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
+    GIT_TAG yaml-cpp-0.7.0)
 
-FetchContent_MakeAvailable(concurrentqueue cista spdlog yaml-cpp)
+  FetchContent_MakeAvailable(concurrentqueue cista spdlog yaml-cpp)
 
-# Disable warnings-as-errors for yaml-cpp third-party library
-if(TARGET yaml-cpp)
-  target_compile_options(yaml-cpp PRIVATE -Wno-error -Wno-shadow)
+  # Disable warnings-as-errors for yaml-cpp third-party library
+  if(TARGET yaml-cpp)
+    target_compile_options(yaml-cpp PRIVATE -Wno-error -Wno-shadow)
+  endif()
+else()
+  # Without GRPC, only fetch base dependencies
+  FetchContent_MakeAvailable(concurrentqueue cista spdlog)
+endif()
+
+# Disable warnings-as-errors for spdlog third-party library (GCC 13+ stricter checks)
+if(TARGET spdlog)
+  target_compile_options(spdlog PRIVATE -Wno-error -Wno-dangling-reference)
 endif()
 
 # gRPC and Protobuf for distributed communication (Phase 8)
