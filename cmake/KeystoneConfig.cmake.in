@@ -1,0 +1,105 @@
+@PACKAGE_INIT@
+
+# KeystoneConfig.cmake - CMake package configuration for ProjectKeystone HMAS
+#
+# This file is used by find_package(Keystone) to locate and configure
+# ProjectKeystone libraries and dependencies.
+
+include(CMakeFindDependencyMacro)
+
+# Find required dependencies
+find_dependency(Threads REQUIRED)
+
+# Optional: Find gRPC dependencies if ENABLE_GRPC was ON during build
+if(@ENABLE_GRPC@)
+    find_dependency(Protobuf REQUIRED)
+    find_dependency(gRPC REQUIRED)
+endif()
+
+# Define library locations
+set(_Keystone_LIBDIR "${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_LIBDIR@")
+set(_Keystone_INCLUDEDIR "${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_INCLUDEDIR@/keystone")
+
+# Create imported targets
+if(NOT TARGET Keystone::keystone_core)
+    add_library(Keystone::keystone_core SHARED IMPORTED)
+    set_target_properties(Keystone::keystone_core PROPERTIES
+        IMPORTED_LOCATION "${_Keystone_LIBDIR}/libkeystone_core.so"
+        INTERFACE_INCLUDE_DIRECTORIES "${_Keystone_INCLUDEDIR}"
+    )
+endif()
+
+if(NOT TARGET Keystone::keystone_concurrency)
+    add_library(Keystone::keystone_concurrency SHARED IMPORTED)
+    set_target_properties(Keystone::keystone_concurrency PROPERTIES
+        IMPORTED_LOCATION "${_Keystone_LIBDIR}/libkeystone_concurrency.so"
+        INTERFACE_INCLUDE_DIRECTORIES "${_Keystone_INCLUDEDIR}"
+        INTERFACE_LINK_LIBRARIES "Keystone::keystone_core"
+    )
+endif()
+
+if(NOT TARGET Keystone::keystone_agents)
+    add_library(Keystone::keystone_agents SHARED IMPORTED)
+    set_target_properties(Keystone::keystone_agents PROPERTIES
+        IMPORTED_LOCATION "${_Keystone_LIBDIR}/libkeystone_agents.so"
+        INTERFACE_INCLUDE_DIRECTORIES "${_Keystone_INCLUDEDIR}"
+        INTERFACE_LINK_LIBRARIES "Keystone::keystone_core;Keystone::keystone_concurrency"
+    )
+endif()
+
+if(NOT TARGET Keystone::keystone_simulation)
+    add_library(Keystone::keystone_simulation SHARED IMPORTED)
+    set_target_properties(Keystone::keystone_simulation PROPERTIES
+        IMPORTED_LOCATION "${_Keystone_LIBDIR}/libkeystone_simulation.so"
+        INTERFACE_INCLUDE_DIRECTORIES "${_Keystone_INCLUDEDIR}"
+        INTERFACE_LINK_LIBRARIES "Keystone::keystone_core;Keystone::keystone_concurrency"
+    )
+endif()
+
+if(@ENABLE_GRPC@)
+    if(NOT TARGET Keystone::keystone_network)
+        add_library(Keystone::keystone_network SHARED IMPORTED)
+        set_target_properties(Keystone::keystone_network PROPERTIES
+            IMPORTED_LOCATION "${_Keystone_LIBDIR}/libkeystone_network.so"
+            INTERFACE_INCLUDE_DIRECTORIES "${_Keystone_INCLUDEDIR}"
+            INTERFACE_LINK_LIBRARIES "Keystone::keystone_core"
+        )
+    endif()
+endif()
+
+# Define available components
+set(Keystone_COMPONENTS core concurrency agents simulation)
+if(@ENABLE_GRPC@)
+    list(APPEND Keystone_COMPONENTS network)
+endif()
+
+# Check requested components
+foreach(component ${Keystone_FIND_COMPONENTS})
+    if(NOT ${component} IN_LIST Keystone_COMPONENTS)
+        set(Keystone_FOUND FALSE)
+        set(Keystone_NOT_FOUND_MESSAGE "Unsupported component: ${component}")
+    endif()
+endforeach()
+
+# Set version information
+set(Keystone_VERSION_MAJOR @CPACK_PACKAGE_VERSION_MAJOR@)
+set(Keystone_VERSION_MINOR @CPACK_PACKAGE_VERSION_MINOR@)
+set(Keystone_VERSION_PATCH @CPACK_PACKAGE_VERSION_PATCH@)
+set(Keystone_VERSION @CPACK_PACKAGE_VERSION@)
+
+# Define imported targets
+set(Keystone_LIBRARIES
+    Keystone::keystone_core
+    Keystone::keystone_concurrency
+    Keystone::keystone_agents
+    Keystone::keystone_simulation
+)
+
+if(@ENABLE_GRPC@)
+    list(APPEND Keystone_LIBRARIES Keystone::keystone_network)
+endif()
+
+# Include directories are handled by target properties
+get_target_property(Keystone_INCLUDE_DIRS Keystone::keystone_core INTERFACE_INCLUDE_DIRECTORIES)
+
+check_required_components(Keystone)

@@ -205,10 +205,21 @@ add_library(
 
 target_include_directories(
   keystone_core
-  PUBLIC ${PROJECT_SOURCE_DIR}/include ${cista_SOURCE_DIR}/include
-         ${concurrentqueue_SOURCE_DIR})
+  PUBLIC
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${cista_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${concurrentqueue_SOURCE_DIR}>
+    $<INSTALL_INTERFACE:include/keystone>
+  PRIVATE
+    $<BUILD_INTERFACE:${spdlog_SOURCE_DIR}/include>
+)
 
-target_link_libraries(keystone_core PUBLIC spdlog::spdlog)
+# Link spdlog - will be found by consumers via KeystoneConfig.cmake
+if(TARGET spdlog::spdlog)
+    target_link_libraries(keystone_core PRIVATE spdlog::spdlog)
+else()
+    target_link_libraries(keystone_core PRIVATE spdlog)
+endif()
 
 # Concurrency library (Phase A)
 add_library(
@@ -219,10 +230,21 @@ add_library(
   src/concurrency/scheduler_accessor.cpp)
 
 target_include_directories(
-  keystone_concurrency PUBLIC ${PROJECT_SOURCE_DIR}/include
-                              ${concurrentqueue_SOURCE_DIR})
+  keystone_concurrency
+  PUBLIC
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${concurrentqueue_SOURCE_DIR}>
+    $<INSTALL_INTERFACE:include/keystone>
+  PRIVATE
+    $<BUILD_INTERFACE:${spdlog_SOURCE_DIR}/include>
+)
 
-target_link_libraries(keystone_concurrency PUBLIC keystone_core spdlog::spdlog)
+# Link dependencies (including spdlog for logger.hpp)
+if(TARGET spdlog::spdlog)
+    target_link_libraries(keystone_concurrency PUBLIC keystone_core PRIVATE spdlog::spdlog)
+else()
+    target_link_libraries(keystone_concurrency PUBLIC keystone_core PRIVATE spdlog)
+endif()
 
 # Network library (Phase 8: Distributed communication)
 if(ENABLE_GRPC AND EXISTS ${PROJECT_SOURCE_DIR}/proto/hmas_coordinator.proto)
@@ -238,9 +260,12 @@ if(ENABLE_GRPC AND EXISTS ${PROJECT_SOURCE_DIR}/proto/hmas_coordinator.proto)
 
   target_include_directories(
     keystone_network
-    PUBLIC ${PROJECT_SOURCE_DIR}/include
-           ${CMAKE_CURRENT_BINARY_DIR} # For generated proto headers
-           ${Protobuf_INCLUDE_DIRS})
+    PUBLIC
+      $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
+      $<BUILD_INTERFACE:${Protobuf_INCLUDE_DIRS}>
+      $<INSTALL_INTERFACE:include/keystone>
+  )
 
   target_link_libraries(
     keystone_network PUBLIC keystone_core protobuf::libprotobuf gRPC::grpc++
@@ -268,8 +293,12 @@ add_library(
   src/simulation/simulated_numa_node.cpp src/simulation/simulated_network.cpp
   src/simulation/simulated_cluster.cpp)
 
-target_include_directories(keystone_simulation
-                           PUBLIC ${PROJECT_SOURCE_DIR}/include)
+target_include_directories(
+  keystone_simulation
+  PUBLIC
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include/keystone>
+)
 
 target_link_libraries(keystone_simulation PUBLIC keystone_concurrency
                                                  keystone_core)
@@ -496,3 +525,307 @@ if(ENABLE_FUZZING)
   message(STATUS "  - fuzz_retry_policy")
   message(STATUS "Run with: ./<fuzz_target> -max_len=4096 -runs=1000000")
 endif()
+
+# ============================================================================
+# Installation Rules
+# ============================================================================
+
+include(GNUInstallDirs)
+
+# Install runtime libraries (keystone package)
+install(
+  TARGETS keystone_core keystone_concurrency keystone_agents keystone_simulation
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    COMPONENT keystone
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    COMPONENT keystone-dev
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    COMPONENT keystone
+)
+
+# Install network library if gRPC is enabled
+if(ENABLE_GRPC)
+  install(
+    TARGETS keystone_network
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+      COMPONENT keystone
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+      COMPONENT keystone-dev
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+      COMPONENT keystone
+  )
+endif()
+
+# ============================================================================
+# Version Information (needed early for CMake package config)
+# ============================================================================
+
+set(CPACK_PACKAGE_VERSION_MAJOR "0")
+set(CPACK_PACKAGE_VERSION_MINOR "1")
+set(CPACK_PACKAGE_VERSION_PATCH "0")
+set(CPACK_PACKAGE_VERSION "${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}")
+
+# Install public headers (keystone-dev package)
+install(
+  DIRECTORY ${PROJECT_SOURCE_DIR}/include/
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/keystone
+  COMPONENT keystone-dev
+  FILES_MATCHING PATTERN "*.hpp"
+)
+
+# Install generated proto headers if gRPC is enabled
+if(ENABLE_GRPC AND EXISTS ${PROJECT_SOURCE_DIR}/proto/hmas_coordinator.proto)
+  install(
+    FILES ${GRPC_HDRS} ${PROTO_HDRS}
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/keystone/proto
+    COMPONENT keystone-dev
+  )
+endif()
+
+# Configure and install CMake package configuration files (keystone-dev package)
+include(CMakePackageConfigHelpers)
+
+configure_package_config_file(
+  ${PROJECT_SOURCE_DIR}/cmake/KeystoneConfig.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/KeystoneConfig.cmake
+  INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Keystone
+  PATH_VARS CMAKE_INSTALL_INCLUDEDIR CMAKE_INSTALL_LIBDIR
+)
+
+write_basic_package_version_file(
+  ${CMAKE_CURRENT_BINARY_DIR}/KeystoneConfigVersion.cmake
+  VERSION ${CPACK_PACKAGE_VERSION}
+  COMPATIBILITY SameMajorVersion
+)
+
+install(
+  FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/KeystoneConfig.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/KeystoneConfigVersion.cmake
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Keystone
+  COMPONENT keystone-dev
+)
+
+# Install documentation (keystone + keystone-doc packages)
+# Core documentation goes to keystone package
+install(
+  FILES
+    ${PROJECT_SOURCE_DIR}/README.md
+    ${PROJECT_SOURCE_DIR}/CLAUDE.md
+    ${PROJECT_SOURCE_DIR}/LICENSE
+  DESTINATION ${CMAKE_INSTALL_DOCDIR}
+  COMPONENT keystone
+  OPTIONAL
+)
+
+# Extended documentation goes to keystone-doc package
+install(
+  DIRECTORY ${PROJECT_SOURCE_DIR}/docs/
+  DESTINATION ${CMAKE_INSTALL_DOCDIR}
+  COMPONENT keystone-doc
+  FILES_MATCHING
+    PATTERN "*.md"
+    PATTERN "*.txt"
+    PATTERN "*.pdf"
+  PATTERN "issues" EXCLUDE
+)
+
+# Install test executables (keystone-test package)
+install(
+  TARGETS
+    basic_delegation_tests
+    module_coordination_tests
+    component_coordination_tests
+    async_delegation_tests
+    distributed_hierarchy_tests
+    unit_tests
+    concurrency_unit_tests
+    simulation_unit_tests
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}/tests
+  COMPONENT keystone-test
+)
+
+# Install gRPC tests if enabled
+if(ENABLE_GRPC)
+  install(
+    TARGETS distributed_grpc_tests
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}/tests
+    COMPONENT keystone-test
+  )
+endif()
+
+# Install benchmarks (keystone-misc package)
+install(
+  TARGETS
+    message_pool_benchmarks
+    distributed_benchmarks
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}/benchmarks
+  COMPONENT keystone-misc
+  OPTIONAL
+)
+
+# Install load test (keystone-misc package)
+install(
+  TARGETS hmas_load_test
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}/tools
+  COMPONENT keystone-misc
+)
+
+# Install fuzz testing targets if enabled (keystone-misc package)
+if(ENABLE_FUZZING)
+  install(
+    TARGETS
+      fuzz_message_serialization
+      fuzz_message_bus_routing
+      fuzz_work_stealing
+      fuzz_retry_policy
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}/fuzz
+    COMPONENT keystone-misc
+  )
+endif()
+
+# Install build scripts and Docker files (keystone-dev package)
+install(
+  FILES
+    ${PROJECT_SOURCE_DIR}/Dockerfile
+    ${PROJECT_SOURCE_DIR}/docker-compose.yaml
+  DESTINATION ${CMAKE_INSTALL_DOCDIR}/build
+  COMPONENT keystone-dev
+  OPTIONAL
+)
+
+# Install proto files for development (keystone-dev package)
+if(ENABLE_GRPC)
+  install(
+    DIRECTORY ${PROJECT_SOURCE_DIR}/proto/
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/keystone/proto
+    COMPONENT keystone-dev
+    FILES_MATCHING PATTERN "*.proto"
+  )
+endif()
+
+# ============================================================================
+# CPack Configuration
+# ============================================================================
+
+set(CPACK_PACKAGE_NAME "ProjectKeystone")
+set(CPACK_PACKAGE_VENDOR "ProjectKeystone Development Team")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Hierarchical Multi-Agent System (HMAS) in C++20")
+# Version already defined earlier for CMake package config
+set(CPACK_PACKAGE_CONTACT "projectkeystone@example.com")
+set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/projectkeystone/hmas")
+
+# Resource files
+set(CPACK_RESOURCE_FILE_LICENSE "${PROJECT_SOURCE_DIR}/LICENSE")
+set(CPACK_RESOURCE_FILE_README "${PROJECT_SOURCE_DIR}/README.md")
+
+# Component-based packaging
+set(CPACK_COMPONENTS_ALL keystone keystone-dev keystone-doc keystone-test keystone-misc)
+
+# Component descriptions
+set(CPACK_COMPONENT_KEYSTONE_DISPLAY_NAME "Keystone Runtime Libraries")
+set(CPACK_COMPONENT_KEYSTONE_DESCRIPTION
+    "Core runtime libraries for ProjectKeystone HMAS. Includes message bus, agents, concurrency, and simulation libraries.")
+set(CPACK_COMPONENT_KEYSTONE_REQUIRED ON)
+set(CPACK_COMPONENT_KEYSTONE_GROUP "Runtime")
+
+set(CPACK_COMPONENT_KEYSTONE-DEV_DISPLAY_NAME "Keystone Development Files")
+set(CPACK_COMPONENT_KEYSTONE-DEV_DESCRIPTION
+    "Development files for building applications with ProjectKeystone. Includes headers, static libraries, CMake targets, and build documentation.")
+set(CPACK_COMPONENT_KEYSTONE-DEV_GROUP "Development")
+set(CPACK_COMPONENT_KEYSTONE-DEV_DEPENDS keystone)
+
+set(CPACK_COMPONENT_KEYSTONE-DOC_DISPLAY_NAME "Keystone Documentation")
+set(CPACK_COMPONENT_KEYSTONE-DOC_DESCRIPTION
+    "Complete documentation for ProjectKeystone including architecture guides, API references, phase plans, and deployment guides.")
+set(CPACK_COMPONENT_KEYSTONE-DOC_GROUP "Documentation")
+
+set(CPACK_COMPONENT_KEYSTONE-TEST_DISPLAY_NAME "Keystone Test Suite")
+set(CPACK_COMPONENT_KEYSTONE-TEST_DESCRIPTION
+    "Comprehensive test suite for QA validation. Includes unit tests, E2E tests, and integration tests for all HMAS components.")
+set(CPACK_COMPONENT_KEYSTONE-TEST_GROUP "Testing")
+set(CPACK_COMPONENT_KEYSTONE-TEST_DEPENDS keystone)
+
+set(CPACK_COMPONENT_KEYSTONE-MISC_DISPLAY_NAME "Keystone Miscellaneous Tools")
+set(CPACK_COMPONENT_KEYSTONE-MISC_DESCRIPTION
+    "Additional tools and utilities including benchmarks, load testing tools, and fuzz testing targets.")
+set(CPACK_COMPONENT_KEYSTONE-MISC_GROUP "Tools")
+set(CPACK_COMPONENT_KEYSTONE-MISC_DEPENDS keystone)
+
+# Component groups
+set(CPACK_COMPONENT_GROUP_RUNTIME_DESCRIPTION "Runtime libraries and essential files")
+set(CPACK_COMPONENT_GROUP_DEVELOPMENT_DESCRIPTION "Development tools and headers")
+set(CPACK_COMPONENT_GROUP_DOCUMENTATION_DESCRIPTION "Documentation and guides")
+set(CPACK_COMPONENT_GROUP_TESTING_DESCRIPTION "Test suites for QA")
+set(CPACK_COMPONENT_GROUP_TOOLS_DESCRIPTION "Benchmarking and utility tools")
+
+# DEB-specific settings
+set(CPACK_DEBIAN_PACKAGE_MAINTAINER "${CPACK_PACKAGE_CONTACT}")
+set(CPACK_DEBIAN_PACKAGE_SECTION "devel")
+set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
+set(CPACK_DEBIAN_ENABLE_COMPONENT_DEPENDS ON)
+set(CPACK_DEB_COMPONENT_INSTALL ON)
+
+# DEB package dependencies
+set(CPACK_DEBIAN_KEYSTONE_PACKAGE_NAME "libkeystone0")
+set(CPACK_DEBIAN_KEYSTONE_PACKAGE_DEPENDS "libc6 (>= 2.34), libstdc++6 (>= 12)")
+
+set(CPACK_DEBIAN_KEYSTONE-DEV_PACKAGE_NAME "libkeystone-dev")
+set(CPACK_DEBIAN_KEYSTONE-DEV_PACKAGE_DEPENDS "libkeystone0 (= ${CPACK_PACKAGE_VERSION}), cmake (>= 3.20)")
+set(CPACK_DEBIAN_KEYSTONE-DEV_PACKAGE_SUGGESTS "ninja-build, clang-format")
+
+set(CPACK_DEBIAN_KEYSTONE-DOC_PACKAGE_NAME "keystone-doc")
+set(CPACK_DEBIAN_KEYSTONE-DOC_PACKAGE_ARCHITECTURE "all")
+
+set(CPACK_DEBIAN_KEYSTONE-TEST_PACKAGE_NAME "keystone-test")
+set(CPACK_DEBIAN_KEYSTONE-TEST_PACKAGE_DEPENDS "libkeystone0 (= ${CPACK_PACKAGE_VERSION})")
+
+set(CPACK_DEBIAN_KEYSTONE-MISC_PACKAGE_NAME "keystone-tools")
+set(CPACK_DEBIAN_KEYSTONE-MISC_PACKAGE_DEPENDS "libkeystone0 (= ${CPACK_PACKAGE_VERSION})")
+
+# RPM-specific settings
+set(CPACK_RPM_PACKAGE_LICENSE "MIT")
+set(CPACK_RPM_PACKAGE_GROUP "Development/Libraries")
+set(CPACK_RPM_ENABLE_COMPONENT_DEPENDS ON)
+set(CPACK_RPM_COMPONENT_INSTALL ON)
+
+# RPM package names
+set(CPACK_RPM_KEYSTONE_PACKAGE_NAME "keystone")
+set(CPACK_RPM_KEYSTONE-DEV_PACKAGE_NAME "keystone-devel")
+set(CPACK_RPM_KEYSTONE-DOC_PACKAGE_NAME "keystone-doc")
+set(CPACK_RPM_KEYSTONE-TEST_PACKAGE_NAME "keystone-test")
+set(CPACK_RPM_KEYSTONE-MISC_PACKAGE_NAME "keystone-tools")
+
+# RPM package dependencies
+set(CPACK_RPM_KEYSTONE_PACKAGE_REQUIRES "glibc >= 2.34")
+set(CPACK_RPM_KEYSTONE-DEV_PACKAGE_REQUIRES "keystone = ${CPACK_PACKAGE_VERSION}, cmake >= 3.20")
+set(CPACK_RPM_KEYSTONE-TEST_PACKAGE_REQUIRES "keystone = ${CPACK_PACKAGE_VERSION}")
+set(CPACK_RPM_KEYSTONE-MISC_PACKAGE_REQUIRES "keystone = ${CPACK_PACKAGE_VERSION}")
+
+# Archive settings (TGZ, ZIP)
+set(CPACK_ARCHIVE_COMPONENT_INSTALL ON)
+
+# Generators - enable multiple package formats
+set(CPACK_GENERATOR "TGZ;ZIP")
+
+# Optionally enable DEB/RPM on Linux
+if(UNIX AND NOT APPLE)
+  list(APPEND CPACK_GENERATOR "DEB" "RPM")
+endif()
+
+# Source package configuration
+set(CPACK_SOURCE_GENERATOR "TGZ;ZIP")
+set(CPACK_SOURCE_IGNORE_FILES
+    "/.git/"
+    "/build/"
+    "/.cache/"
+    "/.vscode/"
+    "/__pycache__/"
+    "\\.pyc$"
+    "\\.swp$"
+    "\\.o$"
+    "\\.a$"
+    "\\.so$"
+)
+
+include(CPack)
