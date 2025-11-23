@@ -845,3 +845,13 @@ set(CPACK_SOURCE_IGNORE_FILES
 )
 
 include(CPack)
+
+# Workflow examples (optional)
+option(BUILD_EXAMPLES "Build workflow examples" OFF)
+
+if(BUILD_EXAMPLES)
+  message(STATUS "Building workflow examples...")
+  add_subdirectory(examples/workflow-examples)
+else()
+  message(STATUS "Workflow examples disabled. Use -DBUILD_EXAMPLES=ON to enable.")
+endif()
