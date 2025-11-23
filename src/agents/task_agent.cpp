@@ -1,6 +1,7 @@
 #include "agents/task_agent.hpp"
 
 #include <array>
+#include <cctype>
 #include <chrono>
 #include <cstdio>
 #include <regex>
@@ -165,8 +166,22 @@ std::string TaskAgent::executeBash(const std::string& command) {
   std::array<char, 4096> buffer;  // Increased from 128 to handle larger outputs
   std::string result;
 
+  // Use explicit bash shell to support arithmetic expansion $((...))
+  // popen() default uses /bin/sh which may not support bash-specific syntax
+  //
+  // Security note: We escape the command by replacing " with \" to prevent injection
+  // However, validateCommand() already ensures only safe patterns are allowed
+  std::string escaped_command = command;
+  size_t pos = 0;
+  while ((pos = escaped_command.find('"', pos)) != std::string::npos) {
+    escaped_command.replace(pos, 1, "\\\"");
+    pos += 2;  // Move past the escaped quote
+  }
+
+  std::string bash_command = "/bin/bash -c \"" + escaped_command + "\"";
+
   // RAII pipe handle - automatically closes on exception or return
-  PipeHandle pipe(popen(command.c_str(), "r"));
+  PipeHandle pipe(popen(bash_command.c_str(), "r"));
   if (!pipe) {
     throw std::runtime_error("popen() failed");
   }
@@ -184,8 +199,8 @@ std::string TaskAgent::executeBash(const std::string& command) {
     throw std::runtime_error(ss.str());
   }
 
-  // Remove trailing newline if present
-  if (!result.empty() && result.back() == '\n') {
+  // Remove trailing whitespace (newlines, spaces, tabs, carriage returns)
+  while (!result.empty() && std::isspace(static_cast<unsigned char>(result.back()))) {
     result.pop_back();
   }
 

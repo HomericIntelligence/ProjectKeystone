@@ -118,7 +118,14 @@ TEST(E2E_PhaseA, AsyncDelegationWithWorkStealing) {
     }
   }
 
+  std::cout << "\n📨 Task agents received messages:" << std::endl;
+  for (auto& [agent, messages] : agent_messages) {
+    std::cout << "  " << agent->getAgentId() << ": " << messages.size()
+              << " messages" << std::endl;
+  }
+
   // Process all received messages and send responses
+  std::cout << "\n⚙️  Processing messages and sending responses..." << std::endl;
   for (auto& [agent, messages] : agent_messages) {
     for (auto& msg : messages) {
       agent->processMessage(msg).get();
@@ -133,6 +140,9 @@ TEST(E2E_PhaseA, AsyncDelegationWithWorkStealing) {
   while (auto resp = chief->getMessage()) {
     responses.push_back(*resp);
   }
+
+  std::cout << "\n📬 Received " << responses.size() << " responses from "
+            << commands.size() << " sent commands" << std::endl;
 
   // Verify results by matching msg_id
   int successful = 0;
@@ -149,6 +159,13 @@ TEST(E2E_PhaseA, AsyncDelegationWithWorkStealing) {
     auto [agent, expected] = it->second;
 
     try {
+      // Extract result from payload
+      if (!resp.payload.has_value()) {
+        std::cout << "  ✗ Command for msg_id " << resp.msg_id.substr(0, 8)
+                  << "... has no payload" << std::endl;
+        continue;
+      }
+
       int result = std::stoi(resp.payload.value());
       if (result == expected) {
         std::cout << "  ✓ Command for msg_id " << resp.msg_id.substr(0, 8)
@@ -159,8 +176,11 @@ TEST(E2E_PhaseA, AsyncDelegationWithWorkStealing) {
                   << "... incorrect: got " << result << ", expected "
                   << expected << std::endl;
       }
-    } catch (...) {
-      std::cout << "  ✗ Command failed to parse result" << std::endl;
+    } catch (const std::exception& e) {
+      std::cout << "  ✗ Command for msg_id " << resp.msg_id.substr(0, 8)
+                << "... failed to parse result. Payload: '"
+                << (resp.payload.has_value() ? resp.payload.value() : "<none>")
+                << "', Error: " << e.what() << std::endl;
     }
   }
 
