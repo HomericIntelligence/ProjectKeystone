@@ -350,7 +350,8 @@ TEST_F(HealthCheckServerTest, InvalidMethod) {
 
   // Send POST request (not allowed)
   std::string request = "POST /healthz HTTP/1.1\r\nHost: localhost\r\n\r\n";
-  write(sock, request.c_str(), request.size());
+  ssize_t written = write(sock, request.c_str(), request.size());
+  ASSERT_GT(written, 0);
 
   // Read response
   char buffer[4096];

@@ -20,37 +20,46 @@ endif()
 set(_Keystone_LIBDIR "${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_LIBDIR@")
 set(_Keystone_INCLUDEDIR "${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_INCLUDEDIR@/keystone")
 
-# Create imported targets
+# Platform-specific static library extension
+if(WIN32)
+    set(_Keystone_LIBPREFIX "")
+    set(_Keystone_LIBSUFFIX ".lib")
+else()
+    set(_Keystone_LIBPREFIX "lib")
+    set(_Keystone_LIBSUFFIX ".a")
+endif()
+
+# Create imported targets (static libraries)
 if(NOT TARGET Keystone::keystone_core)
-    add_library(Keystone::keystone_core SHARED IMPORTED)
+    add_library(Keystone::keystone_core STATIC IMPORTED)
     set_target_properties(Keystone::keystone_core PROPERTIES
-        IMPORTED_LOCATION "${_Keystone_LIBDIR}/libkeystone_core.so"
+        IMPORTED_LOCATION "${_Keystone_LIBDIR}/${_Keystone_LIBPREFIX}keystone_core${_Keystone_LIBSUFFIX}"
         INTERFACE_INCLUDE_DIRECTORIES "${_Keystone_INCLUDEDIR}"
     )
 endif()
 
 if(NOT TARGET Keystone::keystone_concurrency)
-    add_library(Keystone::keystone_concurrency SHARED IMPORTED)
+    add_library(Keystone::keystone_concurrency STATIC IMPORTED)
     set_target_properties(Keystone::keystone_concurrency PROPERTIES
-        IMPORTED_LOCATION "${_Keystone_LIBDIR}/libkeystone_concurrency.so"
+        IMPORTED_LOCATION "${_Keystone_LIBDIR}/${_Keystone_LIBPREFIX}keystone_concurrency${_Keystone_LIBSUFFIX}"
         INTERFACE_INCLUDE_DIRECTORIES "${_Keystone_INCLUDEDIR}"
         INTERFACE_LINK_LIBRARIES "Keystone::keystone_core"
     )
 endif()
 
 if(NOT TARGET Keystone::keystone_agents)
-    add_library(Keystone::keystone_agents SHARED IMPORTED)
+    add_library(Keystone::keystone_agents STATIC IMPORTED)
     set_target_properties(Keystone::keystone_agents PROPERTIES
-        IMPORTED_LOCATION "${_Keystone_LIBDIR}/libkeystone_agents.so"
+        IMPORTED_LOCATION "${_Keystone_LIBDIR}/${_Keystone_LIBPREFIX}keystone_agents${_Keystone_LIBSUFFIX}"
         INTERFACE_INCLUDE_DIRECTORIES "${_Keystone_INCLUDEDIR}"
         INTERFACE_LINK_LIBRARIES "Keystone::keystone_core;Keystone::keystone_concurrency"
     )
 endif()
 
 if(NOT TARGET Keystone::keystone_simulation)
-    add_library(Keystone::keystone_simulation SHARED IMPORTED)
+    add_library(Keystone::keystone_simulation STATIC IMPORTED)
     set_target_properties(Keystone::keystone_simulation PROPERTIES
-        IMPORTED_LOCATION "${_Keystone_LIBDIR}/libkeystone_simulation.so"
+        IMPORTED_LOCATION "${_Keystone_LIBDIR}/${_Keystone_LIBPREFIX}keystone_simulation${_Keystone_LIBSUFFIX}"
         INTERFACE_INCLUDE_DIRECTORIES "${_Keystone_INCLUDEDIR}"
         INTERFACE_LINK_LIBRARIES "Keystone::keystone_core;Keystone::keystone_concurrency"
     )
@@ -58,9 +67,9 @@ endif()
 
 if(@ENABLE_GRPC@)
     if(NOT TARGET Keystone::keystone_network)
-        add_library(Keystone::keystone_network SHARED IMPORTED)
+        add_library(Keystone::keystone_network STATIC IMPORTED)
         set_target_properties(Keystone::keystone_network PROPERTIES
-            IMPORTED_LOCATION "${_Keystone_LIBDIR}/libkeystone_network.so"
+            IMPORTED_LOCATION "${_Keystone_LIBDIR}/${_Keystone_LIBPREFIX}keystone_network${_Keystone_LIBSUFFIX}"
             INTERFACE_INCLUDE_DIRECTORIES "${_Keystone_INCLUDEDIR}"
             INTERFACE_LINK_LIBRARIES "Keystone::keystone_core"
         )

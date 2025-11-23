@@ -141,6 +141,8 @@ FetchContent_Declare(
   GIT_TAG v0.14)
 
 # spdlog - Fast logging library
+# Build spdlog with -fPIC since we link it into shared libraries
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 FetchContent_Declare(
   spdlog
   GIT_REPOSITORY https://github.com/gabime/spdlog.git
@@ -251,7 +253,9 @@ target_include_directories(
     $<BUILD_INTERFACE:${spdlog_SOURCE_DIR}/include>
 )
 
-# Link spdlog - will be found by consumers via KeystoneConfig.cmake
+# Link dependencies - note: keystone_core depends on keystone_concurrency
+# (circular dependency handled via shared libraries)
+# We'll link keystone_concurrency after it's defined
 if(TARGET spdlog::spdlog)
     target_link_libraries(keystone_core PRIVATE spdlog::spdlog)
 else()
@@ -281,6 +285,10 @@ if(TARGET spdlog::spdlog)
 else()
     target_link_libraries(keystone_concurrency PUBLIC keystone_core PRIVATE spdlog)
 endif()
+
+# Handle circular dependency: keystone_core uses Logger from keystone_concurrency
+# This works with shared libraries
+target_link_libraries(keystone_core PUBLIC keystone_concurrency)
 
 # Network library (Phase 8: Distributed communication)
 if(ENABLE_GRPC AND EXISTS ${PROJECT_SOURCE_DIR}/proto/hmas_coordinator.proto)
@@ -322,6 +330,15 @@ add_library(keystone_agents
     src/agents/task_agent.cpp
 )
 
+target_include_directories(
+  keystone_agents
+  PUBLIC
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include/keystone>
+  PRIVATE
+    $<BUILD_INTERFACE:${spdlog_SOURCE_DIR}/include>
+)
+
 target_link_libraries(keystone_agents PUBLIC keystone_core keystone_concurrency)
 
 # Simulation library (Phase D.3)
@@ -335,6 +352,8 @@ target_include_directories(
   PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include/keystone>
+  PRIVATE
+    $<BUILD_INTERFACE:${spdlog_SOURCE_DIR}/include>
 )
 
 target_link_libraries(keystone_simulation PUBLIC keystone_concurrency
