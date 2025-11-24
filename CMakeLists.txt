@@ -249,9 +249,8 @@ target_include_directories(
   PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
     $<BUILD_INTERFACE:${concurrentqueue_SOURCE_DIR}>
-    $<INSTALL_INTERFACE:include/keystone>
-  PRIVATE
     $<BUILD_INTERFACE:${spdlog_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include/keystone>
 )
 
 # Link dependencies (including spdlog for logger.hpp)

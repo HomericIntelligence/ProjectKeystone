@@ -176,9 +176,13 @@ static void BM_StringInterning_Simulation(benchmark::State& state) {
     std::string receiver = *receiver_it;
     std::string command = *command_it;
 
-    benchmark::DoNotOptimize(sender.data());
-    benchmark::DoNotOptimize(receiver.data());
-    benchmark::DoNotOptimize(command.data());
+    // Store pointers in variables to avoid deprecated const-ref DoNotOptimize overload
+    auto sender_ptr = sender.data();
+    auto receiver_ptr = receiver.data();
+    auto command_ptr = command.data();
+    benchmark::DoNotOptimize(sender_ptr);
+    benchmark::DoNotOptimize(receiver_ptr);
+    benchmark::DoNotOptimize(command_ptr);
   }
 
   state.SetItemsProcessed(state.iterations());
