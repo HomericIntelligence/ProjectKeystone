@@ -39,6 +39,7 @@ Thumbs.db
 # Documentation
 *.md
 !CLAUDE.md
+!README.md
 
 # Test results
 Testing/
