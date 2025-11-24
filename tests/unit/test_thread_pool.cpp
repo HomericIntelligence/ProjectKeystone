@@ -53,11 +53,14 @@ TEST(ThreadPoolTest, SubmitCoroutineHandle) {
   ThreadPool pool(2);
   std::atomic<bool> executed{false};
 
-  // Create task on heap to prevent dangling pointer
-  auto task = std::make_shared<Task<void>>([&]() -> Task<void> {
+  // Create a simple coroutine lambda that returns Task<void>
+  auto createTask = [&]() -> Task<void> {
     executed.store(true);
     co_return;
-  }());
+  };
+
+  // Create task on heap to prevent dangling pointer
+  auto task = std::make_shared<Task<void>>(createTask());
 
   // Submit task for execution by manually resuming
   // Capture shared_ptr to keep task alive
