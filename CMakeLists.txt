@@ -498,6 +498,17 @@ add_executable(distributed_benchmarks benchmarks/distributed_work_stealing.cpp)
 target_link_libraries(distributed_benchmarks keystone_simulation
                       keystone_concurrency keystone_core benchmark::benchmark)
 
+# P2-06: String allocation profiling benchmarks
+add_executable(string_allocation_benchmarks benchmarks/string_allocation_profiling.cpp)
+
+target_link_libraries(string_allocation_benchmarks keystone_core
+                      benchmark::benchmark)
+
+# P2-06: Simple profiling harness for valgrind massif
+add_executable(profile_allocations benchmarks/profile_allocations.cpp)
+
+target_link_libraries(profile_allocations keystone_core)
+
 # FIX P3-10: Removed commented-out benchmarks (message_bus_performance.cpp, resilience_performance.cpp)
 # These had compilation errors and were never enabled. If needed in the future, they should be
 # implemented from scratch with the current API (shared_ptr, async agents).

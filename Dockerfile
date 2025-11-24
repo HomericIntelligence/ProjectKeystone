@@ -35,6 +35,9 @@ WORKDIR /workspace
 
 # Copy project files
 COPY CMakeLists.txt ./
+COPY LICENSE ./
+COPY README.md ./
+COPY cmake/ ./cmake/
 COPY include/ ./include/
 COPY src/ ./src/
 COPY tests/ ./tests/
