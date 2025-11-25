@@ -85,10 +85,10 @@ Key architectural decisions with context, rationale, and consequences.
   - Decoupled agent interaction
   - Synchronous vs async routing
 
-- **[ADR-002: Shared Pointer Migration](plan/adr/ADR-002-shared-ptr-migration.md)**
-  - Migration from raw pointers to `std::shared_ptr`
-  - Memory safety and lifecycle management
-  - Performance considerations
+- **[ADR-002: Work-Stealing Scheduler Architecture](plan/adr/ADR-002-work-stealing-scheduler-architecture.md)**
+  - Per-worker queues for efficient load balancing
+  - Cache-optimized access patterns
+  - Coroutine support for scalable agent execution
 
 - **[ADR-003: Async Agent Unification](plan/adr/ADR-003-async-agent-unification.md)**
   - Unified coroutine-based agent interface
