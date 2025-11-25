@@ -22,10 +22,12 @@ TEST(PullOrStealTest, PopFromOwnQueue) {
   // Add work to own queue
   own_queue.push(WorkItem::makeFunction([]() {}));
 
-  auto testTask = [&]() -> Task<std::optional<WorkItem>> {
+  // Keep lambda alive until get() completes to avoid stack-use-after-scope
+  auto testLambda = [&]() -> Task<std::optional<WorkItem>> {
     auto work = co_await PullOrSteal(own_queue, all_queues, 0, shutdown);
     co_return work;
-  }();
+  };
+  auto testTask = testLambda();
 
   auto result = testTask.get();
   EXPECT_TRUE(result.has_value());
@@ -42,10 +44,12 @@ TEST(PullOrStealTest, StealFromOtherQueue) {
   // Add work to victim queue only
   victim_queue.push(WorkItem::makeFunction([]() {}));
 
-  auto testTask = [&]() -> Task<std::optional<WorkItem>> {
+  // Keep lambda alive until get() completes to avoid stack-use-after-scope
+  auto testLambda = [&]() -> Task<std::optional<WorkItem>> {
     auto work = co_await PullOrSteal(own_queue, all_queues, 0, shutdown);
     co_return work;
-  }();
+  };
+  auto testTask = testLambda();
 
   auto result = testTask.get();
   EXPECT_TRUE(result.has_value());
@@ -68,10 +72,12 @@ TEST(PullOrStealTest, StealFromMultipleQueues) {
   // Add work to victim2 only
   victim2.push(WorkItem::makeFunction([]() {}));
 
-  auto testTask = [&]() -> Task<std::optional<WorkItem>> {
+  // Keep lambda alive until get() completes to avoid stack-use-after-scope
+  auto testLambda = [&]() -> Task<std::optional<WorkItem>> {
     auto work = co_await PullOrSteal(own_queue, all_queues, 0, shutdown);
     co_return work;
-  }();
+  };
+  auto testTask = testLambda();
 
   auto result = testTask.get();
   EXPECT_TRUE(result.has_value());
@@ -84,10 +90,12 @@ TEST(PullOrStealTest, ShutdownFlag) {
   WorkStealingQueue own_queue;
   std::vector<WorkStealingQueue*> all_queues = {&own_queue};
 
-  auto testTask = [&]() -> Task<std::optional<WorkItem>> {
+  // Keep lambda alive until get() completes to avoid stack-use-after-scope
+  auto testLambda = [&]() -> Task<std::optional<WorkItem>> {
     auto work = co_await PullOrSteal(own_queue, all_queues, 0, shutdown);
     co_return work;
-  }();
+  };
+  auto testTask = testLambda();
 
   auto result = testTask.get();
   EXPECT_FALSE(result.has_value());  // Should return nullopt due to shutdown
@@ -104,10 +112,12 @@ TEST(PullOrStealTest, PrefersOwnQueue) {
   own_queue.push(WorkItem::makeFunction([]() {}));
   victim_queue.push(WorkItem::makeFunction([]() {}));
 
-  auto testTask = [&]() -> Task<std::optional<WorkItem>> {
+  // Keep lambda alive until get() completes to avoid stack-use-after-scope
+  auto testLambda = [&]() -> Task<std::optional<WorkItem>> {
     auto work = co_await PullOrSteal(own_queue, all_queues, 0, shutdown);
     co_return work;
-  }();
+  };
+  auto testTask = testLambda();
 
   auto result = testTask.get();
   EXPECT_TRUE(result.has_value());
@@ -128,10 +138,12 @@ TEST(PullOrStealTest, RoundRobinStealing) {
   queue1.push(WorkItem::makeFunction([]() {}));
   queue2.push(WorkItem::makeFunction([]() {}));
 
-  auto testTask = [&]() -> Task<std::optional<WorkItem>> {
+  // Keep lambda alive until get() completes to avoid stack-use-after-scope
+  auto testLambda = [&]() -> Task<std::optional<WorkItem>> {
     auto work = co_await PullOrSteal(queue0, all_queues, 0, shutdown);
     co_return work;
-  }();
+  };
+  auto testTask = testLambda();
 
   auto result = testTask.get();
   EXPECT_TRUE(result.has_value());
@@ -149,11 +161,13 @@ TEST(PullOrStealTest, TimeoutImmediateSuccess) {
 
   own_queue.push(WorkItem::makeFunction([]() {}));
 
-  auto testTask = [&]() -> Task<std::optional<WorkItem>> {
+  // Keep lambda alive until get() completes to avoid stack-use-after-scope
+  auto testLambda = [&]() -> Task<std::optional<WorkItem>> {
     auto work = co_await PullOrStealWithTimeout(
         own_queue, all_queues, 0, shutdown, std::chrono::milliseconds(100));
     co_return work;
-  }();
+  };
+  auto testTask = testLambda();
 
   auto result = testTask.get();
   EXPECT_TRUE(result.has_value());
@@ -165,11 +179,13 @@ TEST(PullOrStealTest, TimeoutWithEmptyQueues) {
   WorkStealingQueue own_queue;
   std::vector<WorkStealingQueue*> all_queues = {&own_queue};
 
-  auto testTask = [&]() -> Task<std::optional<WorkItem>> {
+  // Keep lambda alive until get() completes to avoid stack-use-after-scope
+  auto testLambda = [&]() -> Task<std::optional<WorkItem>> {
     auto work = co_await PullOrStealWithTimeout(
         own_queue, all_queues, 0, shutdown, std::chrono::milliseconds(50));
     co_return work;
-  }();
+  };
+  auto testTask = testLambda();
 
   auto result = testTask.get();
 
@@ -191,18 +207,21 @@ TEST(PullOrStealTest, MultipleWorkers) {
   queue0.push(WorkItem::makeFunction([]() {}));
   queue0.push(WorkItem::makeFunction([]() {}));
 
+  // Keep lambdas alive until get() completes to avoid stack-use-after-scope
   // Worker 0 gets first item (sequential execution for determinism)
-  auto task0 = [&]() -> Task<std::optional<WorkItem>> {
+  auto lambda0 = [&]() -> Task<std::optional<WorkItem>> {
     auto work = co_await PullOrSteal(queue0, all_queues, 0, shutdown);
     co_return work;
-  }();
+  };
+  auto task0 = lambda0();
   auto result0 = task0.get();
 
   // Worker 1 steals second item
-  auto task1 = [&]() -> Task<std::optional<WorkItem>> {
+  auto lambda1 = [&]() -> Task<std::optional<WorkItem>> {
     auto work = co_await PullOrSteal(queue1, all_queues, 1, shutdown);
     co_return work;
-  }();
+  };
+  auto task1 = lambda1();
   auto result1 = task1.get();
 
   // At least one worker should have gotten work
@@ -220,10 +239,12 @@ TEST(PullOrStealTest, CoroutineWorkItem) {
 
   own_queue.push(WorkItem::makeCoroutine(simpleCoroutine.get_handle()));
 
-  auto testTask = [&]() -> Task<std::optional<WorkItem>> {
+  // Keep lambda alive until get() completes to avoid stack-use-after-scope
+  auto testLambda = [&]() -> Task<std::optional<WorkItem>> {
     auto work = co_await PullOrSteal(own_queue, all_queues, 0, shutdown);
     co_return work;
-  }();
+  };
+  auto testTask = testLambda();
 
   auto result = testTask.get();
   EXPECT_TRUE(result.has_value());
