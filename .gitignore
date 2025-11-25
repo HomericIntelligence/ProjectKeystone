@@ -90,5 +90,19 @@ notes/
 build/
 build-*/
 
+# Report outputs (consolidated under build/reports/)
+reports/
+*.info
+*.gcov
+
 # Docker user home directory
 .docker-home/
+
+# Legacy report locations (for transition period)
+benchmarks/results/*.json
+!benchmarks/results/baseline.json
+coverage/
+
+# Static analysis outputs
+clang-tidy-report.txt
+cppcheck-report.xml
