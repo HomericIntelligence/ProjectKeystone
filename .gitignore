@@ -89,3 +89,6 @@ notes/
 # CMake build directories (all modes: debug, release, asan, tsan, grpc, coverage)
 build/
 build-*/
+
+# Docker user home directory
+.docker-home/
