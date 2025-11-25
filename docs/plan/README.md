@@ -43,6 +43,16 @@ Build a production-ready, native C++ agent orchestration platform capable of:
 5. **[build-system.md](build-system.md)** - CMake configuration and toolchain setup
 6. **[testing-strategy.md](testing-strategy.md)** - Testing frameworks and tools (GoogleTest, benchmarks)
 7. **[risks.md](risks.md)** - Risk analysis and mitigation strategies
+8. **[MIGRATION_ARCHITECTURE_C2_C3.md](MIGRATION_ARCHITECTURE_C2_C3.md)** - C2/C3 architecture migration guide
+
+### 🏗️ Architecture Decision Records (ADRs)
+
+- **[adr/](adr/)** - Architecture Decision Records documenting key design choices
+  - ADR-001: MessageBus Architecture
+  - ADR-002: Shared Pointer Migration
+  - ADR-003: Async Agent Unification
+  - ADR-010: Architecture Issue Resolution
+  - ADR-011: Phase 6 Architecture Review Fixes
 
 ## Project Directory Structure
 

@@ -95,6 +95,16 @@ Key architectural decisions with context, rationale, and consequences.
   - Backward compatibility strategy
   - Performance comparison (sync vs async)
 
+- **[ADR-010: Architecture Issue Resolution](plan/adr/ADR-010-architecture-issue-resolution.md)**
+  - Critical architecture issues (P0) resolved
+  - C1-C5 fixes implementation
+  - System stability improvements
+
+- **[ADR-011: Phase 6 Architecture Review Fixes](plan/adr/ADR-011-phase-6-architecture-review-fixes.md)**
+  - Kubernetes architecture review findings
+  - Phase 6.6 fixes and improvements
+  - Production readiness enhancements
+
 ---
 
 ## Development
@@ -113,6 +123,16 @@ Key architectural decisions with context, rationale, and consequences.
   - Header organization
 
 ### Development Guides
+
+- **[Docker Testing](DOCKER_TESTING.md)** - Docker testing guide and instructions
+  - Container build verification
+  - Multi-stage build testing
+  - Development environment setup
+
+- **[C2/C3 Architecture Migration](plan/MIGRATION_ARCHITECTURE_C2_C3.md)** - Migration guide for architecture fixes
+  - C2/C3 architecture migration
+  - Critical issue resolution
+  - System refactoring approach
 
 - **[Error Handling](plan/error-handling.md)** - Error handling patterns
   - Exception strategy
@@ -232,6 +252,7 @@ ProjectKeystone follows a phased TDD approach. Each phase builds incrementally o
 #### Distributed Features (Phase 8 - Optional)
 
 - **[Phase 8 Complete](PHASE_8_COMPLETE.md)** - Distributed multi-node communication
+- **[Phase 8 Completion Summary](phases/phase-8-completion-summary.md)** - Comprehensive completion record
 - **[Phase 8 Optional Build](PHASE_8_OPTIONAL_BUILD.md)** - Build instructions for distributed features
 - **[Phase 8 Implementation Summary](PHASE_8_IMPLEMENTATION_SUMMARY.md)** - Implementation details
 - **[Phase 8 E2E Tests](PHASE_8_E2E_TESTS.md)** - 26 distributed E2E tests
