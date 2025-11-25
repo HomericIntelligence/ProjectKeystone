@@ -20,8 +20,9 @@ NC='\033[0m' # No Color
 
 # Configuration
 PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-BUILD_DIR="$PROJECT_ROOT/build"
-ANALYSIS_DIR="$BUILD_DIR/static_analysis"
+ANALYSIS_DIR="${ANALYSIS_OUTPUT_DIR:-$PROJECT_ROOT/build/reports/analysis}"
+mkdir -p "$ANALYSIS_DIR"
+
 CLANG_TIDY_REPORT="$ANALYSIS_DIR/clang-tidy-report.txt"
 CPPCHECK_REPORT="$ANALYSIS_DIR/cppcheck-report.xml"
 
