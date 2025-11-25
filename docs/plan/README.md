@@ -49,10 +49,11 @@ Build a production-ready, native C++ agent orchestration platform capable of:
 
 - **[adr/](adr/)** - Architecture Decision Records documenting key design choices
   - ADR-001: MessageBus Architecture
-  - ADR-002: Shared Pointer Migration
+  - ADR-002: Work-Stealing Scheduler Architecture
   - ADR-003: Async Agent Unification
   - ADR-010: Architecture Issue Resolution
   - ADR-011: Phase 6 Architecture Review Fixes
+  - ADR-012: CPack Build System Decisions
 
 ## Project Directory Structure
 
