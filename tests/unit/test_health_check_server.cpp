@@ -23,17 +23,15 @@ using namespace keystone::monitoring;
 // Fix location: src/monitoring/health_check_server.cpp:146-206
 
 // FIXED: Flaky test issue - port allocation conflicts
-// Issue: Tests used rand() % 1000 which could assign same port to multiple tests
-// Resolution: Use atomic counter to guarantee unique ports across parallel test execution
-// Each test gets a unique incrementing port starting from 18080
+// Issue: Tests used rand() % 1000 which could assign same port to multiple tests running in parallel
+// Resolution: Use port 0 (OS-assigned port) and query actual port via getPort()
+// Each test gets a unique OS-assigned port, eliminating conflicts entirely
 class HealthCheckServerTest : public ::testing::Test {
  protected:
-  static std::atomic<int> next_port_;
-
   void SetUp() override {
-    // Use atomic counter to guarantee unique port per test
-    // fetch_add returns the previous value and atomically increments
-    port_ = next_port_.fetch_add(1);
+    // Use port 0 = "any available port" - OS will assign a free port
+    // After server->start(), call server->getPort() to get the actual port
+    port_ = 0;
   }
 
   void TearDown() override {
@@ -120,9 +118,6 @@ class HealthCheckServerTest : public ::testing::Test {
   std::unique_ptr<HealthCheckServer> server_;
 };
 
-// Initialize static atomic counter (starts at 18080)
-std::atomic<int> HealthCheckServerTest::next_port_{18080};
-
 /**
  * @brief Test server start and stop
  */
@@ -157,6 +152,7 @@ TEST_F(HealthCheckServerTest, StartStop) {
 TEST_F(HealthCheckServerTest, LivenessEndpoint) {
   server_ = std::make_unique<HealthCheckServer>(port_);
   ASSERT_TRUE(server_->start());
+  port_ = server_->getPort();  // Get actual assigned port
 
   // Give server time to start
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -181,6 +177,7 @@ TEST_F(HealthCheckServerTest, LivenessEndpoint) {
 TEST_F(HealthCheckServerTest, ReadinessEndpointDefaultReady) {
   server_ = std::make_unique<HealthCheckServer>(port_);
   ASSERT_TRUE(server_->start());
+  port_ = server_->getPort();  // Get actual assigned port
 
   // Give server time to start
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -208,6 +205,7 @@ TEST_F(HealthCheckServerTest, ReadinessEndpointCustomReady) {
 
   server_ = std::make_unique<HealthCheckServer>(port_, readiness_check);
   ASSERT_TRUE(server_->start());
+  port_ = server_->getPort();  // Get actual assigned port
 
   // Give server time to start
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -231,6 +229,7 @@ TEST_F(HealthCheckServerTest, ReadinessEndpointCustomNotReady) {
 
   server_ = std::make_unique<HealthCheckServer>(port_, readiness_check);
   ASSERT_TRUE(server_->start());
+  port_ = server_->getPort();  // Get actual assigned port
 
   // Give server time to start
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -254,6 +253,7 @@ TEST_F(HealthCheckServerTest, ReadinessStateTransition) {
 
   server_ = std::make_unique<HealthCheckServer>(port_, readiness_check);
   ASSERT_TRUE(server_->start());
+  port_ = server_->getPort();  // Get actual assigned port
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
@@ -282,6 +282,7 @@ TEST_F(HealthCheckServerTest, ReadinessStateTransition) {
 TEST_F(HealthCheckServerTest, SetReadinessCheck) {
   server_ = std::make_unique<HealthCheckServer>(port_);
   ASSERT_TRUE(server_->start());
+  port_ = server_->getPort();  // Get actual assigned port
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
@@ -311,6 +312,7 @@ TEST_F(HealthCheckServerTest, SetReadinessCheck) {
 TEST_F(HealthCheckServerTest, InvalidEndpoint) {
   server_ = std::make_unique<HealthCheckServer>(port_);
   ASSERT_TRUE(server_->start());
+  port_ = server_->getPort();  // Get actual assigned port
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
@@ -330,6 +332,7 @@ TEST_F(HealthCheckServerTest, InvalidEndpoint) {
 TEST_F(HealthCheckServerTest, InvalidMethod) {
   server_ = std::make_unique<HealthCheckServer>(port_);
   ASSERT_TRUE(server_->start());
+  port_ = server_->getPort();  // Get actual assigned port
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
@@ -369,6 +372,7 @@ TEST_F(HealthCheckServerTest, InvalidMethod) {
 TEST_F(HealthCheckServerTest, ConcurrentRequests) {
   server_ = std::make_unique<HealthCheckServer>(port_);
   ASSERT_TRUE(server_->start());
+  port_ = server_->getPort();  // Get actual assigned port
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
@@ -404,6 +408,7 @@ TEST_F(HealthCheckServerTest, ServerRestart) {
 
   // Start
   ASSERT_TRUE(server_->start());
+  port_ = server_->getPort();  // Get actual assigned port
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
   // Test endpoint works
@@ -415,7 +420,10 @@ TEST_F(HealthCheckServerTest, ServerRestart) {
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
   // Start again
+  port_ = 0;  // Reset to request new port
+  server_ = std::make_unique<HealthCheckServer>(port_);
   ASSERT_TRUE(server_->start());
+  port_ = server_->getPort();  // Get new assigned port
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
   // Test endpoint works again
