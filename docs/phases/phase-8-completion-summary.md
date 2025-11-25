@@ -1,4 +1,3 @@
-**FIXME** - Integrate this into the documentation and remove this file
 # Phase 8: Distributed Multi-Node HMAS - FINAL SUMMARY
 
 ## 🎉 **100% COMPLETE** ✅

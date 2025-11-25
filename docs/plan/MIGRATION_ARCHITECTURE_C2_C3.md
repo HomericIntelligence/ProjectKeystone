@@ -1,4 +1,3 @@
-**FIXME** - Integrate this into the documentation and remove this file
 # C2/C3 Architecture Migration Guide
 
 ## Overview
