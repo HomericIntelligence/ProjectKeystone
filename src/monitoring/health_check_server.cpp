@@ -96,6 +96,20 @@ bool HealthCheckServer::start() {
     return false;
   }
 
+  // FIX: If port 0 was requested, query the actual assigned port
+  if (port_ == 0) {
+    struct sockaddr_in actual_address;
+    socklen_t len = sizeof(actual_address);
+    if (getsockname(server_fd_, (struct sockaddr*)&actual_address, &len) == 0) {
+      port_ = ntohs(actual_address.sin_port);
+    } else {
+      std::cerr << "HealthCheckServer: Failed to get assigned port" << std::endl;
+      close(server_fd_);
+      server_fd_ = -1;
+      return false;
+    }
+  }
+
   // Listen for connections
   if (listen(server_fd_, core::Config::HTTP_MAX_PENDING_CONNECTIONS) < 0) {
     std::cerr << "HealthCheckServer: Failed to listen on port " << port_
