@@ -107,10 +107,11 @@ void TaskAgent::validateCommand(const std::string& command) {
 
   // 2. PATTERN MATCHING: Allow specific safe command patterns
 
+  // FIX: Compile regex patterns once (static) for performance
   // Pattern 1: Shell arithmetic - echo $((arithmetic expression))
   // Regex: ^echo \$\(\([-+*/0-9 ()]+\)\)$
   // Allows: echo $((5 + 3)), echo $((91 + 13)), echo $((10 * (5 + 2)))
-  std::regex arithmetic_pattern(R"(^echo \$\(\([-+*/0-9 ()]+\)\)$)");
+  static const std::regex arithmetic_pattern(R"(^echo \$\(\([-+*/0-9 ()]+\)\)$)");
   if (std::regex_match(command, arithmetic_pattern)) {
     // Validate arithmetic expression doesn't contain command substitution
     // The regex already ensures only digits, operators, spaces, and parens
@@ -119,7 +120,7 @@ void TaskAgent::validateCommand(const std::string& command) {
 
   // Pattern 2: Simple echo with safe characters (alphanumeric, spaces, basic punctuation)
   // Regex: ^echo [-a-zA-Z0-9 .,!?'"]+$
-  std::regex simple_echo_pattern(R"(^echo [-a-zA-Z0-9 .,!?'"]+$)");
+  static const std::regex simple_echo_pattern(R"(^echo [-a-zA-Z0-9 .,!?'"]+$)");
   if (std::regex_match(command, simple_echo_pattern)) {
     return;  // SAFE: Simple text echo
   }

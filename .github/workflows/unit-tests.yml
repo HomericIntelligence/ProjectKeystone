@@ -96,7 +96,7 @@ jobs:
         continue-on-error: true
 
       - name: Download test artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v4
         with:
           name: unit-test-results
           path: test-results/

@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <arpa/inet.h>
+#include <atomic>
 #include <chrono>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -20,11 +21,19 @@ using namespace keystone::monitoring;
 // enables clean shutdown without hanging. All 11 tests now enabled.
 //
 // Fix location: src/monitoring/health_check_server.cpp:146-206
+
+// FIXED: Flaky test issue - port allocation conflicts
+// Issue: Tests used rand() % 1000 which could assign same port to multiple tests
+// Resolution: Use atomic counter to guarantee unique ports across parallel test execution
+// Each test gets a unique incrementing port starting from 18080
 class HealthCheckServerTest : public ::testing::Test {
  protected:
+  static std::atomic<int> next_port_;
+
   void SetUp() override {
-    // Use a unique port for each test to avoid conflicts
-    port_ = 18080 + (rand() % 1000);
+    // Use atomic counter to guarantee unique port per test
+    // fetch_add returns the previous value and atomically increments
+    port_ = next_port_.fetch_add(1);
   }
 
   void TearDown() override {
@@ -110,6 +119,9 @@ class HealthCheckServerTest : public ::testing::Test {
   int port_;
   std::unique_ptr<HealthCheckServer> server_;
 };
+
+// Initialize static atomic counter (starts at 18080)
+std::atomic<int> HealthCheckServerTest::next_port_{18080};
 
 /**
  * @brief Test server start and stop
