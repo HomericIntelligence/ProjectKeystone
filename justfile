@@ -37,6 +37,12 @@ test_grpc := "distributed_grpc_tests"
 docker_dev_image := "projectkeystone-dev:latest"
 docker_test_image := "projectkeystone:latest"
 
+# Report directories (set by CMake or use defaults)
+report_dir := env_var_or_default("REPORTS_OUTPUT_DIR", "build/reports")
+coverage_dir := env_var_or_default("COVERAGE_OUTPUT_DIR", "build/reports/coverage")
+benchmark_dir := env_var_or_default("BENCHMARK_OUTPUT_DIR", "build/reports/benchmarks")
+analysis_dir := env_var_or_default("ANALYSIS_OUTPUT_DIR", "build/reports/analysis")
+
 # ============================================================================
 # Docker Management
 # ============================================================================

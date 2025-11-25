@@ -19,8 +19,8 @@ NC='\033[0m' # No Color
 
 # Configuration
 PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-BUILD_DIR="$PROJECT_ROOT/build"
-COVERAGE_DIR="$BUILD_DIR/coverage"
+BUILD_DIR="${BUILD_DIR:-$PROJECT_ROOT/build/coverage}"
+COVERAGE_DIR="${COVERAGE_OUTPUT_DIR:-$BUILD_DIR/reports/coverage}"
 HTML_OUTPUT_DIR="$COVERAGE_DIR/html"
 COVERAGE_INFO="$COVERAGE_DIR/coverage.info"
 COVERAGE_FILTERED="$COVERAGE_DIR/coverage_filtered.info"
