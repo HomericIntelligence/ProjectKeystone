@@ -26,9 +26,9 @@ NC='\033[0m' # No Color
 
 # Configuration
 PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-BUILD_DIR="$PROJECT_ROOT/build"
-BENCHMARK_DIR="$BUILD_DIR/benchmarks"
-RESULTS_DIR="$PROJECT_ROOT/benchmarks/results"
+BENCHMARK_DIR="${BENCHMARK_OUTPUT_DIR:-$PROJECT_ROOT/build/reports/benchmarks}"
+RESULTS_DIR="$BENCHMARK_DIR/results"
+mkdir -p "$RESULTS_DIR"
 BASELINE_FILE="$RESULTS_DIR/baseline.json"
 
 # Options
