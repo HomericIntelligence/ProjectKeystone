@@ -408,7 +408,62 @@ endfunction()
 
 ## Build Workflows
 
-### Local Development Build
+### Using Justfile (Recommended)
+
+ProjectKeystone uses `just` for unified build commands. All commands run in Docker by default, with native mode available.
+
+```bash
+# Show all available commands
+just --list
+just help
+
+# Build with AddressSanitizer (Docker)
+just build-asan
+
+# Build release mode
+just build-release
+
+# Build debug mode
+just build-debug
+
+# Build with ThreadSanitizer
+just build-tsan
+
+# Run all tests
+just test-asan
+
+# Run specific test suites
+just test-basic
+just test-module
+just test-unit
+
+# Run linters
+just lint
+just format
+
+# Native mode (run on host instead of Docker)
+just native-build-asan
+just native-test-asan
+# or
+NATIVE=1 just build-asan
+```
+
+**Build Directory Structure:**
+
+Justfile uses `build/<mode>/` for parallel builds:
+```
+build/
+├── debug/      # Debug build
+├── release/    # Release build
+├── asan/       # AddressSanitizer + UBSan
+├── tsan/       # ThreadSanitizer
+├── grpc/       # With gRPC support (optional)
+└── coverage/   # With coverage instrumentation
+```
+
+### Manual CMake Workflow (without justfile)
+
+#### Local Development Build
 
 ```bash
 # Configure with debug preset
@@ -421,7 +476,7 @@ cmake --build build/debug --parallel
 ctest --preset default
 ```
 
-### Release Build
+#### Release Build
 
 ```bash
 # Configure
@@ -434,7 +489,7 @@ cmake --build build/release --parallel
 cmake --install build/release --prefix /usr/local
 ```
 
-### With ThreadSanitizer
+#### With ThreadSanitizer
 
 ```bash
 # Configure

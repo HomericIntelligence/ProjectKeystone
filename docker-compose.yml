@@ -36,7 +36,7 @@ services:
     container_name: projectkeystone-dev
     volumes:
       - .:/workspace
-      - build-cache:/workspace/build
+      # Removed build-cache volume to support multiple build directories (build/debug, build/asan, etc.)
     working_dir: /workspace
     stdin_open: true
     tty: true
@@ -51,10 +51,9 @@ services:
     container_name: projectkeystone-build
     volumes:
       - .:/workspace
-      - build-cache:/workspace/build
+      # Removed build-cache volume to support multiple build directories
     command: >
-      bash -c "cd build && cmake -G Ninja .. && ninja"
+      bash -c "cd build/asan && cmake -G Ninja ../.. && ninja"
 
-volumes:
-  build-cache:
-    driver: local
+# Removed build-cache volume to support parallel builds in multiple directories
+# Each build mode (debug, release, asan, tsan) now uses its own build/MODE/ directory

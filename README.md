@@ -33,31 +33,71 @@ communication, work-stealing task scheduling, and comprehensive resilience featu
 - **C++20 Compiler**: GCC 13+ or Clang 15+
 - **CMake**: 3.20+
 - **Ninja**: Build system
+- **just**: Command runner ([installation guide](https://github.com/casey/just#installation))
 - **Docker**: (Optional) For containerized builds
 
 ## Quick Start
 
-### Build and Test
+### Using Justfile (Recommended)
+
+The project uses `just` for unified build, test, and lint commands:
 
 ```bash
-# Configure
-mkdir build && cd build
-cmake -G Ninja ..
+# Show all available commands
+just --list
+just help
 
-# Build
-ninja
+# Build with AddressSanitizer (Docker)
+just build-asan
 
-# Run tests
-ctest --output-on-failure
+# Build release mode
+just build-release
+
+# Run all tests with ASan
+just test-asan
+
+# Run specific test suite
+just test-basic
+just test-module
+just test-unit
+
+# Run linters
+just lint
+just format
+
+# Native mode (run on host instead of Docker)
+just native-build-asan
+just native-test-asan
+# or use NATIVE=1
+NATIVE=1 just build-asan
 ```
 
-### Docker Build
+### Manual Build (without justfile)
 
 ```bash
-# Build and run tests
-docker-compose up test
+# Build with ASan
+cmake -S . -B build/asan -G Ninja \
+    -DCMAKE_BUILD_TYPE=Debug \
+    -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined"
+cmake --build build/asan
 
-# Development environment
+# Run tests
+cd build/asan && ctest --output-on-failure
+```
+
+### Docker Commands (if not using justfile)
+
+```bash
+# Build Docker images
+just docker-build
+
+# Start dev container
+just docker-up
+
+# Enter dev container shell
+just docker-shell
+
+# Or use docker-compose directly
 docker-compose up -d dev
 docker-compose exec dev bash
 ```
@@ -97,20 +137,35 @@ See [Coverage Baseline](docs/plan/PHASE_9_COVERAGE_BASELINE.md) for detailed met
 ### Unit and E2E Tests
 
 ```bash
-cd build
+# Run all tests (with ASan)
+just test-asan
 
-# Run all tests
-ctest --output-on-failure
+# Run specific test suites
+just test-basic          # Basic delegation tests
+just test-module         # Module coordination tests
+just test-component      # Component coordination tests
+just test-async          # Async delegation tests
+just test-unit           # Unit tests
+just test-concurrency    # Concurrency unit tests
 
-# Run specific test suite
-./phase1_e2e_tests
-./unit_tests
-./concurrency_unit_tests
+# Run with GTest filter
+just test-filter basic_delegation_tests "E2E_Phase1.*"
+
+# Run with TSan (thread sanitizer)
+just test-tsan
+
+# Native mode (faster iteration)
+just native-test-asan
 ```
 
 ### Code Coverage
 
 ```bash
+# Build with coverage and generate report
+just build-coverage
+just coverage
+
+# Or manually
 ./scripts/generate_coverage.sh
 
 # View report
@@ -120,13 +175,16 @@ open build/coverage/html/index.html
 ### Fuzz Testing
 
 ```bash
-# Build with fuzzing
-cmake -DENABLE_FUZZING=ON -DCMAKE_CXX_COMPILER=clang++ ..
-ninja
+# Note: Fuzzing requires Clang and ENABLE_FUZZING=ON
+# Manual build (fuzzing not yet integrated into justfile)
+cmake -S . -B build/fuzz -G Ninja \
+    -DENABLE_FUZZING=ON \
+    -DCMAKE_CXX_COMPILER=clang++
+cmake --build build/fuzz
 
 # Run fuzz targets
-./fuzz_message_serialization -max_len=4096 -runs=1000000
-./fuzz_message_bus_routing -max_len=4096 -runs=1000000
+./build/fuzz/fuzz_message_serialization -max_len=4096 -runs=1000000
+./build/fuzz/fuzz_message_bus_routing -max_len=4096 -runs=1000000
 ```
 
 See [Fuzz Testing README](fuzz/README.md) for details.
@@ -134,11 +192,16 @@ See [Fuzz Testing README](fuzz/README.md) for details.
 ### Performance Benchmarks
 
 ```bash
-# Build in Release mode
-cmake -DCMAKE_BUILD_TYPE=Release ..
-ninja
+# Run all benchmarks
+just benchmark
 
-# Run benchmarks
+# Run specific benchmark
+just benchmark-message-pool
+just benchmark-distributed
+just benchmark-strings
+
+# Manual benchmark execution
+just build-release
 ./scripts/run_benchmarks.sh
 
 # Save baseline
@@ -148,11 +211,39 @@ ninja
 ./scripts/run_benchmarks.sh --compare benchmarks/results/baseline.json
 ```
 
+### Load Testing
+
+```bash
+# Run all load test scenarios (full duration)
+just load-test
+
+# Quick load tests (for CI)
+just load-test-quick
+
+# Run specific scenario
+just load-test-scenario sustained_load
+just load-test-scenario burst
+```
+
 See [Benchmarks README](benchmarks/README.md) for details.
 
 ### Static Analysis
 
 ```bash
+# Run all linters (clang-tidy + cppcheck)
+just lint
+
+# Run specific linter
+just lint-clang-tidy
+just lint-cppcheck
+
+# Format code
+just format
+
+# Check formatting (CI)
+just format-check
+
+# Manual execution
 ./scripts/run_static_analysis.sh
 
 # View reports
