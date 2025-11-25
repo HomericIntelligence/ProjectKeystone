@@ -86,5 +86,6 @@ k8s/secrets.yaml
 build_test/
 notes/
 
-# CMake build directories (sanitizers, etc.)
+# CMake build directories (all modes: debug, release, asan, tsan, grpc, coverage)
+build/
 build-*/

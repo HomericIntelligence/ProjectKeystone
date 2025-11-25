@@ -366,47 +366,92 @@ Write unit tests for:
 
 ### Test Execution
 
-**All builds and tests are done in Docker containers.**
+**All builds and tests use `just` commands (wraps Docker by default).**
 
 ```bash
-# Run tests (recommended)
+# Using justfile (recommended)
+just test-asan           # Run all tests with AddressSanitizer
+just test-tsan           # Run all tests with ThreadSanitizer
+just test-basic          # Run basic delegation tests
+just test-module         # Run module coordination tests
+just test-unit           # Run unit tests
+
+# Run with GTest filter
+just test-filter basic_delegation_tests "E2E_Phase1.*"
+
+# Native mode (faster iteration)
+just native-test-asan
+NATIVE=1 just test-basic
+
+# Manual Docker commands (if not using justfile)
 docker-compose up test
-
-# Run tests with Catch2 filters
-./build/phase1_e2e_tests "[e2e][phase1]"
-
-# Run tests with sanitizers
-docker-compose up test-asan   # AddressSanitizer
-docker-compose up test-ubsan  # UndefinedBehaviorSanitizer
-docker-compose up test-tsan   # ThreadSanitizer
-
-# Or build and run tests manually
 docker build -t projectkeystone:latest .
 docker run --rm projectkeystone:latest
 ```
 
-## Docker Build System
+## Build System
 
-**All development, building, and testing is done in Docker containers for consistency.**
+**All development uses `justfile` commands (Docker by default, native mode available).**
 
 ### Prerequisites
 
-- **Docker** 20.10+ installed
+- **just** - Command runner ([install guide](https://github.com/casey/just#installation))
+- **Docker** 20.10+ installed (for default Docker mode)
 - **docker-compose** 1.29+ (optional but recommended)
 
-### Quick Start
+### Quick Start with Justfile
 
 ```bash
-# Build and run tests
-docker-compose up test
+# Show all available commands
+just --list
+just help
 
-# Development environment (with mounted source)
+# Build with AddressSanitizer (Docker mode)
+just build-asan
+
+# Build release mode
+just build-release
+
+# Run all tests
+just test-asan
+
+# Run specific test suites
+just test-basic
+just test-module
+
+# Native mode (run on host)
+just native-build-asan
+just native-test-asan
+```
+
+### Build Directory Structure
+
+Builds output to `build/<mode>/` for parallel builds:
+
+```
+build/
+├── debug/      # Debug build
+├── release/    # Release build
+├── asan/       # AddressSanitizer + UBSan
+├── tsan/       # ThreadSanitizer
+├── ubsan/      # UndefinedBehaviorSanitizer
+├── lsan/       # LeakSanitizer
+├── grpc/       # With gRPC support
+└── coverage/   # With coverage instrumentation
+```
+
+### Manual Docker Commands (if not using justfile)
+
+```bash
+# Development environment
 docker-compose up -d dev
 docker-compose exec dev bash
 
-# Inside dev container:
-cd build && cmake -G Ninja .. && ninja
-./phase1_e2e_tests
+# Inside dev container: build and test
+cmake -S . -B build/asan -G Ninja \
+    -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined"
+cmake --build build/asan
+./build/asan/basic_delegation_tests
 ```
 
 ### Docker Commands
@@ -644,28 +689,55 @@ Phase 8 adds distributed multi-node communication via gRPC, YAML task specificat
 
 ### Quick Commands
 
-**Base System (Phases 1-7):**
+**Using Justfile (Recommended):**
 
 ```bash
-# Run tests in Docker
-docker-compose up test
+# Show all available commands
+just --list
+just help
 
-# Development environment
-docker-compose up -d dev
-docker-compose exec dev bash
+# Build
+just build-asan          # Build with ASan (Docker)
+just build-release       # Build release mode
+just build-tsan          # Build with TSan
 
-# Build from scratch
-docker-compose build --no-cache
+# Test
+just test-asan           # Run all tests with ASan
+just test-basic          # Run basic delegation tests
+just test-module         # Run module coordination tests
+just test-unit           # Run unit tests
+
+# Lint & Format
+just lint                # Run all linters
+just format              # Format code
+just format-check        # Check formatting (CI)
+
+# Benchmarks & Load Tests
+just benchmark           # Run all benchmarks
+just load-test           # Run load tests
+just load-test-quick     # Quick load tests (CI)
+
+# Native Mode (run on host)
+just native-build-asan
+just native-test-asan
+
+# Docker Management
+just docker-build        # Build Docker images
+just docker-up           # Start dev container
+just docker-shell        # Enter dev container
 ```
 
 **With Phase 8 (Distributed Features):**
 
 ```bash
-# Local build with gRPC
-mkdir -p build && cd build
-cmake -G Ninja -DENABLE_GRPC=ON ..
-ninja
-./distributed_grpc_tests
+# Build with gRPC support
+just build-grpc
+just test-grpc
+
+# Or manually
+cmake -S . -B build/grpc -G Ninja -DENABLE_GRPC=ON
+cmake --build build/grpc
+./build/grpc/distributed_grpc_tests
 
 # Multi-node deployment
 docker-compose -f docker-compose-distributed.yaml up
