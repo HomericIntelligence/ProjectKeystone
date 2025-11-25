@@ -73,6 +73,28 @@ endif()
 # Include directories
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
+# Explicit output directories for build artifacts
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
+
+# Report output directories (for scripts)
+set(REPORTS_OUTPUT_DIR "${CMAKE_BINARY_DIR}/reports")
+set(COVERAGE_OUTPUT_DIR "${REPORTS_OUTPUT_DIR}/coverage")
+set(BENCHMARK_OUTPUT_DIR "${REPORTS_OUTPUT_DIR}/benchmarks")
+set(ANALYSIS_OUTPUT_DIR "${REPORTS_OUTPUT_DIR}/analysis")
+
+# Export variables for scripts
+set(ENV{COVERAGE_OUTPUT_DIR} "${COVERAGE_OUTPUT_DIR}")
+set(ENV{BENCHMARK_OUTPUT_DIR} "${BENCHMARK_OUTPUT_DIR}")
+set(ENV{ANALYSIS_OUTPUT_DIR} "${ANALYSIS_OUTPUT_DIR}")
+
+# Create report directories
+file(MAKE_DIRECTORY "${REPORTS_OUTPUT_DIR}")
+file(MAKE_DIRECTORY "${COVERAGE_OUTPUT_DIR}")
+file(MAKE_DIRECTORY "${BENCHMARK_OUTPUT_DIR}")
+file(MAKE_DIRECTORY "${ANALYSIS_OUTPUT_DIR}")
+
 # FetchContent for dependencies
 include(FetchContent)
 
