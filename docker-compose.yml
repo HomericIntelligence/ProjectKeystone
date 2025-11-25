@@ -32,8 +32,12 @@ services:
     build:
       context: .
       target: development
+      args:
+        BUILD_UID: "${UID:-1000}"
+        BUILD_GID: "${GID:-1000}"
     image: projectkeystone-dev:latest
     container_name: projectkeystone-dev
+    user: "${UID:-1000}:${GID:-1000}"  # Run as host user
     volumes:
       - .:/workspace
       # Removed build-cache volume to support multiple build directories (build/debug, build/asan, etc.)
@@ -41,6 +45,8 @@ services:
     stdin_open: true
     tty: true
     command: /bin/bash
+    environment:
+      - HOME=/workspace/.docker-home  # Avoid permission issues with $HOME
 
   # Build only (for CI/CD)
   build:
