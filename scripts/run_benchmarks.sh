@@ -26,6 +26,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+BUILD_DIR="${BUILD_DIR:-$PROJECT_ROOT/build/release/bin}"
 BENCHMARK_DIR="${BENCHMARK_OUTPUT_DIR:-$PROJECT_ROOT/build/reports/benchmarks}"
 RESULTS_DIR="$BENCHMARK_DIR/results"
 mkdir -p "$RESULTS_DIR"
