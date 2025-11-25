@@ -574,6 +574,103 @@ coverage: build-coverage
 static-analysis: lint
 
 # ============================================================================
+# Packaging (CPack)
+# ============================================================================
+
+# Create all packages (TGZ, ZIP, DEB)
+package: build-release
+    #!/usr/bin/env bash
+    set -e
+    echo "Creating all packages with CPack..."
+    if [[ "${NATIVE:-}" == "1" ]]; then
+        cd build/release && cpack
+    else
+        docker-compose exec -T dev bash -c "cd build/release && cpack"
+    fi
+    echo "✓ Packages created in build/release/"
+
+# Create only DEB packages
+package-deb: build-release
+    #!/usr/bin/env bash
+    set -e
+    echo "Creating DEB packages..."
+    if [[ "${NATIVE:-}" == "1" ]]; then
+        cd build/release && cpack -G DEB
+    else
+        docker-compose exec -T dev bash -c "cd build/release && cpack -G DEB"
+    fi
+    echo "✓ DEB packages created in build/release/"
+
+# Create only ZIP packages
+package-zip: build-release
+    #!/usr/bin/env bash
+    set -e
+    echo "Creating ZIP packages..."
+    if [[ "${NATIVE:-}" == "1" ]]; then
+        cd build/release && cpack -G ZIP
+    else
+        docker-compose exec -T dev bash -c "cd build/release && cpack -G ZIP"
+    fi
+    echo "✓ ZIP packages created in build/release/"
+
+# Create only TGZ packages
+package-tgz: build-release
+    #!/usr/bin/env bash
+    set -e
+    echo "Creating TGZ packages..."
+    if [[ "${NATIVE:-}" == "1" ]]; then
+        cd build/release && cpack -G TGZ
+    else
+        docker-compose exec -T dev bash -c "cd build/release && cpack -G TGZ"
+    fi
+    echo "✓ TGZ packages created in build/release/"
+
+# List all generated packages
+package-list:
+    #!/usr/bin/env bash
+    set -e
+    echo "Generated packages:"
+    if [[ "${NATIVE:-}" == "1" ]]; then
+        ls -lh build/release/ProjectKeystone-*.{deb,zip,tar.gz} 2>/dev/null || echo "No packages found. Run 'just package' first."
+    else
+        docker-compose exec -T dev bash -c "ls -lh build/release/ProjectKeystone-*.{deb,zip,tar.gz} 2>/dev/null || echo 'No packages found. Run just package first.'"
+    fi
+
+# Inspect package contents
+package-inspect PACKAGE:
+    #!/usr/bin/env bash
+    set -e
+    echo "Inspecting package: {{PACKAGE}}"
+    if [[ "{{PACKAGE}}" == *.deb ]]; then
+        if [[ "${NATIVE:-}" == "1" ]]; then
+            dpkg-deb -c build/release/{{PACKAGE}}
+        else
+            docker-compose exec -T dev dpkg-deb -c build/release/{{PACKAGE}}
+        fi
+    elif [[ "{{PACKAGE}}" == *.zip ]]; then
+        if [[ "${NATIVE:-}" == "1" ]]; then
+            unzip -l build/release/{{PACKAGE}}
+        else
+            docker-compose exec -T dev unzip -l build/release/{{PACKAGE}}
+        fi
+    elif [[ "{{PACKAGE}}" == *.tar.gz ]]; then
+        if [[ "${NATIVE:-}" == "1" ]]; then
+            tar -tzf build/release/{{PACKAGE}}
+        else
+            docker-compose exec -T dev tar -tzf build/release/{{PACKAGE}}
+        fi
+    else
+        echo "Error: Unknown package format"
+        exit 1
+    fi
+
+# Clean generated packages
+clean-packages:
+    @echo "Cleaning generated packages..."
+    rm -f build/release/ProjectKeystone-*.{deb,zip,tar.gz} build/release/_CPack_Packages 2>/dev/null || true
+    @echo "✓ Packages cleaned"
+
+# ============================================================================
 # Clean Recipes
 # ============================================================================
 
@@ -677,6 +774,22 @@ native-load-test:
 native-load-test-quick:
     @NATIVE=1 just load-test-quick
 
+# Native packaging variants
+native-package:
+    @NATIVE=1 just package
+
+native-package-deb:
+    @NATIVE=1 just package-deb
+
+native-package-zip:
+    @NATIVE=1 just package-zip
+
+native-package-tgz:
+    @NATIVE=1 just package-tgz
+
+native-package-list:
+    @NATIVE=1 just package-list
+
 # ============================================================================
 # CI/CD Helper Recipes
 # ============================================================================
@@ -739,6 +852,15 @@ help:
     @echo "  lint-cppcheck            Run cppcheck only"
     @echo "  format                   Format all C++ files"
     @echo "  format-check             Check formatting (CI)"
+    @echo ""
+    @echo "Packaging:"
+    @echo "  package                  Create all packages (TGZ, ZIP, DEB)"
+    @echo "  package-deb              Create only DEB packages"
+    @echo "  package-zip              Create only ZIP packages"
+    @echo "  package-tgz              Create only TGZ packages"
+    @echo "  package-list             List generated packages"
+    @echo "  package-inspect PACKAGE  Inspect package contents"
+    @echo "  clean-packages           Clean generated packages"
     @echo ""
     @echo "Docker:"
     @echo "  docker-build [TARGET]    Build Docker image"
