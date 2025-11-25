@@ -4,6 +4,10 @@
 # Stage 1: Build environment
 FROM ubuntu:24.04 AS builder
 
+# Build arguments for user permissions (host UID/GID compatibility)
+ARG BUILD_UID=1000
+ARG BUILD_GID=1000
+
 # Build arguments for configurable builds (sanitizers, coverage)
 ARG CMAKE_BUILD_TYPE=Release
 ARG CMAKE_CXX_FLAGS=""
@@ -38,7 +42,16 @@ RUN apt-get update && apt-get install -y \
 # Verify C++20 support
 RUN clang++ --version && cmake --version
 
-# Set working directory
+# Create builder user with host UID/GID for permission compatibility
+RUN groupadd -g ${BUILD_GID} builder 2>/dev/null || true && \
+    useradd -m -u ${BUILD_UID} -g ${BUILD_GID} builder && \
+    mkdir -p /workspace && \
+    chown -R builder:builder /workspace
+
+# Switch to builder user
+USER builder
+
+# Set working directory (now owned by builder)
 WORKDIR /workspace
 
 # Copy project files
