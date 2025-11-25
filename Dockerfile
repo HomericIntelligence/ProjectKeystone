@@ -4,6 +4,14 @@
 # Stage 1: Build environment
 FROM ubuntu:24.04 AS builder
 
+# Build arguments for configurable builds (sanitizers, coverage)
+ARG CMAKE_BUILD_TYPE=Release
+ARG CMAKE_CXX_FLAGS=""
+ARG ASAN_OPTIONS=""
+ARG UBSAN_OPTIONS=""
+ARG TSAN_OPTIONS=""
+ARG MSAN_OPTIONS=""
+
 # Avoid interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -46,7 +54,10 @@ COPY fuzz/ ./fuzz/
 
 # Build the project
 RUN mkdir -p build && cd build \
-    && cmake -G Ninja .. \
+    && cmake -G Ninja \
+        -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} \
+        -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" \
+        .. \
     && ninja
 
 # Stage 2: Runtime environment (smaller image)
