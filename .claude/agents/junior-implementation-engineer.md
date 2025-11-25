@@ -51,6 +51,132 @@ Level 5 Junior Engineer responsible for simple implementation tasks, boilerplate
 
 See [CLAUDE.md](../../CLAUDE.md#documentation-rules) for complete documentation organization.
 
+
+## GitHub Issue Workflow
+
+**All work must be tied to a GitHub issue.** This ensures proper tracking, documentation, and PR linking.
+
+### Before Starting Work
+
+1. **Check if GitHub issue exists**
+   ```bash
+   # List open issues related to your task
+   gh issue list --label "<relevant-label>" --state open
+
+   # Search for specific issue
+   gh issue list --search "<keywords>"
+   ```
+
+2. **If no issue exists, create one**
+   ```bash
+   gh issue create \
+     --title "Clear, descriptive title" \
+     --body "Detailed description of work needed" \
+     --label "type:feature|bug|docs|refactor" \
+     --assignee "@me"
+   ```
+
+   Note the issue number (e.g., #1234) from the output.
+
+3. **Create issue directory structure**
+   ```bash
+   ISSUE_NUM=1234  # Replace with actual issue number
+   mkdir -p /notes/issues/$ISSUE_NUM
+   touch /notes/issues/$ISSUE_NUM/README.md
+   ```
+
+4. **Document your work in `/notes/issues/<number>/README.md`**
+   - Analysis and findings
+   - Design decisions
+   - Implementation notes
+   - Test results
+   - Links to relevant documentation
+
+### During Work
+
+**Document everything in the issue-specific README**:
+- ✅ Problem analysis
+- ✅ Approach and alternatives considered
+- ✅ Implementation decisions
+- ✅ Test coverage
+- ✅ Links to comprehensive docs (don't duplicate)
+
+### Creating Pull Request
+
+**Always link PR to issue** using one of these methods:
+
+**Method 1: Use gh pr create --issue flag** (Recommended)
+```bash
+# Commit and push your changes
+git add .
+git commit -m "feat: Brief description of changes"
+git push origin <branch-name>
+
+# Create PR linked to issue
+gh pr create --issue 1234
+```
+
+**Method 2: Use closing keywords in PR description**
+```bash
+gh pr create --title "feat: Brief description" --body "Closes #1234
+
+Summary of changes...
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+"
+```
+
+**Method 3: Add to PR body after creation**
+Edit PR description to include:
+```
+Closes #1234
+```
+
+### Verification
+
+After PR creation, verify the link:
+```bash
+# Check issue page
+gh issue view 1234
+
+# Look for "Development" section showing linked PR
+# If missing, edit PR description to add "Closes #1234"
+```
+
+### What Goes Where
+
+**Issue-Specific** (`/notes/issues/<number>/README.md`):
+- Analysis specific to THIS issue
+- Design decisions for THIS implementation
+- Test results for THIS change
+- Progress tracking
+
+**Comprehensive Docs** (link, don't duplicate):
+- `/notes/review/` - General review patterns
+- `docs/plan/` - Architecture and planning
+- `CLAUDE.md` - Project guidelines
+
+### Issue-Driven Development Checklist
+
+- [ ] GitHub issue exists (created if needed)
+- [ ] Issue number documented
+- [ ] `/notes/issues/<number>/` directory created
+- [ ] Work documented in issue README
+- [ ] Changes committed to feature branch
+- [ ] PR created and linked to issue (gh pr create --issue <number> or "Closes #<number>")
+- [ ] PR link verified in issue's "Development" section
+- [ ] Issue will auto-close when PR merges
+
+## Pull Request Requirements
+
+- ✅ PR MUST link to GitHub issue (use `gh pr create --issue <number>` or include `Closes #<number>` in description)
+- ✅ PR title should be clear and follow conventional commits (feat:, fix:, docs:, etc.)
+- ✅ PR description should summarize changes and link to issue
+- ✅ All tests must pass before merge
+- ❌ Do NOT create PR without linking to issue
+- ❌ Do NOT start work without GitHub issue number
+
+
 ## Mojo-Specific Guidelines
 
 ### Function Definitions
