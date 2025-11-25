@@ -105,10 +105,12 @@ TEST(TaskTest, ManualResume) {
 TEST(TaskTest, CoroutineChaining) {
   auto inner = []() -> Task<int> { co_return 10; };
 
-  auto outer = [&]() -> Task<int> {
+  // Keep outer lambda alive until get() completes to avoid stack-use-after-scope
+  auto outerLambda = [&]() -> Task<int> {
     int value = co_await inner();
     co_return value * 2;
-  }();
+  };
+  auto outer = outerLambda();
 
   EXPECT_EQ(outer.get(), 20);
 }
@@ -117,12 +119,14 @@ TEST(TaskTest, CoroutineChaining) {
 TEST(TaskTest, MultipleCoAwait) {
   auto getValue = [](int x) -> Task<int> { co_return x; };
 
-  auto sumTask = [&]() -> Task<int> {
+  // Keep lambda alive until get() completes to avoid stack-use-after-scope
+  auto sumLambda = [&]() -> Task<int> {
     int a = co_await getValue(10);
     int b = co_await getValue(20);
     int c = co_await getValue(30);
     co_return a + b + c;
-  }();
+  };
+  auto sumTask = sumLambda();
 
   EXPECT_EQ(sumTask.get(), 60);
 }
@@ -134,10 +138,12 @@ TEST(TaskTest, ExceptionInChainedCoroutine) {
     co_return 0;
   };
 
-  auto outerTask = [&]() -> Task<int> {
+  // Keep lambda alive until get() completes to avoid stack-use-after-scope
+  auto outerLambda = [&]() -> Task<int> {
     int value = co_await throwingTask();
     co_return value;
-  }();
+  };
+  auto outerTask = outerLambda();
 
   EXPECT_THROW({ outerTask.get(); }, std::runtime_error);
 }
@@ -151,6 +157,8 @@ TEST(TaskTest, VoidTaskChaining) {
     co_return;
   };
 
+  // Keep lambda alive until get() completes to avoid stack-use-after-scope
+  // Note: multiIncrementLambda captures increment by reference, so it must stay alive
   auto multiIncrementLambda = [&increment]() -> Task<void> {
     co_await increment();
     co_await increment();
@@ -187,11 +195,13 @@ TEST(TaskTest, ComplexComputation) {
     co_return n;  // Placeholder
   };
 
-  auto computeTask = [&]() -> Task<int> {
+  // Keep lambda alive until get() completes to avoid stack-use-after-scope
+  auto computeLambda = [&]() -> Task<int> {
     int a = co_await fibonacci(5);
     int b = co_await fibonacci(10);
     co_return a + b;
-  }();
+  };
+  auto computeTask = computeLambda();
 
   int result = computeTask.get();
   EXPECT_EQ(result, 15);
@@ -229,10 +239,12 @@ TEST(TaskTest, MultipleGetCalls) {
 TEST(TaskTest, ExceptionMessagePreservation) {
   const std::string error_msg = "Detailed error message with context";
 
-  auto task = [&error_msg]() -> Task<int> {
+  // Keep lambda alive until get() completes to avoid stack-use-after-scope
+  auto taskLambda = [&error_msg]() -> Task<int> {
     throw std::runtime_error(error_msg);
     co_return 0;
-  }();
+  };
+  auto task = taskLambda();
 
   try {
     task.get();
@@ -308,15 +320,17 @@ TEST(TaskTest, ExceptionInCoAwaitChain) {
     co_return 10;
   };
 
+  // Keep lambdas alive until get() completes to avoid stack-use-after-scope
   auto middleTask = [&]() -> Task<int> {
     int val = co_await innerTask();
     co_return val * 2;  // Never reached
   };
 
-  auto outerTask = [&]() -> Task<int> {
+  auto outerLambda = [&]() -> Task<int> {
     int val = co_await middleTask();
     co_return val * 3;  // Never reached
-  }();
+  };
+  auto outerTask = outerLambda();
 
   try {
     outerTask.get();
@@ -381,12 +395,14 @@ TEST(TaskTest, SymmetricTransferChaining) {
     co_return 10;
   };
 
-  auto task2 = [&]() -> Task<int> {
+  // Keep lambda alive until get() completes to avoid stack-use-after-scope
+  auto task2Lambda = [&]() -> Task<int> {
     execution_order.push_back(2);
     int val = co_await task1();
     execution_order.push_back(3);
     co_return val * 2;
-  }();
+  };
+  auto task2 = task2Lambda();
 
   EXPECT_EQ(task2.get(), 20);
 
@@ -417,15 +433,17 @@ TEST(TaskTest, SymmetricTransferChaining) {
 TEST(TaskTest, DeepCoroutineChaining) {
   auto level3 = []() -> Task<int> { co_return 1; };
 
+  // Keep lambdas alive until get() completes to avoid stack-use-after-scope
   auto level2 = [&]() -> Task<int> {
     int val = co_await level3();
     co_return val + 10;
   };
 
-  auto level1 = [&]() -> Task<int> {
+  auto level1Lambda = [&]() -> Task<int> {
     int val = co_await level2();
     co_return val + 100;
-  }();
+  };
+  auto level1 = level1Lambda();
 
   EXPECT_EQ(level1.get(), 111);  // 1 + 10 + 100
 }
@@ -439,12 +457,14 @@ TEST(TaskTest, SymmetricTransferVoidTask) {
     co_return;
   };
 
-  auto wrapper = [&]() -> Task<int> {
+  // Keep lambda alive until get() completes to avoid stack-use-after-scope
+  auto wrapperLambda = [&]() -> Task<int> {
     execution_order.push_back(2);
     co_await voidTask();
     execution_order.push_back(3);
     co_return 42;
-  }();
+  };
+  auto wrapper = wrapperLambda();
 
   EXPECT_EQ(wrapper.get(), 42);
 
@@ -482,10 +502,12 @@ TEST(TaskTest, ExceptionPropagationThroughSymmetricTransfer) {
     co_return 0;
   };
 
-  auto catchingTask = [&]() -> Task<int> {
+  // Keep lambda alive until get() completes to avoid stack-use-after-scope
+  auto catchingLambda = [&]() -> Task<int> {
     int val = co_await throwingTask();
     co_return val;  // Never reached
-  }();
+  };
+  auto catchingTask = catchingLambda();
 
   EXPECT_THROW({ catchingTask.get(); }, std::runtime_error);
 }
@@ -509,13 +531,15 @@ TEST(TaskTest, MultipleCoAwaitsWithSymmetricTransfer) {
     co_return 30;
   };
 
-  auto aggregator = [&]() -> Task<int> {
+  // Keep lambda alive until get() completes to avoid stack-use-after-scope
+  auto aggregatorLambda = [&]() -> Task<int> {
     execution_order.push_back(0);
     int a = co_await task1();
     int b = co_await task2();
     int c = co_await task3();
     co_return a + b + c;
-  }();
+  };
+  auto aggregator = aggregatorLambda();
 
   EXPECT_EQ(aggregator.get(), 60);
 
