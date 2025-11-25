@@ -1,5 +1,4 @@
-**FIXME** - Integrate this into the documentation and remove this file
-# P0 Critical Architecture Issues - RESOLVED ✅
+# ADR-010: P0 Critical Architecture Issues - RESOLVED ✅
 
 ## Overview
 This document tracked the P0 (critical) architecture issues identified in the comprehensive code review.
