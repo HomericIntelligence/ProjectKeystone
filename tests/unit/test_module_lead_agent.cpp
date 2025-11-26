@@ -208,9 +208,9 @@ TEST_F(ModuleLeadAgentTest, ResultSynthesis) {
   module->receiveMessage(result3);
 
   // Process results
-  module->processTaskResult(result1);
-  module->processTaskResult(result2);
-  module->processTaskResult(result3);
+  module->processMessage(result1).get();
+  module->processMessage(result2).get();
+  module->processMessage(result3).get();
 
   // Synthesize (should combine all results)
   auto synthesized = module->synthesizeResults();

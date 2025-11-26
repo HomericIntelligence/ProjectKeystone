@@ -7,6 +7,7 @@
 
 #include "agents/async_agent.hpp"
 #include "agents/coordination_state.hpp"
+#include "agents/lead_agent_base.hpp"
 
 #ifdef ENABLE_GRPC
 #include "network/result_aggregator.hpp"
@@ -17,9 +18,22 @@ namespace keystone {
 namespace agents {
 
 /**
+ * @brief State enum for ComponentLeadAgent workflow tracking
+ */
+enum class ComponentLeadState {
+  IDLE,                 // No active work
+  PLANNING,             // Decomposing component goal into modules
+  WAITING_FOR_MODULES,  // Modules delegated, waiting for results
+  AGGREGATING,          // Combining results from all modules
+  ERROR                 // Error state
+};
+
+/**
  * @brief Level 1 Component Lead Agent
  *
  * Coordinates multiple ModuleLeadAgents to accomplish component-level goals.
+ * Uses Template Method Pattern from LeadAgentBase to eliminate code duplication.
+ *
  * Responsibilities:
  * - Decompose component goals into module goals
  * - Distribute module goals to available ModuleLeadAgents
@@ -28,18 +42,10 @@ namespace agents {
  *
  * State Machine: IDLE → PLANNING → WAITING_FOR_MODULES → AGGREGATING → IDLE
  */
-class ComponentLeadAgent : public AsyncAgent {
+class ComponentLeadAgent : public LeadAgentBase<ComponentLeadState> {
  public:
-  /**
-   * @brief Agent state for tracking workflow
-   */
-  enum class State {
-    IDLE,                 // No active work
-    PLANNING,             // Decomposing component goal into modules
-    WAITING_FOR_MODULES,  // Modules delegated, waiting for results
-    AGGREGATING,          // Combining results from all modules
-    ERROR                 // Error state
-  };
+  // Type alias for backward compatibility with existing code
+  using State = ComponentLeadState;
 
   /**
    * @brief Construct a new Component Lead Agent
@@ -49,16 +55,6 @@ class ComponentLeadAgent : public AsyncAgent {
   explicit ComponentLeadAgent(const std::string& agent_id);
 
   /**
-   * @brief Process incoming message asynchronously
-   *
-   * FIX C3: Changed to async (returns Task<Response>)
-   *
-   * @param msg Message to process
-   * @return concurrency::Task<core::Response> Async task with response
-   */
-  concurrency::Task<core::Response> processMessage(const core::KeystoneMessage& msg) override;
-
-  /**
    * @brief Configure available ModuleLeadAgents for delegation
    *
    * @param module_lead_ids List of ModuleLead IDs available for work
@@ -66,34 +62,15 @@ class ComponentLeadAgent : public AsyncAgent {
   void setAvailableModuleLeads(const std::vector<std::string>& module_lead_ids);
 
   /**
-   * @brief Process a result from a ModuleLeadAgent
-   *
-   * @param result_msg Message containing module result
-   */
-  void processModuleResult(const core::KeystoneMessage& result_msg);
-
-  /**
    * @brief Aggregate results from all completed modules
+   *
+   * Public API for manual result aggregation (typically called after all results received)
    *
    * @return std::string Aggregated component-level result
    */
   std::string synthesizeComponentResult();
 
-  /**
-   * @brief Get execution trace for testing/debugging
-   *
-   * @return std::vector<std::string> State transition history (copy for thread safety)
-   */
-  std::vector<std::string> getExecutionTrace() const {
-    return coordination_.getExecutionTrace();
-  }
-
-  /**
-   * @brief Get current state
-   *
-   * @return State Current agent state
-   */
-  State getCurrentState() const { return coordination_.getCurrentState(); }
+  // getExecutionTrace() and getCurrentState() inherited from LeadAgentBase
 
 #ifdef ENABLE_GRPC
   /**
@@ -132,33 +109,48 @@ class ComponentLeadAgent : public AsyncAgent {
   void shutdown();
 #endif
 
- private:
+ protected:
+  // === Hook Methods (override pure virtuals from LeadAgentBase) ===
+
   /**
-   * @brief Decompose component goal into module goals
+   * @brief Decompose component goal into module goals (HOOK METHOD)
    *
-   * @param component_goal High-level component goal
+   * @param goal High-level component goal
    * @return std::vector<std::string> List of module goals
    */
-  std::vector<std::string> decomposeModules(const std::string& component_goal);
+  std::vector<std::string> decomposeGoal(const std::string& goal) override;
 
   /**
-   * @brief Delegate module goals to available ModuleLeadAgents
+   * @brief Delegate module goals to available ModuleLeadAgents (HOOK METHOD)
    *
-   * @param module_goals List of module goals to delegate
+   * @param subtasks List of module goals to delegate
    */
-  void delegateModules(const std::vector<std::string>& module_goals);
+  void delegateSubtasks(const std::vector<std::string>& subtasks) override;
 
   /**
-   * @brief Convert state enum to string for tracing
+   * @brief Check if message is a module result (HOOK METHOD)
+   *
+   * @param msg Message to check
+   * @return true If msg.command == "module_result"
+   */
+  bool isSubordinateResult(const core::KeystoneMessage& msg) override;
+
+  /**
+   * @brief Process a result from a ModuleLeadAgent (HOOK METHOD)
+   *
+   * @param result_msg Message containing module result
+   */
+  void processSubordinateResult(const core::KeystoneMessage& result_msg) override;
+
+  /**
+   * @brief Convert state enum to string (HOOK METHOD)
    *
    * @param state State to convert
    * @return std::string String representation
    */
-  std::string stateToString(State state) const;
+  std::string stateToString(State state) const override;
 
-  // Coordination state (eliminates ~300 lines of duplication)
-  CoordinationState<State, std::string> coordination_;
-
+ private:
   // Agent-specific configuration
   std::vector<std::string> available_module_leads_;
 

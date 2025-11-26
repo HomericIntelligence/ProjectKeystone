@@ -149,7 +149,7 @@ TEST(E2E_Phase3, ComponentLeadCoordinatesMultipleModules) {
   for (int i = 0; i < 3; ++i) {
     auto result_msg = module_lead_1->getMessage();
     if (result_msg.has_value()) {
-      module_lead_1->processTaskResult(*result_msg);
+      module_lead_1->processMessage(*result_msg).get();
     }
   }
 
@@ -157,7 +157,7 @@ TEST(E2E_Phase3, ComponentLeadCoordinatesMultipleModules) {
   for (int i = 0; i < 3; ++i) {
     auto result_msg = module_lead_2->getMessage();
     if (result_msg.has_value()) {
-      module_lead_2->processTaskResult(*result_msg);
+      module_lead_2->processMessage(*result_msg).get();
     }
   }
 
@@ -187,11 +187,11 @@ TEST(E2E_Phase3, ComponentLeadCoordinatesMultipleModules) {
   // ComponentLead receives module results
   auto comp_result_1 = component_lead->getMessage();
   ASSERT_TRUE(comp_result_1.has_value());
-  component_lead->processModuleResult(*comp_result_1);
+  component_lead->processMessage(*comp_result_1).get();
 
   auto comp_result_2 = component_lead->getMessage();
   ASSERT_TRUE(comp_result_2.has_value());
-  component_lead->processModuleResult(*comp_result_2);
+  component_lead->processMessage(*comp_result_2).get();
 
   // ComponentLead synthesizes final component result
   auto component_result = component_lead->synthesizeComponentResult();

@@ -201,8 +201,8 @@ TEST_F(ComponentLeadAgentTest, ResultAggregation) {
   component->receiveMessage(result2);
 
   // Process results
-  component->processModuleResult(result1);
-  component->processModuleResult(result2);
+  component->processMessage(result1).get();
+  component->processMessage(result2).get();
 
   // Aggregate (should combine all results)
   auto aggregated = component->synthesizeComponentResult();

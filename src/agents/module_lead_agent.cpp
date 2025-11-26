@@ -14,73 +14,38 @@
 namespace keystone {
 namespace agents {
 
-ModuleLeadAgent::ModuleLeadAgent(const std::string& agent_id) : AsyncAgent(agent_id) {
-  coordination_.transitionTo(State::IDLE, stateToString(State::IDLE));
+ModuleLeadAgent::ModuleLeadAgent(const std::string& agent_id)
+    : LeadAgentBase<State>(agent_id,
+                          State::IDLE,
+                          State::PLANNING,
+                          State::WAITING_FOR_TASKS,
+                          State::SYNTHESIZING,
+                          State::ERROR) {
+  // Base class constructor initializes coordination_ with IDLE state
 }
 
-concurrency::Task<core::Response> ModuleLeadAgent::processMessage(const core::KeystoneMessage& msg) {
-  // FIX C3: Changed to async (returns Task<Response>)
-
-  // Phase 1.2 (Issue #52): Handle CANCEL_TASK action type
-  if (msg.action_type == core::ActionType::CANCEL_TASK) {
-    auto response = handleCancellation(msg);
-
-    // Send acknowledgement back to sender via MessageBus
-    auto response_msg = core::KeystoneMessage::create(
-        agent_id_,
-        msg.sender_id,  // Route back to original sender
-        "response", response.result);
-    response_msg.msg_id = msg.msg_id;  // Keep same msg_id for tracking
-
-    sendMessage(response_msg);
-
-    co_return response;
-  }
-
-  // Check if this is a task result (from TaskAgent) or a module goal (from ChiefArchitect)
-  if (msg.command == "response") {
-    // This is a task result - handled separately
-    processTaskResult(msg);
-    co_return core::Response::createSuccess(msg, agent_id_, "Task result processed");
-  }
-
-  // This is a module goal from ChiefArchitect
-  coordination_.transitionTo(State::PLANNING, stateToString(State::PLANNING));
-
-  coordination_.setCurrentGoal(msg.command);
-  coordination_.setRequesterId(msg.sender_id);
-
-  // Decompose module goal into tasks
-  auto tasks = decomposeTasks(coordination_.getCurrentGoal());
-
-  if (tasks.empty()) {
-    coordination_.transitionTo(State::ERROR, stateToString(State::ERROR));
-    co_return core::Response::createError(msg, agent_id_, "Failed to decompose module goal");
-  }
-
-  // Initialize coordination for expected results
-  coordination_.initializeCoordination(static_cast<int>(tasks.size()));
-
-  coordination_.transitionTo(State::WAITING_FOR_TASKS, stateToString(State::WAITING_FOR_TASKS));
-  delegateTasks(tasks);
-
-  co_return core::Response::createSuccess(
-      msg, agent_id_, "Module goal decomposed into " + std::to_string(tasks.size()) + " tasks");
-}
+// processMessage() is now implemented in LeadAgentBase (template method pattern)
 
 void ModuleLeadAgent::setAvailableTaskAgents(const std::vector<std::string>& task_agent_ids) {
   available_task_agents_ = task_agent_ids;
 }
 
-std::vector<std::string> ModuleLeadAgent::decomposeTasks(const std::string& module_goal) {
+// === Hook Method Implementations (override LeadAgentBase pure virtuals) ===
+
+bool ModuleLeadAgent::isSubordinateResult(const core::KeystoneMessage& msg) {
+  // Check if this is a task result (from TaskAgent)
+  return msg.command == "response";
+}
+
+std::vector<std::string> ModuleLeadAgent::decomposeGoal(const std::string& goal) {
   std::vector<std::string> tasks;
 
-  // Parse goal like "Calculate sum of: 10 + 20 + 30"
+  // Parse module goal like "Calculate sum of: 10 + 20 + 30"
   // or "Calculate: 100 + 200"
 
   // Extract numbers using regex
   std::regex number_regex(R"(\d+)");
-  auto numbers_begin = std::sregex_iterator(module_goal.begin(), module_goal.end(), number_regex);
+  auto numbers_begin = std::sregex_iterator(goal.begin(), goal.end(), number_regex);
   auto numbers_end = std::sregex_iterator();
 
   // Create a task for each number (echo the number)
@@ -93,9 +58,9 @@ std::vector<std::string> ModuleLeadAgent::decomposeTasks(const std::string& modu
   return tasks;
 }
 
-void ModuleLeadAgent::delegateTasks(const std::vector<std::string>& tasks) {
+void ModuleLeadAgent::delegateSubtasks(const std::vector<std::string>& subtasks) {
   // Assign tasks to available TaskAgents in round-robin fashion
-  for (size_t i = 0; i < tasks.size(); ++i) {
+  for (size_t i = 0; i < subtasks.size(); ++i) {
     if (available_task_agents_.empty()) {
       throw std::runtime_error("No TaskAgents available for delegation");
     }
@@ -105,7 +70,7 @@ void ModuleLeadAgent::delegateTasks(const std::vector<std::string>& tasks) {
     const std::string& task_agent_id = available_task_agents_[agent_index];
 
     // Create and send task message
-    auto task_msg = core::KeystoneMessage::create(agent_id_, task_agent_id, tasks[i]);
+    auto task_msg = core::KeystoneMessage::create(agent_id_, task_agent_id, subtasks[i]);
 
     // Track pending task
     coordination_.trackPendingSubordinate(task_msg.msg_id, task_agent_id);
@@ -115,7 +80,7 @@ void ModuleLeadAgent::delegateTasks(const std::vector<std::string>& tasks) {
   }
 }
 
-void ModuleLeadAgent::processTaskResult(const core::KeystoneMessage& result_msg) {
+void ModuleLeadAgent::processSubordinateResult(const core::KeystoneMessage& result_msg) {
   if (!result_msg.payload) {
     // No payload, skip
     return;
