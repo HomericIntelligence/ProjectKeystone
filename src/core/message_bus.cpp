@@ -33,16 +33,29 @@ void MessageBus::registerAgent(const std::string& agent_id, std::shared_ptr<agen
                              std::to_string(Config::MAX_AGENTS));
   }
 
-  if (agents_.find(agent_id) != agents_.end()) {
+  // Phase A2: Intern the agent_id string to get integer ID
+  uint32_t int_id = interning_.intern(agent_id);
+
+  // Check for duplicate registration using integer ID
+  if (agents_.find(int_id) != agents_.end()) {
     throw std::runtime_error("Agent ID already registered: " + agent_id);
   }
 
-  agents_[agent_id] = agent;
+  // Store agent using integer ID
+  agents_[int_id] = agent;
 }
 
 void MessageBus::unregisterAgent(const std::string& agent_id) {
   std::lock_guard<std::mutex> lock(registry_mutex_);
-  agents_.erase(agent_id);
+
+  // Phase A2: Lookup integer ID first
+  auto int_id = interning_.tryGetId(agent_id);
+  if (!int_id) {
+    return;  // Agent not registered
+  }
+
+  // Erase using integer ID
+  agents_.erase(*int_id);
 }
 
 bool MessageBus::routeMessage(const KeystoneMessage& msg) {
@@ -50,11 +63,20 @@ bool MessageBus::routeMessage(const KeystoneMessage& msg) {
   // before making external calls (agent->receiveMessage or scheduler->submit)
   // FIX C2: Use shared_ptr to keep agent alive during async routing
   // FIX C5: Scheduler loaded atomically (no mutex needed)
+  // Phase A2: Use integer ID for O(1) lookup
   std::shared_ptr<agents::AgentCore> agent;
 
   {
     std::lock_guard<std::mutex> lock(registry_mutex_);
-    auto it = agents_.find(msg.receiver_id);
+
+    // Phase A2: Convert receiver_id string to integer ID (read-only operation)
+    auto int_id = interning_.tryGetId(msg.receiver_id);
+    if (!int_id) {
+      return false;  // Receiver not found (not even interned)
+    }
+
+    // Lookup agent using integer ID (O(1) integer hash vs O(log n) string compare)
+    auto it = agents_.find(*int_id);
     if (it == agents_.end()) {
       return false;  // Receiver not found
     }
@@ -81,7 +103,14 @@ bool MessageBus::routeMessage(const KeystoneMessage& msg) {
 
 bool MessageBus::hasAgent(const std::string& agent_id) const {
   std::lock_guard<std::mutex> lock(registry_mutex_);
-  return agents_.find(agent_id) != agents_.end();
+
+  // Phase A2: Lookup using integer ID for O(1) performance
+  auto int_id = interning_.tryGetId(agent_id);
+  if (!int_id) {
+    return false;  // Not interned, so not registered
+  }
+
+  return agents_.find(*int_id) != agents_.end();
 }
 
 std::vector<std::string> MessageBus::listAgents() const {
@@ -90,8 +119,12 @@ std::vector<std::string> MessageBus::listAgents() const {
   std::vector<std::string> agent_ids;
   agent_ids.reserve(agents_.size());
 
-  for (const auto& [id, _] : agents_) {
-    agent_ids.push_back(id);
+  // Phase A2: Iterate over integer IDs and convert back to strings
+  for (const auto& [int_id, _] : agents_) {
+    auto str_id = interning_.tryGetString(int_id);
+    if (str_id) {
+      agent_ids.push_back(*str_id);
+    }
   }
 
   return agent_ids;
