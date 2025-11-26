@@ -13,77 +13,39 @@
 namespace keystone {
 namespace agents {
 
-ComponentLeadAgent::ComponentLeadAgent(const std::string& agent_id) : AsyncAgent(agent_id) {
-  coordination_.transitionTo(State::IDLE, stateToString(State::IDLE));
+ComponentLeadAgent::ComponentLeadAgent(const std::string& agent_id)
+    : LeadAgentBase<State>(agent_id,
+                          State::IDLE,
+                          State::PLANNING,
+                          State::WAITING_FOR_MODULES,
+                          State::AGGREGATING,
+                          State::ERROR) {
+  // Base class constructor initializes coordination_ with IDLE state
 }
 
-concurrency::Task<core::Response> ComponentLeadAgent::processMessage(
-    const core::KeystoneMessage& msg) {
-  // FIX C3: Changed to async (returns Task<Response>)
-
-  // Phase 1.2 (Issue #52): Handle CANCEL_TASK action type
-  if (msg.action_type == core::ActionType::CANCEL_TASK) {
-    auto response = handleCancellation(msg);
-
-    // Send acknowledgement back to sender via MessageBus
-    auto response_msg = core::KeystoneMessage::create(
-        agent_id_,
-        msg.sender_id,  // Route back to original sender
-        "response", response.result);
-    response_msg.msg_id = msg.msg_id;  // Keep same msg_id for tracking
-
-    sendMessage(response_msg);
-
-    co_return response;
-  }
-
-  // Check if this is a module result or a component goal
-  if (msg.command == "module_result") {
-    // This is a module result - handled separately
-    processModuleResult(msg);
-    co_return core::Response::createSuccess(msg, agent_id_, "Module result processed");
-  }
-
-  // This is a component goal from ChiefArchitect
-  coordination_.transitionTo(State::PLANNING, stateToString(State::PLANNING));
-
-  coordination_.setCurrentGoal(msg.command);
-  coordination_.setRequesterId(msg.sender_id);
-
-  // Decompose component goal into module goals
-  auto module_goals = decomposeModules(coordination_.getCurrentGoal());
-
-  if (module_goals.empty()) {
-    coordination_.transitionTo(State::ERROR, stateToString(State::ERROR));
-    co_return core::Response::createError(msg, agent_id_, "Failed to decompose component goal");
-  }
-
-  // Initialize coordination for expected results
-  coordination_.initializeCoordination(static_cast<int>(module_goals.size()));
-
-  coordination_.transitionTo(State::WAITING_FOR_MODULES, stateToString(State::WAITING_FOR_MODULES));
-  delegateModules(module_goals);
-
-  co_return core::Response::createSuccess(msg,
-                                          agent_id_,
-                                          "Component goal decomposed into " +
-                                              std::to_string(module_goals.size()) + " modules");
-}
+// processMessage() is now implemented in LeadAgentBase (template method pattern)
 
 void ComponentLeadAgent::setAvailableModuleLeads(const std::vector<std::string>& module_lead_ids) {
   available_module_leads_ = module_lead_ids;
 }
 
-std::vector<std::string> ComponentLeadAgent::decomposeModules(const std::string& component_goal) {
+// === Hook Method Implementations (override LeadAgentBase pure virtuals) ===
+
+bool ComponentLeadAgent::isSubordinateResult(const core::KeystoneMessage& msg) {
+  // Check if this is a module result
+  return msg.command == "module_result";
+}
+
+std::vector<std::string> ComponentLeadAgent::decomposeGoal(const std::string& goal) {
   std::vector<std::string> module_goals;
 
-  // Parse goal like "Implement Core component: Messaging(10+20+30) and Concurrency(40+50+60)"
+  // Parse component goal like "Implement Core component: Messaging(10+20+30) and Concurrency(40+50+60)"
   // Extract module sections using regex
 
   // Pattern to match "ModuleName(numbers)"
   std::regex module_regex(R"((\w+)\(([0-9+]+)\))");
-  auto modules_begin = std::sregex_iterator(component_goal.begin(),
-                                            component_goal.end(),
+  auto modules_begin = std::sregex_iterator(goal.begin(),
+                                            goal.end(),
                                             module_regex);
   auto modules_end = std::sregex_iterator();
 
@@ -100,9 +62,9 @@ std::vector<std::string> ComponentLeadAgent::decomposeModules(const std::string&
   return module_goals;
 }
 
-void ComponentLeadAgent::delegateModules(const std::vector<std::string>& module_goals) {
+void ComponentLeadAgent::delegateSubtasks(const std::vector<std::string>& subtasks) {
   // Assign module goals to available ModuleLeadAgents
-  for (size_t i = 0; i < module_goals.size(); ++i) {
+  for (size_t i = 0; i < subtasks.size(); ++i) {
     if (available_module_leads_.empty()) {
       throw std::runtime_error("No ModuleLeadAgents available for delegation");
     }
@@ -115,7 +77,7 @@ void ComponentLeadAgent::delegateModules(const std::vector<std::string>& module_
     const std::string& module_lead_id = available_module_leads_[i];
 
     // Create and send module goal message
-    auto module_msg = core::KeystoneMessage::create(agent_id_, module_lead_id, module_goals[i]);
+    auto module_msg = core::KeystoneMessage::create(agent_id_, module_lead_id, subtasks[i]);
 
     // Track pending module
     coordination_.trackPendingSubordinate(module_msg.msg_id, module_lead_id);
@@ -125,7 +87,7 @@ void ComponentLeadAgent::delegateModules(const std::vector<std::string>& module_
   }
 }
 
-void ComponentLeadAgent::processModuleResult(const core::KeystoneMessage& result_msg) {
+void ComponentLeadAgent::processSubordinateResult(const core::KeystoneMessage& result_msg) {
   if (!result_msg.payload) {
     // No payload, skip
     return;

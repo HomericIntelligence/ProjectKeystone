@@ -123,7 +123,7 @@ TEST(E2E_Phase2, ModuleLeadSynthesizesTaskResults) {
     auto result_msg = module_lead->getMessage();
     if (result_msg.has_value()) {
       std::cout << "   - Received result: " << result_msg->payload.value_or("") << std::endl;
-      module_lead->processTaskResult(*result_msg);
+      module_lead->processMessage(*result_msg).get();
       results_received++;
     }
   }
@@ -239,7 +239,7 @@ TEST(E2E_Phase2, ModuleLeadHandlesVariableTaskCount) {
   for (int i = 0; i < tasks_processed; ++i) {
     auto result_msg = module_lead->getMessage();
     if (result_msg.has_value()) {
-      module_lead->processTaskResult(*result_msg);
+      module_lead->processMessage(*result_msg).get();
     }
   }
 
