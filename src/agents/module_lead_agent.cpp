@@ -20,6 +20,12 @@ ModuleLeadAgent::ModuleLeadAgent(const std::string& agent_id) : AsyncAgent(agent
 
 concurrency::Task<core::Response> ModuleLeadAgent::processMessage(const core::KeystoneMessage& msg) {
   // FIX C3: Changed to async (returns Task<Response>)
+
+  // Phase 1.2 (Issue #52): Handle CANCEL_TASK action type
+  if (msg.action_type == core::ActionType::CANCEL_TASK) {
+    co_return handleCancellation(msg);
+  }
+
   // Check if this is a task result (from TaskAgent) or a module goal (from ChiefArchitect)
   if (msg.command == "response") {
     // This is a task result - handled separately

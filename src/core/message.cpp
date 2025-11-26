@@ -102,6 +102,25 @@ std::optional<std::chrono::milliseconds> KeystoneMessage::getTimeUntilDeadline()
   return std::chrono::duration_cast<std::chrono::milliseconds>(*deadline - now);
 }
 
+KeystoneMessage KeystoneMessage::createCancellation(
+    const std::string& sender,
+    const std::string& receiver,
+    const std::string& task_id,
+    const std::string& session) {
+  KeystoneMessage msg;
+  msg.msg_id = generate_uuid();
+  msg.sender_id = sender;
+  msg.receiver_id = receiver;
+  msg.action_type = ActionType::CANCEL_TASK;
+  msg.content_type = ContentType::TEXT_PLAIN;
+  msg.session_id = session;
+  msg.task_id = task_id;  // Set the task to cancel
+  msg.priority = Priority::HIGH;  // Cancellations are high priority
+  msg.command = "CANCEL_TASK";
+  msg.timestamp = std::chrono::system_clock::now();
+  return msg;
+}
+
 Response Response::createSuccess(const KeystoneMessage& original_msg,
                                  const std::string& sender,
                                  const std::string& result_data) {
