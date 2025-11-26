@@ -216,6 +216,26 @@ build-grpc: docker-up
     fi
     echo "✓ gRPC build complete: build/grpc/"
 
+# Build with profiling tests (Phase 2.3 - Issue #53)
+build-profiling: docker-up
+    #!/usr/bin/env bash
+    set -e
+    echo "Building with profiling tests..."
+    if [[ "${NATIVE:-}" == "1" ]]; then
+        cmake -S . -B build/profiling -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DENABLE_PROFILING=ON
+        cmake --build build/profiling -j$(nproc)
+    else
+        docker-compose exec -T dev bash -c "
+            cmake -S . -B build/profiling -G Ninja \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DENABLE_PROFILING=ON &&
+            cmake --build build/profiling -j\$(nproc)
+        "
+    fi
+    echo "✓ Profiling build complete: build/profiling/"
+
 # Build (alias for build-debug)
 build: build-debug
 
@@ -331,6 +351,17 @@ test-grpc: build-grpc
         ./build/grpc/{{test_grpc}}
     else
         docker-compose exec -T dev ./build/grpc/{{test_grpc}}
+    fi
+
+# Run profiling tests (slow, opt-in - Phase 2.3)
+test-profiling: build-profiling
+    #!/usr/bin/env bash
+    set -e
+    echo "Running profiling tests (slow)..."
+    if [[ "${NATIVE:-}" == "1" ]]; then
+        ./build/profiling/profiling_tests
+    else
+        docker-compose exec -T dev ./build/profiling/profiling_tests
     fi
 
 # ============================================================================
@@ -587,7 +618,7 @@ clean MODE:
 # Clean all build directories
 clean-all:
     @echo "Cleaning all build directories..."
-    rm -rf build/debug build/release build/asan build/tsan build/grpc build/coverage
+    rm -rf build/debug build/release build/asan build/tsan build/grpc build/coverage build/profiling
 
 # Clean build artifacts and Docker resources
 clean-everything: clean-all docker-clean

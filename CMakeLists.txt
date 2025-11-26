@@ -24,6 +24,9 @@ option(ENABLE_COVERAGE "Enable code coverage" OFF)
 # gRPC support for distributed multi-node communication (Phase 8)
 option(ENABLE_GRPC "Enable gRPC support for distributed nodes" OFF)
 
+# Profiling tests (Phase 2.3 - Issue #53)
+option(ENABLE_PROFILING "Enable profiling tests (slow)" OFF)
+
 if(ENABLE_COVERAGE)
   if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     message(STATUS "Code coverage enabled")
@@ -491,6 +494,25 @@ target_link_libraries(unit_tests keystone_agents keystone_core
                       keystone_concurrency GTest::gtest_main)
 
 gtest_discover_tests(unit_tests)
+
+# Profiling Tests (Phase 2.3 - Issue #53)
+# Separate test suite for profiling tests (slow, opt-in)
+if(ENABLE_PROFILING)
+  add_executable(
+    profiling_tests
+    tests/unit/test_profiling.cpp
+  )
+
+  target_compile_definitions(profiling_tests PRIVATE KEYSTONE_PROFILE=1)
+
+  target_link_libraries(profiling_tests keystone_core GTest::gtest_main)
+
+  gtest_discover_tests(profiling_tests)
+
+  message(STATUS "Profiling tests enabled (ENABLE_PROFILING=ON)")
+else()
+  message(STATUS "Profiling tests disabled. Use -DENABLE_PROFILING=ON to enable.")
+endif()
 
 # Unit Tests - Agent Classes (Stream C Phase C2: Issue #45)
 # Comprehensive unit tests for all agent classes with mock infrastructure
