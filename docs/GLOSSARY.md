@@ -146,6 +146,50 @@ Introduced in: Phase 1 (2-Layer Hierarchy)
 - Supports exception propagation
 - Used extensively in async message processing
 
+### Coroutine Safety
+**Practices for Correct Coroutine Usage** - Guidelines for using C++20 coroutines safely in ProjectKeystone:
+- **Lifetime Management**: Always use `Task<T>` wrapper; never manually manage `std::coroutine_handle`
+- **Suspension Points**: Only use `co_await` inside coroutine functions
+- **Exception Safety**: Capture exceptions in promise or use try/catch inside coroutine
+- **Thread Safety**: Never hold locks across `co_await` points; use scheduler for safe execution
+- **Data Validity**: Capture by value across suspension points; function-local variables are safe
+- **Symmetric Transfer**: Used in `final_suspend()` to avoid stack growth in chained coroutines
+- **Pitfalls to Avoid**: Forgetting `co_return`, extracting `get_handle()`, creating Task but not awaiting it
+
+See [ADR-013: Coroutine Safety Patterns](./plan/adr/ADR-013-coroutine-safety-patterns.md) for detailed patterns and anti-patterns.
+
+### co_await
+**Coroutine Suspension Operator** - A keyword that suspends the current coroutine and awaits completion of another asynchronous operation. Usage:
+- Can only be used inside coroutine functions
+- Automatically integrates with `Task<T>` type
+- Stores awaiting coroutine as continuation
+- Resumed when awaited coroutine completes
+- Example: `auto result = co_await someTask();`
+
+### co_return
+**Coroutine Return Statement** - A keyword that returns a value from a coroutine and suspends. Usage:
+- Must be used in any function returning `Task<T>`
+- Stores value in promise and triggers `final_suspend()`
+- Can return `void` in `Task<void>` functions
+- Example: `co_return 42;`
+
+### Promise Type
+**Coroutine Protocol Handler** - A nested type inside coroutine return types (like `Task<T>`) that defines:
+- `get_return_object()`: Creates the Task from promise
+- `initial_suspend()`: Controls start behavior
+- `final_suspend()`: Handles completion and continuation
+- `return_value()` or `return_void()`: Stores result
+- `unhandled_exception()`: Captures exceptions thrown in coroutine
+- See `Task<T>::promise_type` in `include/concurrency/task.hpp` for implementation
+
+### Awaitable Interface
+**Protocol for co_await Operations** - Requires three methods for any type usable with `co_await`:
+- `bool await_ready()`: Returns true if result immediately available
+- `std::coroutine_handle<> await_suspend(std::coroutine_handle<> h)`: Handles suspension
+- `T await_resume()`: Returns result when resumed
+- Both `Task<T>` and `PullOrSteal` implement this protocol
+- See [ADR-013](./plan/adr/ADR-013-coroutine-safety-patterns.md) Pattern 6 for symmetric transfer optimization
+
 ---
 
 ## Testing and Quality Assurance
@@ -382,6 +426,6 @@ ProjectKeystone agents use finite state machines for coordinated workflows:
 
 ---
 
-**Last Updated**: 2025-11-21
-**Version**: 1.0 (Initial glossary creation)
+**Last Updated**: 2025-11-26
+**Version**: 1.1 (Added coroutine safety terminology)
 **Status**: ACTIVE
