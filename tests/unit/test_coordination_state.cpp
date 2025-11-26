@@ -22,6 +22,10 @@
 
 #include <gtest/gtest.h>
 
+#ifdef ENABLE_GRPC
+#include "fixtures/grpc_test_fixture.hpp"
+#endif
+
 using namespace keystone::agents;
 
 // Test state enum matching ComponentLead/ModuleLead patterns
@@ -531,15 +535,23 @@ TEST_F(CoordinationStateTest, ConcurrentWorkflows) {
 #ifdef ENABLE_GRPC
 
 /**
- * @brief Test 29: Initialize gRPC with valid config (disabled - requires running gRPC servers)
+ * @brief Test 29: Initialize gRPC with valid config (uses in-process test servers)
  */
-TEST_F(CoordinationStateTest, DISABLED_InitializeGrpcWithValidConfig) {
-  // This test requires running HMASCoordinator and ServiceRegistry servers
+class GrpcCoordinationStateTest : public test::GrpcTestFixture {
+protected:
+  CoordinationState<TestState, std::string> state_;
+};
+
+TEST_F(GrpcCoordinationStateTest, InitializeGrpcWithValidConfig) {
+  // Use in-process test servers from fixture
+  auto coord_addr = getCoordinatorAddress();
+  auto registry_addr = getRegistryAddress();
+
   EXPECT_NO_THROW(
     state_.initializeGrpc(
       "test_agent",
-      "localhost:50051",
-      "localhost:50052",
+      coord_addr,
+      registry_addr,
       "TestAgent",
       2,
       {"capability1", "capability2"},
@@ -576,23 +588,34 @@ TEST_F(CoordinationStateTest, QueryAvailableChildrenWithoutInit) {
 }
 
 /**
- * @brief Test 32: Query available children by type (disabled - requires running server)
+ * @brief Test 32: Query available children by type (uses in-process test servers)
  */
-TEST_F(CoordinationStateTest, DISABLED_QueryAvailableChildrenByType) {
-  // This test requires a running ServiceRegistry with registered agents
+TEST_F(GrpcCoordinationStateTest, QueryAvailableChildrenByType) {
+  // Use in-process test servers from fixture
+  auto coord_addr = getCoordinatorAddress();
+  auto registry_addr = getRegistryAddress();
+
+  // Initialize gRPC with in-process servers
   state_.initializeGrpc(
     "test_component",
-    "localhost:50051",
-    "localhost:50052",
+    coord_addr,
+    registry_addr,
     "ComponentLead",
     1,
     {"coordination"},
     5
   );
 
+  // Register some test agents in the ServiceRegistry
+  auto registry = getRegistry();
+  registry->registerAgent("module_lead_1", "ModuleLead", 2, "localhost:60001", {"task_coordination"});
+  registry->registerAgent("module_lead_2", "ModuleLead", 2, "localhost:60002", {"task_coordination"});
+
   auto children = state_.queryAvailableChildren("ModuleLead");
-  // In real scenario, this would return registered ModuleLead agents
-  EXPECT_GE(children.size(), 0);
+  // Should find the 2 registered ModuleLead agents
+  EXPECT_EQ(children.size(), 2);
+  EXPECT_EQ(children[0], "module_lead_1");
+  EXPECT_EQ(children[1], "module_lead_2");
 }
 
 /**
