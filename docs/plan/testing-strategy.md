@@ -385,6 +385,56 @@ TEST(StressTest, LongDurationStability) {
 4. **Long Duration**: 24+ hour stability tests
 5. **Memory Safety**: Valgrind, AddressSanitizer, LeakSanitizer
 
+### Tier 5: Profiling Tests
+
+**Scope**: Performance profiling instrumentation validation
+
+**Framework**: Google Test (GTest) with KEYSTONE_PROFILE=1
+
+**Execution**: Weekly CI runs (not per-commit due to overhead)
+
+**Purpose**: Ensure profiling code doesn't regress without slowing regular development
+
+**Overhead**: Profiling adds significant overhead (~1000µs per operation), making these tests too slow for per-commit CI runs. Instead, they run weekly to validate the profiling infrastructure remains functional.
+
+#### Running Locally
+
+```bash
+# Using justfile (recommended)
+just test-profiling
+
+# Or manually with CMake
+cmake -S . -B build/profiling -G Ninja -DENABLE_PROFILING=ON
+cmake --build build/profiling
+./build/profiling/profiling_tests
+```
+
+#### CI Execution
+
+Profiling tests run automatically:
+- **Weekly**: Every Sunday at 2 AM UTC via scheduled workflow
+- **Manual**: Can be triggered via GitHub Actions workflow_dispatch
+
+See `.github/workflows/profiling-weekly.yml` for the weekly CI configuration.
+
+#### Test Organization
+
+Profiling tests are located in `tests/unit/test_profiling.cpp` and validate:
+
+1. **RAII Auto-end**: ProfilingSession destructor properly ends profiling
+2. **Multiple Samples**: Statistics correctly aggregate multiple measurements
+3. **Percentile Calculation**: P50, P95, P99 percentiles computed accurately
+4. **Report Generation**: Profiling reports contain all expected sections
+5. **Thread Safety**: Concurrent profiling from multiple threads works correctly
+6. **Move Semantics**: ProfilingSession move operations preserve timing data
+
+#### Design Philosophy
+
+- **Opt-in by default**: Tests skip automatically when `KEYSTONE_PROFILE=1` is not set
+- **Separate build**: Profiling tests use dedicated CMake target and build directory
+- **No regular CI impact**: Zero overhead for standard development workflows
+- **Validation coverage**: Ensures profiling API remains functional and accurate
+
 ## Test-Driven Development (TDD) Workflow
 
 ### Red-Green-Refactor Cycle

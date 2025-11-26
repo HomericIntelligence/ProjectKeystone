@@ -1,0 +1,89 @@
+name: Profiling Tests (Weekly)
+
+# Run weekly on Sundays at 2 AM UTC
+# Also allow manual trigger via workflow_dispatch
+on:
+  schedule:
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+
+# Prevent multiple workflows from running simultaneously
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  profiling-tests:
+    name: Profiling Tests (Slow)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45  # Generous timeout for profiling overhead
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            ninja-build \
+            clang-18 \
+            clang++-18 \
+            libc++-18-dev \
+            libc++abi-18-dev
+          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-18 100
+          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-18 100
+          sudo update-alternatives --install /usr/bin/cc cc /usr/bin/clang-18 100
+          sudo update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++-18 100
+
+      - name: Build with profiling enabled
+        run: |
+          mkdir -p build/profiling
+          cd build/profiling
+          cmake -S ../.. -DCMAKE_BUILD_TYPE=Release -DENABLE_PROFILING=ON -G Ninja
+          ninja profiling_tests
+
+      - name: Run profiling tests
+        run: |
+          cd build/profiling
+          ./profiling_tests --gtest_output=xml:profiling_test_results.xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: profiling-test-results
+          path: build/profiling/profiling_test_results.xml
+          retention-days: 90
+
+      - name: Report test summary
+        if: always()
+        run: |
+          cd build/profiling
+          if [ -f profiling_test_results.xml ]; then
+            echo "::notice::Profiling tests completed successfully"
+          else
+            echo "::error::Profiling test results not found"
+            exit 1
+          fi
+
+  profiling-summary:
+    name: Profiling Tests Summary
+    runs-on: ubuntu-24.04
+    needs: [profiling-tests]
+    if: always()
+
+    steps:
+      - name: Check profiling tests passed
+        run: |
+          if [ "${{ needs.profiling-tests.result }}" != "success" ]; then
+            echo "::error::Profiling tests failed"
+            exit 1
+          fi
+
+          echo "✅ All profiling tests passed!"
