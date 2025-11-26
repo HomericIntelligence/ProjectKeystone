@@ -1,16 +1,14 @@
 #pragma once
 
-#include <atomic>
 #include <map>
 #include <memory>
 #include <string>
-#include <thread>
 #include <vector>
 
 #include "agents/async_agent.hpp"
+#include "agents/coordination_state.hpp"
 
 #ifdef ENABLE_GRPC
-#include "network/grpc_client.hpp"
 #include "network/result_aggregator.hpp"
 #include "network/yaml_parser.hpp"
 #endif
@@ -84,10 +82,10 @@ class ComponentLeadAgent : public AsyncAgent {
   /**
    * @brief Get execution trace for testing/debugging
    *
-   * @return const std::vector<std::string>& State transition history
+   * @return std::vector<std::string> State transition history (copy for thread safety)
    */
-  const std::vector<std::string>& getExecutionTrace() const {
-    return execution_trace_;
+  std::vector<std::string> getExecutionTrace() const {
+    return coordination_.getExecutionTrace();
   }
 
   /**
@@ -95,7 +93,7 @@ class ComponentLeadAgent : public AsyncAgent {
    *
    * @return State Current agent state
    */
-  State getCurrentState() const { return current_state_; }
+  State getCurrentState() const { return coordination_.getCurrentState(); }
 
 #ifdef ENABLE_GRPC
   /**
@@ -151,13 +149,6 @@ class ComponentLeadAgent : public AsyncAgent {
   void delegateModules(const std::vector<std::string>& module_goals);
 
   /**
-   * @brief Transition to a new state
-   *
-   * @param new_state State to transition to
-   */
-  void transitionTo(State new_state);
-
-  /**
    * @brief Convert state enum to string for tracing
    *
    * @param state State to convert
@@ -165,54 +156,15 @@ class ComponentLeadAgent : public AsyncAgent {
    */
   std::string stateToString(State state) const;
 
-#ifdef ENABLE_GRPC
-  /**
-   * @brief Heartbeat loop (runs in separate thread)
-   */
-  void heartbeatLoop();
+  // Coordination state (eliminates ~300 lines of duplication)
+  CoordinationState<State, std::string> coordination_;
 
-  /**
-   * @brief Query ServiceRegistry for available ModuleLeadAgents
-   *
-   * @return std::vector<std::string> List of available ModuleLeadAgent IDs
-   */
-  std::vector<std::string> queryAvailableModuleLeads();
-#endif
-
-  // State management
-  State current_state_{State::IDLE};
-  std::vector<std::string> execution_trace_;
-
-  // Module coordination
+  // Agent-specific configuration
   std::vector<std::string> available_module_leads_;
-  std::map<std::string, std::string>
-      pending_modules_;                      // module_id → module_lead_id
-  std::vector<std::string> module_results_;  // Collected module results
-  std::string current_component_goal_;
-  std::string requester_id_;  // Who sent the component goal
-
-  // Module tracking
-  int expected_module_results_{0};
-  int received_module_results_{0};
 
 #ifdef ENABLE_GRPC
-  // gRPC clients
-  std::unique_ptr<network::HMASCoordinatorClient> coordinator_client_;
-  std::unique_ptr<network::ServiceRegistryClient> registry_client_;
-
-  // Result aggregator
+  // Result aggregator (component-specific, not in template)
   std::unique_ptr<network::ResultAggregator> result_aggregator_;
-
-  // Heartbeat thread
-  std::thread heartbeat_thread_;
-  std::atomic<bool> heartbeat_running_{false};
-
-  // Agent metadata
-  std::string agent_type_{"ComponentLeadAgent"};
-  int agent_level_{1};
-
-  // Current task being processed
-  std::string current_task_id_;
 #endif
 };
 

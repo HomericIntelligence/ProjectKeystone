@@ -14,7 +14,7 @@ namespace keystone {
 namespace agents {
 
 ComponentLeadAgent::ComponentLeadAgent(const std::string& agent_id) : AsyncAgent(agent_id) {
-  transitionTo(State::IDLE);
+  coordination_.transitionTo(State::IDLE, stateToString(State::IDLE));
 }
 
 concurrency::Task<core::Response> ComponentLeadAgent::processMessage(
@@ -28,25 +28,23 @@ concurrency::Task<core::Response> ComponentLeadAgent::processMessage(
   }
 
   // This is a component goal from ChiefArchitect
-  transitionTo(State::PLANNING);
+  coordination_.transitionTo(State::PLANNING, stateToString(State::PLANNING));
 
-  current_component_goal_ = msg.command;
-  requester_id_ = msg.sender_id;
+  coordination_.setCurrentGoal(msg.command);
+  coordination_.setRequesterId(msg.sender_id);
 
   // Decompose component goal into module goals
-  auto module_goals = decomposeModules(current_component_goal_);
+  auto module_goals = decomposeModules(coordination_.getCurrentGoal());
 
   if (module_goals.empty()) {
-    transitionTo(State::ERROR);
+    coordination_.transitionTo(State::ERROR, stateToString(State::ERROR));
     co_return core::Response::createError(msg, agent_id_, "Failed to decompose component goal");
   }
 
-  // Delegate module goals to ModuleLeadAgents
-  expected_module_results_ = static_cast<int>(module_goals.size());
-  received_module_results_ = 0;
-  module_results_.clear();
+  // Initialize coordination for expected results
+  coordination_.initializeCoordination(static_cast<int>(module_goals.size()));
 
-  transitionTo(State::WAITING_FOR_MODULES);
+  coordination_.transitionTo(State::WAITING_FOR_MODULES, stateToString(State::WAITING_FOR_MODULES));
   delegateModules(module_goals);
 
   co_return core::Response::createSuccess(msg,
@@ -103,7 +101,7 @@ void ComponentLeadAgent::delegateModules(const std::vector<std::string>& module_
     auto module_msg = core::KeystoneMessage::create(agent_id_, module_lead_id, module_goals[i]);
 
     // Track pending module
-    pending_modules_[module_msg.msg_id] = module_lead_id;
+    coordination_.trackPendingSubordinate(module_msg.msg_id, module_lead_id);
 
     // Send via MessageBus
     sendMessage(module_msg);
@@ -116,18 +114,18 @@ void ComponentLeadAgent::processModuleResult(const core::KeystoneMessage& result
     return;
   }
 
-  // Store the module result
-  module_results_.push_back(*result_msg.payload);
-  received_module_results_++;
+  // Store the module result and check if complete
+  bool all_complete = coordination_.recordResult(*result_msg.payload);
 
   // Check if we've received all module results
-  if (received_module_results_ >= expected_module_results_) {
-    transitionTo(State::AGGREGATING);
+  if (all_complete) {
+    coordination_.transitionTo(State::AGGREGATING, stateToString(State::AGGREGATING));
   }
 }
 
 std::string ComponentLeadAgent::synthesizeComponentResult() {
-  if (current_state_ != State::AGGREGATING && current_state_ != State::WAITING_FOR_MODULES) {
+  State current_state = coordination_.getCurrentState();
+  if (current_state != State::AGGREGATING && current_state != State::WAITING_FOR_MODULES) {
     return "ERROR: Cannot synthesize in current state";
   }
 
@@ -135,21 +133,17 @@ std::string ComponentLeadAgent::synthesizeComponentResult() {
   std::stringstream ss;
   ss << "Component result: ";
 
-  for (size_t i = 0; i < module_results_.size(); ++i) {
+  const auto& results = coordination_.getResults();
+  for (size_t i = 0; i < results.size(); ++i) {
     if (i > 0) {
       ss << ", ";
     }
-    ss << module_results_[i];
+    ss << results[i];
   }
 
-  transitionTo(State::IDLE);
+  coordination_.transitionTo(State::IDLE, stateToString(State::IDLE));
 
   return ss.str();
-}
-
-void ComponentLeadAgent::transitionTo(State new_state) {
-  current_state_ = new_state;
-  execution_trace_.push_back(stateToString(new_state));
 }
 
 std::string ComponentLeadAgent::stateToString(State state) const {
@@ -174,41 +168,10 @@ void ComponentLeadAgent::initializeGrpc(const std::string& coordinator_address,
                                         const std::string& registry_address,
                                         const std::string& agent_type,
                                         int level) {
-  agent_type_ = agent_type;
-  agent_level_ = level;
-
-  // Create gRPC clients
-  network::GrpcClientConfig coordinator_config;
-  coordinator_config.server_address = coordinator_address;
-  coordinator_client_ =
-      std::make_unique<network::HMASCoordinatorClient>(coordinator_config);
-
-  network::GrpcClientConfig registry_config;
-  registry_config.server_address = registry_address;
-  registry_client_ =
-      std::make_unique<network::ServiceRegistryClient>(registry_config);
-
-  // Register with ServiceRegistry
-  hmas::AgentRegistration registration;
-  registration.set_agent_id(agent_id_);
-  registration.set_agent_type(agent_type_);
-  registration.set_level(level);
-  registration.add_capabilities("module_coordination");
-  registration.add_capabilities("component_synthesis");
-  registration.set_max_concurrent_tasks(10);
-
-  try {
-    auto response = registry_client_->registerAgent(registration);
-    if (response.success()) {
-      startHeartbeat();
-    } else {
-      throw std::runtime_error("Failed to register with ServiceRegistry: " +
-                               response.message());
-    }
-  } catch (const std::exception& e) {
-    throw std::runtime_error("gRPC registration failed: " +
-                             std::string(e.what()));
-  }
+  // Delegate gRPC initialization to coordination template
+  std::vector<std::string> capabilities = {"module_coordination", "component_synthesis"};
+  coordination_.initializeGrpc(agent_id_, coordinator_address, registry_address,
+                               agent_type, level, capabilities, 10);
 }
 
 void ComponentLeadAgent::processYamlComponent(const std::string& yaml_spec) {
@@ -218,9 +181,9 @@ void ComponentLeadAgent::processYamlComponent(const std::string& yaml_spec) {
   }
 
   auto spec = *spec_opt;
-  current_task_id_ = spec.metadata.task_id;
+  coordination_.setCurrentTaskId(spec.metadata.task_id);
 
-  transitionTo(State::PLANNING);
+  coordination_.transitionTo(State::PLANNING, stateToString(State::PLANNING));
 
   // Decompose component into modules
   auto module_goals =
@@ -229,36 +192,38 @@ void ComponentLeadAgent::processYamlComponent(const std::string& yaml_spec) {
   if (module_goals.empty()) {
     spec.status.phase = "FAILED";
     spec.status.error = "Failed to decompose component goal";
-    transitionTo(State::ERROR);
+    coordination_.transitionTo(State::ERROR, stateToString(State::ERROR));
 
     std::string result_yaml = network::YamlParser::generateTaskSpec(spec);
-    if (coordinator_client_ && spec.metadata.parent_task_id) {
+    auto coordinator_client = coordination_.getCoordinatorClient();
+    if (coordinator_client && spec.metadata.parent_task_id) {
       hmas::TaskResult task_result;
       task_result.set_task_id(spec.metadata.task_id);
       task_result.set_result_yaml(result_yaml);
       task_result.set_success(false);
       task_result.set_error_message(*spec.status.error);
-      coordinator_client_->submitResult(task_result);
+      coordinator_client->submitResult(task_result);
     }
     return;
   }
 
   // Query for available ModuleLeadAgents
-  available_module_leads_ = queryAvailableModuleLeads();
+  available_module_leads_ = coordination_.queryAvailableChildren("ModuleLeadAgent");
 
   if (available_module_leads_.empty()) {
     spec.status.phase = "FAILED";
     spec.status.error = "No ModuleLeadAgents available";
-    transitionTo(State::ERROR);
+    coordination_.transitionTo(State::ERROR, stateToString(State::ERROR));
 
     std::string result_yaml = network::YamlParser::generateTaskSpec(spec);
-    if (coordinator_client_ && spec.metadata.parent_task_id) {
+    auto coordinator_client = coordination_.getCoordinatorClient();
+    if (coordinator_client && spec.metadata.parent_task_id) {
       hmas::TaskResult task_result;
       task_result.set_task_id(spec.metadata.task_id);
       task_result.set_result_yaml(result_yaml);
       task_result.set_success(false);
       task_result.set_error_message(*spec.status.error);
-      coordinator_client_->submitResult(task_result);
+      coordinator_client->submitResult(task_result);
     }
     return;
   }
@@ -271,10 +236,8 @@ void ComponentLeadAgent::processYamlComponent(const std::string& yaml_spec) {
       module_goals.size());
 
   // Generate child module YAMLs and submit to ModuleLeadAgents
-  transitionTo(State::WAITING_FOR_MODULES);
-  expected_module_results_ = static_cast<int>(module_goals.size());
-  received_module_results_ = 0;
-  module_results_.clear();
+  coordination_.transitionTo(State::WAITING_FOR_MODULES, stateToString(State::WAITING_FOR_MODULES));
+  coordination_.initializeCoordination(static_cast<int>(module_goals.size()));
 
   for (size_t i = 0; i < module_goals.size(); ++i) {
     // Create child module spec
@@ -312,12 +275,13 @@ void ComponentLeadAgent::processYamlComponent(const std::string& yaml_spec) {
       auto deadline_ms = network::YamlParser::parseDuration(
                              spec.metadata.deadline.value_or("25m"))
                              .value_or(25 * 60 * 1000);
-      auto response = coordinator_client_->submitTask(
+      auto coordinator_client = coordination_.getCoordinatorClient();
+      auto response = coordinator_client->submitTask(
           child_yaml, spec.metadata.session_id.value_or(""), deadline_ms,
-          hmas::TASK_PRIORITY_NORMAL, spec.metadata.task_id);
+          hmas::TASK_PRIORITY_NORMAL, coordination_.getCurrentTaskId());
 
-      pending_modules_[child_spec.metadata.task_id] =
-          available_module_leads_[agent_index];
+      coordination_.trackPendingSubordinate(child_spec.metadata.task_id,
+                                           available_module_leads_[agent_index]);
     } catch (const std::exception& e) {
       std::cerr << "Failed to submit module: " << e.what() << std::endl;
     }
@@ -325,79 +289,21 @@ void ComponentLeadAgent::processYamlComponent(const std::string& yaml_spec) {
 }
 
 void ComponentLeadAgent::startHeartbeat() {
-  if (heartbeat_running_) {
-    return;
-  }
-
-  heartbeat_running_ = true;
-  heartbeat_thread_ = std::thread(&ComponentLeadAgent::heartbeatLoop, this);
+  // Delegate to coordination template
+  coordination_.startHeartbeat(agent_id_);
 }
 
 void ComponentLeadAgent::stopHeartbeat() {
-  if (!heartbeat_running_) {
-    return;
-  }
-
-  heartbeat_running_ = false;
-  if (heartbeat_thread_.joinable()) {
-    heartbeat_thread_.join();
-  }
-}
-
-void ComponentLeadAgent::heartbeatLoop() {
-  while (heartbeat_running_) {
-    try {
-      if (registry_client_) {
-        registry_client_->heartbeat(agent_id_, 0.0f, 0.0f,
-                                    expected_module_results_);
-      }
-    } catch (const std::exception& e) {
-      std::cerr << "Heartbeat failed: " << e.what() << std::endl;
-    }
-
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-  }
+  // Delegate to coordination template
+  coordination_.stopHeartbeat();
 }
 
 void ComponentLeadAgent::shutdown() {
-  stopHeartbeat();
+  // Shutdown coordination (handles heartbeat, client cleanup)
+  coordination_.shutdownGrpc();
 
-  if (registry_client_) {
-    try {
-      registry_client_->unregisterAgent(agent_id_, "Shutdown requested");
-    } catch (const std::exception& e) {
-      std::cerr << "Failed to unregister agent: " << e.what() << std::endl;
-    }
-  }
-
-  coordinator_client_.reset();
-  registry_client_.reset();
+  // Clean up component-specific resources
   result_aggregator_.reset();
-}
-
-std::vector<std::string> ComponentLeadAgent::queryAvailableModuleLeads() {
-  std::vector<std::string> agent_ids;
-
-  if (!registry_client_) {
-    return agent_ids;
-  }
-
-  try {
-    hmas::AgentQuery query;
-    query.set_agent_type("ModuleLeadAgent");
-    query.set_level(2);
-    query.set_only_alive(true);
-
-    auto agent_list = registry_client_->queryAgents(query);
-
-    for (const auto& agent : agent_list.agents()) {
-      agent_ids.push_back(agent.agent_id());
-    }
-  } catch (const std::exception& e) {
-    std::cerr << "Failed to query ModuleLeadAgents: " << e.what() << std::endl;
-  }
-
-  return agent_ids;
 }
 #endif
 
