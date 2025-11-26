@@ -1,6 +1,14 @@
 /**
  * @file test_message_bus.cpp
  * @brief Unit tests for MessageBus
+ *
+ * FIX ISP (Issue #46): MessageBus implements three interfaces:
+ * - IAgentRegistry: Registration/discovery (lines 21-119)
+ * - IMessageRouter: Message routing (lines 74-99)
+ * - ISchedulerIntegration: Scheduler setup (tested elsewhere)
+ *
+ * These tests validate the complete MessageBus implementation,
+ * which provides all three interfaces in a single class.
  */
 
 #include "agents/chief_architect_agent.hpp"
@@ -16,7 +24,7 @@ using namespace keystone::core;
 using namespace keystone::agents;
 
 /**
- * @brief Test: Register a single agent
+ * @brief Test: Register a single agent (IAgentRegistry interface)
  */
 TEST(MessageBus, RegisterAgent) {
   MessageBus bus;
@@ -27,7 +35,7 @@ TEST(MessageBus, RegisterAgent) {
 }
 
 /**
- * @brief Test: Registering duplicate agent throws
+ * @brief Test: Registering duplicate agent throws (IAgentRegistry interface)
  */
 TEST(MessageBus, RegisterDuplicateAgentThrows) {
   MessageBus bus;
@@ -69,7 +77,7 @@ TEST(MessageBus, UnregisterNonExistentAgent) {
 }
 
 /**
- * @brief Test: Route message to registered agent
+ * @brief Test: Route message to registered agent (IMessageRouter interface)
  */
 TEST(MessageBus, RouteMessageToRegisteredAgent) {
   MessageBus bus;

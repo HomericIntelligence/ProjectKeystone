@@ -4,7 +4,8 @@
 #include <stdexcept>
 
 #include "core/config.hpp"  // FIX m3: Centralized configuration
-#include "core/message_bus.hpp"
+// FIX ISP (Issue #46): Include IMessageRouter instead of MessageBus
+#include "core/i_message_router.hpp"
 #include "core/metrics.hpp"
 
 namespace keystone {
@@ -176,7 +177,8 @@ void AgentCore::updateQueueDepthMetrics() {
   core::Metrics::getInstance().recordQueueDepth(agent_id_, total_depth);
 }
 
-void AgentCore::setMessageBus(core::MessageBus* bus) { message_bus_ = bus; }
+// FIX ISP (Issue #46): Changed from MessageBus* to IMessageRouter*
+void AgentCore::setMessageBus(core::IMessageRouter* router) { message_bus_ = router; }
 
 }  // namespace agents
 }  // namespace keystone
