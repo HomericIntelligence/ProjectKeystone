@@ -389,6 +389,14 @@ target_link_libraries(basic_delegation_tests keystone_agents keystone_core
 
 gtest_discover_tests(basic_delegation_tests)
 
+# E2E Tests - Task Cancellation (Issue #52)
+add_executable(task_cancellation_tests tests/e2e/task_cancellation_test.cpp)
+
+target_link_libraries(task_cancellation_tests keystone_agents keystone_core
+                      GTest::gtest_main)
+
+gtest_discover_tests(task_cancellation_tests)
+
 # E2E Tests - Module Coordination
 add_executable(module_coordination_tests tests/e2e/module_coordination_test.cpp)
 
@@ -488,6 +496,7 @@ add_executable(
   tests/unit/test_agent_concepts.cpp # Issue #24: Agent concepts type safety
   tests/unit/test_health_check_server.cpp # Phase 6.7: Health check endpoints (C4)
   tests/unit/test_coordination_state.cpp # Stream B Phase B1: CoordinationState template tests (FIX: added mutexes)
+  tests/unit/test_task_cancellation.cpp # Phase 1.2 (Issue #52): Task cancellation notification
 )
 
 # Add gRPC test fixture if gRPC is enabled (Phase 2.2: Issue #53)

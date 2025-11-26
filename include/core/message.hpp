@@ -46,7 +46,8 @@ enum class ActionType {
   DECOMPOSE,      ///< Decompose a goal into subtasks/subgoals
   EXECUTE,        ///< Execute a concrete task or command
   RETURN_RESULT,  ///< Return the result of a computation
-  SHUTDOWN        ///< Graceful shutdown signal
+  SHUTDOWN,       ///< Graceful shutdown signal
+  CANCEL_TASK     ///< Cancel a running task (Issue #52)
 };
 
 /**
@@ -72,6 +73,8 @@ inline std::string actionTypeToString(ActionType type) {
       return "RETURN_RESULT";
     case ActionType::SHUTDOWN:
       return "SHUTDOWN";
+    case ActionType::CANCEL_TASK:
+      return "CANCEL_TASK";
     default:
       return "UNKNOWN";
   }
@@ -102,6 +105,9 @@ inline std::string contentTypeToString(ContentType type) {
  * - content_type: Payload format specification
  * - session_id: Context isolation for concurrent operations
  * - metadata: Extensible key-value attributes
+ *
+ * Phase 1.2 (Issue #52) additions:
+ * - task_id: Optional task identifier for cancellation tracking
  */
 struct KeystoneMessage {
   // Core identifiers
@@ -121,6 +127,9 @@ struct KeystoneMessage {
   // Phase C: Deadline scheduling
   std::optional<std::chrono::system_clock::time_point>
       deadline;  ///< Optional processing deadline
+
+  // Phase 1.2 (Issue #52): Task cancellation
+  std::optional<std::string> task_id;  ///< Optional task ID for tracking/cancellation
 
   // Payload and timing
   std::string command;  ///< Command string to execute (legacy/convenience)
@@ -181,6 +190,24 @@ struct KeystoneMessage {
    * @return milliseconds until deadline, nullopt if no deadline set
    */
   std::optional<std::chrono::milliseconds> getTimeUntilDeadline() const;
+
+  /**
+   * @brief Create a task cancellation message
+   *
+   * Phase 1.2 (Issue #52): Factory method for creating CANCEL_TASK messages.
+   * Cancellation is cooperative - agents check for cancellation and respond gracefully.
+   *
+   * @param sender Sender agent ID (parent requesting cancellation)
+   * @param receiver Receiver agent ID (child executing the task)
+   * @param task_id Task identifier to cancel
+   * @param session Session identifier (default: "default")
+   * @return KeystoneMessage Cancellation message with CANCEL_TASK action
+   */
+  static KeystoneMessage createCancellation(
+      const std::string& sender,
+      const std::string& receiver,
+      const std::string& task_id,
+      const std::string& session = "default");
 };
 
 /**

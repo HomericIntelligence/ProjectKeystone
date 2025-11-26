@@ -2,8 +2,10 @@
 
 #include <atomic>
 #include <chrono>  // FIX M2: For time-based priority fairness
+#include <mutex>
 #include <optional>
 #include <string>
+#include <unordered_set>
 
 #include "concurrentqueue.h"
 #include "core/config.hpp"  // FIX m3: Centralized configuration
@@ -145,6 +147,41 @@ class AgentCore {
         std::chrono::nanoseconds{low_priority_check_interval_ns_.load(std::memory_order_acquire)});
   }
 
+  /**
+   * @brief Request cancellation of a task
+   *
+   * Phase 1.2 (Issue #52): Mark a task for cancellation.
+   * This is cooperative cancellation - the agent checks and responds.
+   *
+   * Thread-safe: Uses atomic operations for cancellation tracking.
+   *
+   * @param task_id Task identifier to cancel
+   */
+  void requestCancellation(const std::string& task_id);
+
+  /**
+   * @brief Check if a task has been cancelled
+   *
+   * Phase 1.2 (Issue #52): Agents should check this periodically during
+   * long-running operations to respond to cancellation requests.
+   *
+   * Thread-safe: Uses atomic operations.
+   *
+   * @param task_id Task identifier to check
+   * @return true if task has been cancelled, false otherwise
+   */
+  bool isCancelled(const std::string& task_id) const;
+
+  /**
+   * @brief Clear cancellation status for a task
+   *
+   * Phase 1.2 (Issue #52): Called when task completes or after
+   * acknowledging cancellation.
+   *
+   * @param task_id Task identifier to clear
+   */
+  void clearCancellation(const std::string& task_id);
+
  protected:
   /**
    * @brief Update queue depth metrics
@@ -177,6 +214,11 @@ class AgentCore {
   // FIX M1: Backpressure - Queue size limits to prevent memory exhaustion
   std::atomic<bool> backpressure_applied_{
       false};  ///< Flag when backpressure is active
+
+  // Phase 1.2 (Issue #52): Cancellation tracking
+  // Thread-safe: Using mutex to protect set operations
+  mutable std::mutex cancellation_mutex_;
+  std::unordered_set<std::string> cancelled_tasks_;
 };
 
 }  // namespace agents
