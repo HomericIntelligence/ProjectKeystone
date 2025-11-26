@@ -23,7 +23,18 @@ concurrency::Task<core::Response> ModuleLeadAgent::processMessage(const core::Ke
 
   // Phase 1.2 (Issue #52): Handle CANCEL_TASK action type
   if (msg.action_type == core::ActionType::CANCEL_TASK) {
-    co_return handleCancellation(msg);
+    auto response = handleCancellation(msg);
+
+    // Send acknowledgement back to sender via MessageBus
+    auto response_msg = core::KeystoneMessage::create(
+        agent_id_,
+        msg.sender_id,  // Route back to original sender
+        "response", response.result);
+    response_msg.msg_id = msg.msg_id;  // Keep same msg_id for tracking
+
+    sendMessage(response_msg);
+
+    co_return response;
   }
 
   // Check if this is a task result (from TaskAgent) or a module goal (from ChiefArchitect)
