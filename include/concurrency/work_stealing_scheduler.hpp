@@ -149,6 +149,20 @@ class WorkStealingScheduler {
   void workerLoop(size_t worker_index);
 
   /**
+   * @brief Try to steal work with 3-phase backoff strategy
+   *
+   * Stream C1: 3-phase backoff to reduce idle CPU usage from ~5% to <2%
+   *
+   * Phase 1 (SPIN): 0-100 iterations, tight loop, ultra-low latency
+   * Phase 2 (YIELD): 101-1000 iterations, yield CPU to other threads
+   * Phase 3 (SLEEP): 1001+ iterations, sleep with wake-up notification
+   *
+   * @param worker_index This worker's index
+   * @return Work item if found, nullopt otherwise
+   */
+  std::optional<WorkItem> tryStealWithBackoff(size_t worker_index);
+
+  /**
    * @brief Get next worker index for round-robin submission
    */
   size_t getNextWorkerIndex();
@@ -162,6 +176,11 @@ class WorkStealingScheduler {
    * @param worker_index Worker index (maps to CPU core via modulo)
    */
   void setCPUAffinity(size_t worker_index);
+
+  // Stream C1: 3-phase backoff thresholds
+  static constexpr size_t SPIN_ITERATIONS = 100;
+  static constexpr size_t YIELD_ITERATIONS = 1000;
+  static constexpr auto SLEEP_DURATION = std::chrono::milliseconds(1);
 
   size_t num_workers_;
   bool enable_cpu_affinity_;  // Phase D: Enable CPU affinity
