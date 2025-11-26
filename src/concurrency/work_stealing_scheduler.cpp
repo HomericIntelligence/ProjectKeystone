@@ -87,6 +87,9 @@ void WorkStealingScheduler::submitTo(size_t worker_index,
   }
 
   worker_queues_[worker_index]->push(WorkItem::makeFunction(std::move(func)));
+
+  // Stream C1: Wake up workers in SLEEP phase immediately
+  shutdown_cv_.notify_all();
 }
 
 void WorkStealingScheduler::submitTo(size_t worker_index,
@@ -98,6 +101,9 @@ void WorkStealingScheduler::submitTo(size_t worker_index,
   }
 
   worker_queues_[worker_index]->push(WorkItem::makeCoroutine(handle));
+
+  // Stream C1: Wake up workers in SLEEP phase immediately
+  shutdown_cv_.notify_all();
 }
 
 void WorkStealingScheduler::shutdown() {
@@ -146,6 +152,102 @@ size_t WorkStealingScheduler::getNextWorkerIndex() {
   return idx % num_workers_;
 }
 
+std::optional<WorkItem> WorkStealingScheduler::tryStealWithBackoff(
+    size_t worker_index) {
+  auto& own_queue = *worker_queues_[worker_index];
+  size_t iterations = 0;
+
+  // Phase 1: SPIN (0-100 iterations)
+  // Tight loop for ultra-low latency (1-10 microseconds)
+  while (iterations < SPIN_ITERATIONS) {
+    // Try own queue first
+    auto work = own_queue.pop();
+    if (work.has_value()) {
+      return work;
+    }
+
+    // Try stealing from other workers
+    for (size_t i = 1; i < num_workers_; ++i) {
+      size_t victim_idx = (worker_index + i) % num_workers_;
+      work = worker_queues_[victim_idx]->steal();
+      if (work.has_value()) {
+        Logger::trace("Worker {} stole work from worker {} (SPIN phase)",
+                      worker_index, victim_idx);
+        return work;
+      }
+    }
+
+    ++iterations;
+
+    // Early exit on shutdown
+    if (shutdown_requested_.load()) {
+      return std::nullopt;
+    }
+  }
+
+  // Phase 2: YIELD (101-1000 iterations)
+  // Yield CPU to other threads while staying responsive (10-100 microseconds)
+  while (iterations < YIELD_ITERATIONS) {
+    // Try own queue
+    auto work = own_queue.pop();
+    if (work.has_value()) {
+      return work;
+    }
+
+    // Try stealing
+    for (size_t i = 1; i < num_workers_; ++i) {
+      size_t victim_idx = (worker_index + i) % num_workers_;
+      work = worker_queues_[victim_idx]->steal();
+      if (work.has_value()) {
+        Logger::trace("Worker {} stole work from worker {} (YIELD phase)",
+                      worker_index, victim_idx);
+        return work;
+      }
+    }
+
+    // Yield CPU slice to other threads
+    std::this_thread::yield();
+    ++iterations;
+
+    // Early exit on shutdown
+    if (shutdown_requested_.load()) {
+      return std::nullopt;
+    }
+  }
+
+  // Phase 3: SLEEP (1001+ iterations)
+  // Sleep with wake-up notification for minimal CPU usage
+  while (true) {
+    // Try own queue
+    auto work = own_queue.pop();
+    if (work.has_value()) {
+      return work;
+    }
+
+    // Try stealing
+    for (size_t i = 1; i < num_workers_; ++i) {
+      size_t victim_idx = (worker_index + i) % num_workers_;
+      work = worker_queues_[victim_idx]->steal();
+      if (work.has_value()) {
+        Logger::trace("Worker {} stole work from worker {} (SLEEP phase)",
+                      worker_index, victim_idx);
+        return work;
+      }
+    }
+
+    // Sleep with condition variable wake-up
+    // This allows immediate wake-up when work is submitted
+    std::unique_lock<std::mutex> lock(shutdown_mutex_);
+    shutdown_cv_.wait_for(lock, SLEEP_DURATION, [this]() {
+      return shutdown_requested_.load();
+    });
+
+    if (shutdown_requested_.load()) {
+      return std::nullopt;
+    }
+  }
+}
+
 void WorkStealingScheduler::workerLoop(size_t worker_index) {
   // Set thread-local logging context
   std::ostringstream oss;
@@ -163,57 +265,23 @@ void WorkStealingScheduler::workerLoop(size_t worker_index) {
 
   Logger::debug("Worker {} starting", worker_index);
 
-  auto& own_queue = *worker_queues_[worker_index];
-
-  // FIX M5: Adaptive exponential backoff instead of fixed 100μs sleep
-  size_t idle_count = 0;
-
-  // Main work loop
+  // Stream C1: Main work loop with 3-phase backoff
   while (!shutdown_requested_.load()) {
-    // Try to get work: pop from own queue or steal from others
-    auto work = own_queue.pop();
-
-    if (!work.has_value()) {
-      // Try stealing from other workers
-      for (size_t i = 1; i < num_workers_; ++i) {
-        size_t victim_idx = (worker_index + i) % num_workers_;
-        work = worker_queues_[victim_idx]->steal();
-
-        if (work.has_value()) {
-          Logger::trace("Worker {} stole work from worker {}", worker_index,
-                        victim_idx);
-          break;
-        }
-      }
-    }
+    // Try to get work with 3-phase backoff (SPIN → YIELD → SLEEP)
+    auto work = tryStealWithBackoff(worker_index);
 
     if (work.has_value() && work->valid()) {
       // Execute the work item
       Logger::trace("Worker {} executing work", worker_index);
       work->execute();
-      idle_count = 0;  // Reset backoff on successful work
-    } else {
-      // FIX M5: Adaptive exponential backoff
-      // Start with 1μs, double each iteration up to
-      // Config::SCHEDULER_MAX_BACKOFF_MICROSECONDS This reduces CPU waste while
-      // maintaining low latency
-      idle_count++;
-      // FIX P3-05: Use Config constant instead of magic number
-      size_t backoff_shift =
-          std::min(idle_count, core::Config::SCHEDULER_MAX_BACKOFF_SHIFT);
-      size_t sleep_us =
-          std::min(1UL << backoff_shift,
-                   core::Config::SCHEDULER_MAX_BACKOFF_MICROSECONDS);
-
-      // FIX Issue #18: Use condition variable to wake up immediately on shutdown
-      std::unique_lock<std::mutex> lock(shutdown_mutex_);
-      shutdown_cv_.wait_for(lock, std::chrono::microseconds(sleep_us),
-                           [this]() { return shutdown_requested_.load(); });
+      // Note: tryStealWithBackoff() resets internally when work is found
     }
+    // No else needed - tryStealWithBackoff() handles backoff internally
   }
 
   // Drain remaining work from own queue before exiting
   Logger::debug("Worker {} draining queue before exit", worker_index);
+  auto& own_queue = *worker_queues_[worker_index];
   while (auto work = own_queue.pop()) {
     if (work->valid()) {
       work->execute();
