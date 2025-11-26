@@ -379,11 +379,12 @@ TEST(E2E_Chaos, SystemRemainsStableUnderFailures) {
    - Set up dependency management
    - Create coding standards document
 
-3. **Key Decisions Needed**:
-   - Choose package manager (vcpkg vs Conan)
-   - Select testing framework (GoogleTest vs Catch2)
-   - Decide on logging library (spdlog vs custom)
-   - Determine monitoring solution (Prometheus vs alternatives)
+3. **Key Decisions Made**:
+   - ✅ Testing framework: Google Test (GTest)
+   - ✅ Logging library: spdlog
+   - Future decisions needed:
+     - Package manager (vcpkg vs Conan)
+     - Monitoring solution (Prometheus vs alternatives)
 
 ## References
 

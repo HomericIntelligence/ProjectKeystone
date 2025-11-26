@@ -16,7 +16,7 @@ message passing and delegation.
 
 - **C++20** with modules support
 - **CMake** 3.20+ for build system
-- **Catch2 v3** for unit and E2E testing
+- **Google Test (GTest)** for unit and E2E testing
 - **C++20 Coroutines** (`co_await`, `co_return`) for async operations
 - **concurrentqueue** library for lock-free message queuing
 - **ThreadPool** for parallel agent execution
@@ -230,24 +230,13 @@ ProjectKeystone/
 ### Test Naming Convention
 
 ```cpp
-// E2E tests (Catch2 v3)
-TEST_CASE("ChiefArchitect delegates to TaskAgent", "[e2e][phase1]")
-TEST_CASE("ModuleLead synthesizes task results", "[e2e][phase2]")
+// E2E tests (Google Test)
+TEST(E2E_Phase1, ChiefArchitectDelegatesToTaskAgent)
+TEST(E2E_Phase2, ModuleLeadSynthesizesTaskResults)
 
-// Unit tests (Catch2 v3)
-TEST_CASE("MessageQueue can push and pop messages", "[unit][message-queue]")
-TEST_CASE("ThreadPool submits and executes tasks", "[unit][thread-pool]")
-
-// Using SCENARIO for BDD-style tests
-SCENARIO("Agent delegation in Phase 1", "[e2e][phase1]") {
-    GIVEN("A ChiefArchitect and TaskAgent") {
-        WHEN("ChiefArchitect sends a command") {
-            THEN("TaskAgent executes and returns result") {
-                // test implementation
-            }
-        }
-    }
-}
+// Unit tests (Google Test)
+TEST(MessageQueueTest, CanPushAndPopMessages)
+TEST(ThreadPoolTest, SubmitsAndExecutesTasks)
 ```
 
 ### Git Workflow
@@ -525,7 +514,7 @@ All dependencies are handled inside the Docker container:
 
 1. **C++20 Compiler** - GCC 12 with sanitizers support (installed in Dockerfile)
 2. **CMake** 3.22+ (installed in Dockerfile)
-3. **Catch2 v3** - Fetched by CMake via FetchContent
+3. **Google Test (GTest)** - Fetched by CMake via FetchContent
 4. **Ninja** - Fast build system (installed in Dockerfile)
 5. **Sanitizers** - ASan, UBSan, TSan, MSan (built into GCC 12)
 

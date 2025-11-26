@@ -18,7 +18,7 @@ These workflows run on every PR and provide quick feedback:
 
 - **unit-tests.yml** - Unit test execution
   - Builds test environment in Docker
-  - Runs Catch2 v3 unit tests
+  - Runs Google Test (GTest) unit tests
   - Generates coverage reports with gcovr
   - **Triggers**: PR, push to main, manual
   - **Timeout**: 15 minutes
@@ -95,7 +95,7 @@ git commit -m "fix: Apply pre-commit fixes"
 ```yaml
 File: unit-tests.yml
 Jobs:
-  - test-cpp: Builds and runs Catch2 v3 test suites
+  - test-cpp: Builds and runs Google Test (GTest) test suites
   - coverage-report: Generates coverage reports and PR comments
 ```
 
@@ -261,7 +261,7 @@ All workflows support `workflow_dispatch` for manual triggering
 
 | Artifact | Retention | Size | Description |
 |----------|-----------|------|-------------|
-| Unit test results | 7 days | ~1 MB | Catch2 XML test results |
+| Unit test results | 7 days | ~1 MB | GTest XML test results |
 | Coverage reports | 7 days | ~5 MB | HTML and XML coverage |
 | Build manifests | 7 days | <1 MB | Build metadata |
 | Integration reports | 30 days | ~2 MB | E2E test results |
@@ -503,7 +503,7 @@ make
 
 - [GitHub Actions Documentation](https://docs.github.com/en/actions)
 - [Docker Build Best Practices](https://docs.docker.com/develop/dev-best-practices/)
-- [Catch2 v3 Documentation](https://github.com/catchorg/Catch2/tree/devel/docs)
+- [Google Test Documentation](https://google.github.io/googletest/)
 - [Semgrep Rules](https://semgrep.dev/r)
 - [CodeQL C++ Queries](https://codeql.github.com/codeql-query-help/cpp/)
 

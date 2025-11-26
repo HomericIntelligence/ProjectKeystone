@@ -163,8 +163,8 @@ ProjectKeystone strictly follows TDD throughout all phases.
 **End-to-End Integration Tests** - Comprehensive tests that verify system behavior across multiple layers. ProjectKeystone E2E tests:
 - Test full message flows from L0 down to L3
 - Verify agent coordination and delegation
-- Use Catch2 v3 framework
-- Are tagged by phase (`[e2e][phase1]`, `[e2e][phase2]`, etc.)
+- Use Google Test (GTest) framework
+- Use descriptive test names (e.g., `TEST(E2E_Phase1, BasicDelegation)`)
 - Drive development priorities (TDD approach)
 
 Examples:
@@ -239,17 +239,17 @@ Each phase adds new agent levels or features while maintaining all previous func
 ### CMake
 **Build Configuration System** - Used to:
 - Configure the build with options (`-DENABLE_GRPC=ON`, etc.)
-- Manage dependencies (Catch2, nlohmann/json, etc.)
+- Manage dependencies (Google Test, nlohmann/json, etc.)
 - Generate build artifacts for multiple targets
 - Support sanitizers (ASan, UBSan, TSan, MSan)
 
-### Catch2 v3
+### Google Test (GTest)
 **C++ Unit and E2E Testing Framework** - Features used:
-- Test cases with `TEST_CASE()`
-- BDD-style scenarios with `SCENARIO()`
-- Test tags for filtering (`[e2e][phase1]`)
-- Assertions and matchers
-- Configurable reporters
+- Test cases with `TEST()` and test fixtures with `TEST_F()`
+- Assertions (`ASSERT_*`, `EXPECT_*`)
+- Test parameterization
+- Death tests for crash scenarios
+- Comprehensive mocking framework (GMock)
 
 ### Docker
 **Container Platform** - Used for:

@@ -21,7 +21,7 @@ test-driven development (TDD), continuous integration, and automated validation.
 
 **Scope**: Individual functions, classes, and modules in isolation
 
-**Framework**: Catch2 v3
+**Framework**: Google Test (GTest)
 
 **Coverage Target**: >95% for Keystone.Core, >90% for other modules
 
@@ -31,30 +31,29 @@ test-driven development (TDD), continuous integration, and automated validation.
 
 ```cpp
 // tests/unit/core/MessageQueueTest.cpp
-#include <catch2/catch_test_macros.hpp>
-#include <catch2/catch_session.hpp>
+#include <gtest/gtest.h>
 #include "core/message_queue.hpp"
 
 namespace Keystone::Core::Test {
 
-TEST_CASE("MessageQueue can push and pop values", "[unit][message-queue]") {
+TEST(MessageQueueTest, CanPushAndPopValues) {
     MessageQueue<int> queue;
 
-    SECTION("Push and pop single value") {
-        queue.push(42);
+    // Push and pop single value
+    queue.push(42);
 
-        int value;
-        REQUIRE(queue.try_pop(value));
-        CHECK(value == 42);
-    }
-
-    SECTION("Try pop from empty queue") {
-        int value;
-        REQUIRE_FALSE(queue.try_pop(value));
-    }
+    int value;
+    ASSERT_TRUE(queue.try_pop(value));
+    EXPECT_EQ(value, 42);
 }
 
-TEST_CASE("MessageQueue handles concurrent access", "[unit][message-queue][concurrent]") {
+TEST(MessageQueueTest, TryPopFromEmptyQueue) {
+    MessageQueue<int> queue;
+    int value;
+    EXPECT_FALSE(queue.try_pop(value));
+}
+
+TEST(MessageQueueTest, HandlesConcurrentAccess) {
     MessageQueue<int> queue;
     constexpr int NUM_ITEMS = 10000;
     std::vector<std::thread> producers;
@@ -88,7 +87,7 @@ TEST_CASE("MessageQueue handles concurrent access", "[unit][message-queue][concu
     for (auto& t : producers) t.join();
     for (auto& t : consumers) t.join();
 
-    CHECK(consumed == NUM_ITEMS);
+    EXPECT_EQ(consumed, NUM_ITEMS);
 }
 
 } // namespace Keystone::Core::Test
@@ -121,7 +120,7 @@ tests/unit/
 
 **Scope**: Multi-component interactions and workflows
 
-**Framework**: Catch2 v3 with sections and fixtures
+**Framework**: Google Test (GTest) with test fixtures
 
 **Coverage Target**: All critical integration points
 
@@ -131,14 +130,15 @@ tests/unit/
 
 ```cpp
 // tests/integration/HierarchyTest.cpp
-#include <catch2/catch_test_macros.hpp>
+#include <gtest/gtest.h>
 #include "agents/chief_architect_agent.hpp"
 #include "core/thread_pool.hpp"
 
 namespace Keystone::Agents::Test {
 
-struct AgentHierarchyFixture {
-    AgentHierarchyFixture() {
+class AgentHierarchyTest : public ::testing::Test {
+protected:
+    void SetUp() override {
         // Initialize thread pool
         thread_pool_ = std::make_unique<Core::ThreadPool>(4);
 
@@ -147,7 +147,7 @@ struct AgentHierarchyFixture {
         root_->initialize();
     }
 
-    ~AgentHierarchyFixture() {
+    void TearDown() override {
         root_->shutdown();
         thread_pool_->shutdown();
     }
@@ -156,34 +156,32 @@ struct AgentHierarchyFixture {
     std::unique_ptr<RootAgent> root_;
 };
 
-TEST_CASE_METHOD(AgentHierarchyFixture, "Hierarchical agent delegation", "[integration][hierarchy]") {
-    SECTION("Task decomposition flow") {
-        // Create a complex task
-        std::string goal = "Generate report from multiple data sources";
+TEST_F(AgentHierarchyTest, TaskDecompositionFlow) {
+    // Create a complex task
+    std::string goal = "Generate report from multiple data sources";
 
-        // Root decomposes task
-        auto future = root_->decomposeGoal(goal);
+    // Root decomposes task
+    auto future = root_->decomposeGoal(goal);
 
-        // Wait for completion (with timeout)
-        auto result = future.wait_for(std::chrono::seconds(5));
+    // Wait for completion (with timeout)
+    auto result = future.wait_for(std::chrono::seconds(5));
 
-        REQUIRE(result == std::future_status::ready);
-        CHECK_FALSE(future.get().empty());
-    }
+    ASSERT_EQ(result, std::future_status::ready);
+    EXPECT_FALSE(future.get().empty());
+}
 
-    SECTION("Result aggregation") {
-        // Simulate branch agents returning results
-        // Verify root correctly aggregates results
+TEST_F(AgentHierarchyTest, ResultAggregation) {
+    // Simulate branch agents returning results
+    // Verify root correctly aggregates results
 
-        // Test implementation...
-    }
+    // Test implementation...
+}
 
-    SECTION("Failure recovery") {
-        // Simulate leaf agent failure
-        // Verify branch agent detects and recovers
+TEST_F(AgentHierarchyTest, FailureRecovery) {
+    // Simulate leaf agent failure
+    // Verify branch agent detects and recovers
 
-        // Test implementation...
-    }
+    // Test implementation...
 }
 
 } // namespace Keystone::Agents::Test
@@ -302,7 +300,7 @@ BENCHMARK_MAIN();
 
 **Scope**: System resilience under extreme conditions
 
-**Framework**: Custom chaos framework + Catch2 v3
+**Framework**: Custom chaos framework + Google Test (GTest)
 
 **Targets**:
 
@@ -339,7 +337,7 @@ struct ChaosFixture {
     }
 };
 
-TEST_CASE_METHOD(ChaosFixture, "System handles random agent failures", "[stress][chaos]") {
+TEST_F(ChaosTest, SystemHandlesRandomAgentFailures) {
     // Create hierarchy
     auto root = createRootAgent();
     root->initialize();
@@ -360,10 +358,10 @@ TEST_CASE_METHOD(ChaosFixture, "System handles random agent failures", "[stress]
     chaos_thread.join();
 
     // Verify system still functional
-    CHECK(root->getState() != AgentState::ERROR);
+    EXPECT_NE(root->getState(), AgentState::ERROR);
 }
 
-TEST_CASE("Long duration stability test", "[stress][chaos][.long]") {
+TEST(StressTest, LongDurationStability) {
     // Run for 24 hours (tagged with .long to exclude from normal runs)
     auto start = std::chrono::steady_clock::now();
     auto end = start + std::chrono::hours(24);
@@ -416,7 +414,7 @@ TEST_CASE("AgentBase can send messages", "[unit][agent-base]") {
 
     sender.sendMessage(msg);
 
-    REQUIRE(receiver.mailbox_.size() == 1);  // FAILS - not implemented
+    ASSERT_EQ(receiver.mailbox_.size(), 1);  // FAILS - not implemented
 }
 
 // Step 2: GREEN - Implement minimal solution
@@ -667,11 +665,11 @@ jobs:
 ### 1. Test Naming Conventions
 
 ```cpp
-// Format: Descriptive test names with tags
+// Format: Descriptive test names
 
-TEST_CASE("MessageQueue increases size when pushing items", "[unit][message-queue]")
-TEST_CASE("AgentBase drains mailbox when shutting down with pending messages", "[unit][agent-base]")
-TEST_CASE("RootAgent creates multiple branches for complex task decomposition", "[unit][root-agent]")
+TEST(MessageQueueTest, IncreasesSizeWhenPushingItems)
+TEST(AgentBaseTest, DrainsMailboxWhenShuttingDownWithPendingMessages)
+TEST(RootAgentTest, CreatesMultipleBranchesForComplexTaskDecomposition)
 ```
 
 ### 2. Test Independence
@@ -693,8 +691,8 @@ struct GoodExampleFixture {
     State state_;
 };
 
-TEST_CASE_METHOD(GoodExampleFixture, "State is properly initialized", "[unit]") {
-    REQUIRE(state_.isReady());
+TEST_F(GoodExampleTest, StateIsProperlyInitialized) {
+    ASSERT_TRUE(state_.isReady());
 }
 ```
 
