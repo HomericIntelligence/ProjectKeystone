@@ -56,8 +56,10 @@ docker-build TARGET='dev':
 docker-up:
     #!/usr/bin/env bash
     set -e
+    export BUILD_UID=$(id -u)
+    export BUILD_GID=$(id -g)
     if ! docker-compose ps dev | grep -q "Up"; then
-        echo "Starting dev container..."
+        echo "Starting dev container with BUILD_UID=$BUILD_UID BUILD_GID=$BUILD_GID..."
         docker-compose up -d dev
         echo "Waiting for container to be ready..."
         sleep 2
