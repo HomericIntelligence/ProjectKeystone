@@ -1,6 +1,8 @@
 // message_bus_performance.cpp
 // Comprehensive benchmarks for MessageBus routing and delivery
 //
+// Phase 3.1: Updated for unified async API
+//
 // Measures:
 // - Message routing latency (p50, p95, p99, p99.9)
 // - Registration/unregistration overhead
@@ -9,12 +11,12 @@
 
 #include <benchmark/benchmark.h>
 
+#include <atomic>
 #include <memory>
-#include <nlohmann/json.hpp>
 #include <thread>
 #include <vector>
 
-#include "agents/base_agent.hpp"
+#include "agents/task_agent.hpp"
 #include "core/message.hpp"
 #include "core/message_bus.hpp"
 
@@ -22,28 +24,12 @@ using namespace keystone;
 using namespace keystone::core;
 using namespace keystone::agents;
 
-// Simple test agent for benchmarking
-class BenchmarkAgent : public BaseAgent {
- public:
-  explicit BenchmarkAgent(const std::string& id) : BaseAgent(id) {}
-
-  Response processMessage(const KeystoneMessage& msg) override {
-    message_count_++;
-    return Response{ResponseStatus::SUCCESS, "ok", {}};
-  }
-
-  size_t getMessageCount() const { return message_count_; }
-
- private:
-  std::atomic<size_t> message_count_{0};
-};
-
 // Benchmark: Simple message routing latency
 static void BM_MessageRouting_SingleAgent(benchmark::State& state) {
   MessageBus bus;
-  auto agent = std::make_unique<BenchmarkAgent>("test-agent");
+  auto agent = std::make_shared<TaskAgent>("test-agent");
 
-  bus.registerAgent(agent->getAgentId(), agent.get());
+  bus.registerAgent(agent->getAgentId(), agent);
   agent->setMessageBus(&bus);
 
   auto msg = KeystoneMessage::create("sender", "test-agent", "test");
@@ -63,13 +49,13 @@ static void BM_MessageRouting_FanOut(benchmark::State& state) {
   int num_agents = state.range(0);
 
   MessageBus bus;
-  std::vector<std::unique_ptr<BenchmarkAgent>> agents;
+  std::vector<std::shared_ptr<TaskAgent>> agents;
 
   for (int i = 0; i < num_agents; ++i) {
-    auto agent = std::make_unique<BenchmarkAgent>("agent-" + std::to_string(i));
-    bus.registerAgent(agent->getAgentId(), agent.get());
+    auto agent = std::make_shared<TaskAgent>("agent-" + std::to_string(i));
+    bus.registerAgent(agent->getAgentId(), agent);
     agent->setMessageBus(&bus);
-    agents.push_back(std::move(agent));
+    agents.push_back(agent);
   }
 
   size_t agent_idx = 0;
@@ -88,14 +74,13 @@ BENCHMARK(BM_MessageRouting_FanOut)->Range(8, 512);
 // Benchmark: Agent registration overhead
 static void BM_AgentRegistration(benchmark::State& state) {
   MessageBus bus;
-  std::vector<std::unique_ptr<BenchmarkAgent>> agents;
+  std::vector<std::shared_ptr<TaskAgent>> agents;
 
   size_t count = 0;
   for (auto _ : state) {
-    auto agent =
-        std::make_unique<BenchmarkAgent>("agent-" + std::to_string(count++));
-    bus.registerAgent(agent->getAgentId(), agent.get());
-    agents.push_back(std::move(agent));
+    auto agent = std::make_shared<TaskAgent>("agent-" + std::to_string(count++));
+    bus.registerAgent(agent->getAgentId(), agent);
+    agents.push_back(agent);
   }
 
   state.SetItemsProcessed(state.iterations());
@@ -109,13 +94,12 @@ static void BM_AgentUnregistration(benchmark::State& state) {
   for (auto _ : state) {
     state.PauseTiming();
     MessageBus bus;
-    std::vector<std::unique_ptr<BenchmarkAgent>> agents;
+    std::vector<std::shared_ptr<TaskAgent>> agents;
 
     for (int i = 0; i < num_agents; ++i) {
-      auto agent =
-          std::make_unique<BenchmarkAgent>("agent-" + std::to_string(i));
-      bus.registerAgent(agent->getAgentId(), agent.get());
-      agents.push_back(std::move(agent));
+      auto agent = std::make_shared<TaskAgent>("agent-" + std::to_string(i));
+      bus.registerAgent(agent->getAgentId(), agent);
+      agents.push_back(agent);
     }
     state.ResumeTiming();
 
@@ -133,12 +117,12 @@ static void BM_AgentLookup(benchmark::State& state) {
   int num_agents = state.range(0);
 
   MessageBus bus;
-  std::vector<std::unique_ptr<BenchmarkAgent>> agents;
+  std::vector<std::shared_ptr<TaskAgent>> agents;
 
   for (int i = 0; i < num_agents; ++i) {
-    auto agent = std::make_unique<BenchmarkAgent>("agent-" + std::to_string(i));
-    bus.registerAgent(agent->getAgentId(), agent.get());
-    agents.push_back(std::move(agent));
+    auto agent = std::make_shared<TaskAgent>("agent-" + std::to_string(i));
+    bus.registerAgent(agent->getAgentId(), agent);
+    agents.push_back(agent);
   }
 
   size_t idx = 0;
@@ -157,12 +141,12 @@ static void BM_ListAgents(benchmark::State& state) {
   int num_agents = state.range(0);
 
   MessageBus bus;
-  std::vector<std::unique_ptr<BenchmarkAgent>> agents;
+  std::vector<std::shared_ptr<TaskAgent>> agents;
 
   for (int i = 0; i < num_agents; ++i) {
-    auto agent = std::make_unique<BenchmarkAgent>("agent-" + std::to_string(i));
-    bus.registerAgent(agent->getAgentId(), agent.get());
-    agents.push_back(std::move(agent));
+    auto agent = std::make_shared<TaskAgent>("agent-" + std::to_string(i));
+    bus.registerAgent(agent->getAgentId(), agent);
+    agents.push_back(agent);
   }
 
   for (auto _ : state) {
@@ -176,25 +160,19 @@ BENCHMARK(BM_ListAgents)->Range(8, 1024);
 
 // Benchmark: Concurrent message routing (multi-threaded)
 static void BM_ConcurrentRouting(benchmark::State& state) {
-  int num_threads = state.range(0);
+  static MessageBus bus;
+  static auto agent = std::make_shared<TaskAgent>("test-agent");
+  static std::once_flag init_flag;
 
-  MessageBus bus;
-  auto agent = std::make_unique<BenchmarkAgent>("test-agent");
-  bus.registerAgent(agent->getAgentId(), agent.get());
-  agent->setMessageBus(&bus);
-
-  if (state.thread_index() == 0) {
-    // Main thread setup
-  }
+  std::call_once(init_flag, [&]() {
+    bus.registerAgent(agent->getAgentId(), agent);
+    agent->setMessageBus(&bus);
+  });
 
   auto msg = KeystoneMessage::create("sender", "test-agent", "test");
 
   for (auto _ : state) {
     bus.routeMessage(msg);
-  }
-
-  if (state.thread_index() == 0) {
-    state.counters["total_messages"] = agent->getMessageCount();
   }
 }
 BENCHMARK(BM_ConcurrentRouting)->ThreadRange(1, 8);
@@ -204,17 +182,16 @@ static void BM_MessageRouting_WithPayload(benchmark::State& state) {
   int payload_size = state.range(0);  // Size in bytes
 
   MessageBus bus;
-  auto agent = std::make_unique<BenchmarkAgent>("test-agent");
-  bus.registerAgent(agent->getAgentId(), agent.get());
+  auto agent = std::make_shared<TaskAgent>("test-agent");
+  bus.registerAgent(agent->getAgentId(), agent);
   agent->setMessageBus(&bus);
 
   // Create payload of specified size
   std::string payload_data(payload_size, 'x');
-  nlohmann::json payload = {{"data", payload_data}};
 
   for (auto _ : state) {
     auto msg = KeystoneMessage::create("sender", "test-agent", "test");
-    msg.payload = payload;
+    msg.payload = payload_data;
     bus.routeMessage(msg);
   }
 
@@ -227,11 +204,11 @@ BENCHMARK(BM_MessageRouting_WithPayload)->Range(64, 64 << 10);  // 64B to 64KB
 static void BM_MessageRoundTrip(benchmark::State& state) {
   MessageBus bus;
 
-  auto agent1 = std::make_unique<BenchmarkAgent>("agent1");
-  auto agent2 = std::make_unique<BenchmarkAgent>("agent2");
+  auto agent1 = std::make_shared<TaskAgent>("agent1");
+  auto agent2 = std::make_shared<TaskAgent>("agent2");
 
-  bus.registerAgent(agent1->getAgentId(), agent1.get());
-  bus.registerAgent(agent2->getAgentId(), agent2.get());
+  bus.registerAgent(agent1->getAgentId(), agent1);
+  bus.registerAgent(agent2->getAgentId(), agent2);
   agent1->setMessageBus(&bus);
   agent2->setMessageBus(&bus);
 
@@ -252,13 +229,13 @@ static void BM_MessageBroadcast(benchmark::State& state) {
   int num_agents = state.range(0);
 
   MessageBus bus;
-  std::vector<std::unique_ptr<BenchmarkAgent>> agents;
+  std::vector<std::shared_ptr<TaskAgent>> agents;
 
   for (int i = 0; i < num_agents; ++i) {
-    auto agent = std::make_unique<BenchmarkAgent>("agent-" + std::to_string(i));
-    bus.registerAgent(agent->getAgentId(), agent.get());
+    auto agent = std::make_shared<TaskAgent>("agent-" + std::to_string(i));
+    bus.registerAgent(agent->getAgentId(), agent);
     agent->setMessageBus(&bus);
-    agents.push_back(std::move(agent));
+    agents.push_back(agent);
   }
 
   for (auto _ : state) {

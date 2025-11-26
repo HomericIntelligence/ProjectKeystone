@@ -2,22 +2,23 @@
  * @file hierarchy_performance.cpp
  * @brief Performance benchmarks for HMAS hierarchy
  *
- * NOTE: These benchmarks are currently disabled as they reference async_* agent headers
- * that were removed in the unified async API refactoring. Need to update benchmarks
- * to use the new unified async API. Re-enable by changing #if 0 to #if 1.
+ * Phase 3.1: Re-enabled with unified async API
+ *
+ * Measures:
+ * - Message throughput across hierarchy levels
+ * - Latency of task execution through agent layers
+ * - Scalability with varying task counts
+ * - Work-stealing scheduler efficiency
  */
-
-#if 0  // Disabled until benchmarks are updated for unified async API
 
 #include <benchmark/benchmark.h>
 
+#include <atomic>
+#include <chrono>
 #include <memory>
+#include <thread>
 #include <vector>
 
-#include "agents/async_chief_architect_agent.hpp"
-#include "agents/async_component_lead_agent.hpp"
-#include "agents/async_module_lead_agent.hpp"
-#include "agents/async_task_agent.hpp"
 #include "agents/chief_architect_agent.hpp"
 #include "agents/component_lead_agent.hpp"
 #include "agents/module_lead_agent.hpp"
@@ -29,258 +30,222 @@ using namespace keystone;
 using namespace keystone::agents;
 using namespace keystone::core;
 using namespace keystone::concurrency;
+using namespace std::chrono_literals;
 
 /**
- * Performance Benchmarks: Sync vs Async Agent Hierarchies
+ * Performance Benchmarks: HMAS Agent Hierarchy
  *
  * These benchmarks measure:
- * - Message throughput (messages/second)
- * - Latency (time to process single message)
- * - Scalability (performance with varying worker counts)
- * - Concurrent execution efficiency
+ * - Message routing latency through hierarchy
+ * - Task execution throughput with varying worker counts
+ * - Scalability with changing agent counts
+ * - Work-stealing scheduler efficiency
  */
 
-// Benchmark: Sync 4-Layer Hierarchy
-static void BM_Sync4LayerHierarchy(benchmark::State& state) {
-  // Setup sync hierarchy
+// Benchmark: Message routing throughput (simple case)
+static void BM_MessageRouting_Throughput(benchmark::State& state) {
   MessageBus bus;
 
-  auto chief = std::make_unique<ChiefArchitectAgent>("chief");
-  auto comp_lead = std::make_unique<ComponentLeadAgent>("comp_lead");
-  auto module1 = std::make_unique<ModuleLeadAgent>("module1");
-  auto module2 = std::make_unique<ModuleLeadAgent>("module2");
+  auto agent = std::make_shared<TaskAgent>("task");
+  bus.registerAgent(agent->getAgentId(), agent);
+  agent->setMessageBus(&bus);
+
+  auto msg = KeystoneMessage::create("sender", "task", "test");
+
+  for (auto _ : state) {
+    bus.routeMessage(msg);
+  }
+
+  state.SetItemsProcessed(state.iterations());
+  state.counters["messages/sec"] =
+      benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
+}
+BENCHMARK(BM_MessageRouting_Throughput);
+
+// Benchmark: 4-Layer Hierarchy Message Flow
+// Chief -> Component -> Module -> Task (with 6 total tasks)
+static void BM_4LayerHierarchy_MessageFlow(benchmark::State& state) {
+  MessageBus bus;
+
+  // Create hierarchy: Chief -> Component -> 2 Modules -> 6 Tasks
+  auto chief = std::make_shared<ChiefArchitectAgent>("chief");
+  auto comp_lead = std::make_shared<ComponentLeadAgent>("comp_lead");
+  auto module1 = std::make_shared<ModuleLeadAgent>("module1");
+  auto module2 = std::make_shared<ModuleLeadAgent>("module2");
+
+  bus.registerAgent(chief->getAgentId(), chief);
+  bus.registerAgent(comp_lead->getAgentId(), comp_lead);
+  bus.registerAgent(module1->getAgentId(), module1);
+  bus.registerAgent(module2->getAgentId(), module2);
 
   chief->setMessageBus(&bus);
   comp_lead->setMessageBus(&bus);
   module1->setMessageBus(&bus);
   module2->setMessageBus(&bus);
 
-  bus.registerAgent(chief->getAgentId(), chief.get());
-  bus.registerAgent(comp_lead->getAgentId(), comp_lead.get());
-  bus.registerAgent(module1->getAgentId(), module1.get());
-  bus.registerAgent(module2->getAgentId(), module2.get());
-
-  std::vector<std::unique_ptr<TaskAgent>> task_agents;
+  std::vector<std::shared_ptr<TaskAgent>> tasks;
   for (int i = 1; i <= 6; ++i) {
-    auto task = std::make_unique<TaskAgent>("task" + std::to_string(i));
+    auto task = std::make_shared<TaskAgent>("task" + std::to_string(i));
+    bus.registerAgent(task->getAgentId(), task);
     task->setMessageBus(&bus);
-    bus.registerAgent(task->getAgentId(), task.get());
-    task_agents.push_back(std::move(task));
+    tasks.push_back(task);
   }
 
-  comp_lead->setAvailableModuleLeads({"module1", "module2"});
-  module1->setAvailableTaskAgents({"task1", "task2", "task3"});
-  module2->setAvailableTaskAgents({"task4", "task5", "task6"});
-
-  // Benchmark loop
+  // Benchmark: Route a message through the hierarchy
   for (auto _ : state) {
     auto msg = KeystoneMessage::create(
         "chief", "comp_lead",
-        "Component: Messaging(10+20+30) and Concurrency(40+50+60)");
+        "Component: ProcessData(100) and Analyze(200)");
     bus.routeMessage(msg);
-
-    // Process messages synchronously
-    comp_lead->processMessage(msg);
-
-    // Process module results
-    auto mod1_result = comp_lead->synthesizeComponentResult();
-    benchmark::DoNotOptimize(mod1_result);
   }
 
   state.SetItemsProcessed(state.iterations());
+  state.counters["hierarchy_depth"] = 4;
+  state.counters["total_agents"] = 9;
 }
-BENCHMARK(BM_Sync4LayerHierarchy);
+BENCHMARK(BM_4LayerHierarchy_MessageFlow);
 
-// Benchmark: Async 4-Layer Hierarchy (4 workers)
-// FIXED: Setup/teardown moved outside loop, measures actual message flow
-static void BM_Async4LayerHierarchy_4Workers(benchmark::State& state) {
-  // Setup ONCE (not part of benchmark timing)
-  WorkStealingScheduler scheduler(4);
-  scheduler.start();
+// Benchmark: Task Agent Registry Lookup Scalability
+static void BM_TaskAgent_RegistryLookup(benchmark::State& state) {
+  int num_agents = state.range(0);
 
   MessageBus bus;
-  bus.setScheduler(&scheduler);
+  std::vector<std::shared_ptr<TaskAgent>> agents;
 
-  auto chief = std::make_unique<AsyncChiefArchitectAgent>("chief");
-  auto comp_lead = std::make_unique<AsyncComponentLeadAgent>("comp_lead");
-  auto module1 = std::make_unique<AsyncModuleLeadAgent>("module1");
-  auto module2 = std::make_unique<AsyncModuleLeadAgent>("module2");
-
-  chief->setMessageBus(&bus);
-  chief->setScheduler(&scheduler);
-  comp_lead->setMessageBus(&bus);
-  comp_lead->setScheduler(&scheduler);
-  module1->setMessageBus(&bus);
-  module1->setScheduler(&scheduler);
-  module2->setMessageBus(&bus);
-  module2->setScheduler(&scheduler);
-
-  bus.registerAgent(chief->getAgentId(), chief.get());
-  bus.registerAgent(comp_lead->getAgentId(), comp_lead.get());
-  bus.registerAgent(module1->getAgentId(), module1.get());
-  bus.registerAgent(module2->getAgentId(), module2.get());
-
-  std::vector<std::unique_ptr<AsyncTaskAgent>> task_agents;
-  for (int i = 1; i <= 6; ++i) {
-    auto task = std::make_unique<AsyncTaskAgent>("task" + std::to_string(i));
-    task->setMessageBus(&bus);
-    task->setScheduler(&scheduler);
-    bus.registerAgent(task->getAgentId(), task.get());
-    task_agents.push_back(std::move(task));
+  // Register N task agents
+  for (int i = 0; i < num_agents; ++i) {
+    auto agent = std::make_shared<TaskAgent>("task" + std::to_string(i));
+    bus.registerAgent(agent->getAgentId(), agent);
+    agents.push_back(agent);
   }
 
-  comp_lead->setAvailableModuleLeads({"module1", "module2"});
-  module1->setAvailableTaskAgents({"task1", "task2", "task3"});
-  module2->setAvailableTaskAgents({"task4", "task5", "task6"});
+  // Benchmark lookup operations
+  int lookup_idx = 0;
+  for (auto _ : state) {
+    std::string agent_id = "task" + std::to_string(lookup_idx % num_agents);
+    benchmark::DoNotOptimize(bus.hasAgent(agent_id));
+    lookup_idx++;
+  }
 
-  // Warmup: ensure workers are ready
-  for (int i = 0; i < 10; ++i) {
+  state.SetItemsProcessed(state.iterations());
+  state.counters["agents"] = num_agents;
+}
+BENCHMARK(BM_TaskAgent_RegistryLookup)->Range(10, 1000);
+
+// Benchmark: Scheduler Submission Rate (Work-Stealing)
+static void BM_Scheduler_SubmissionRate(benchmark::State& state) {
+  const int num_workers = state.range(0);
+
+  WorkStealingScheduler scheduler(num_workers);
+  scheduler.start();
+
+  // Warmup: get workers ready
+  for (int i = 0; i < num_workers; ++i) {
     scheduler.submit([]() {
       volatile int x = 42;
       (void)x;
     });
   }
-  std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  std::this_thread::sleep_for(10ms);
 
-  // BENCHMARK LOOP: Only measures actual message flow
+  // Benchmark submission rate
   for (auto _ : state) {
-    chief->sendCommandAsync(
-        "Component: Messaging(10+20+30) and Concurrency(40+50+60)",
-        "comp_lead");
-
-    // FIXED: Wait for actual processing (not arbitrary 10ms)
-    // In real system, would use future/promise for completion
-    // For benchmark, minimal wait for message delivery
-    std::this_thread::sleep_for(std::chrono::microseconds(100));
-  }
-
-  // Teardown ONCE (not part of benchmark timing)
-  state.SetItemsProcessed(state.iterations());
-  scheduler.shutdown();
-}
-BENCHMARK(BM_Async4LayerHierarchy_4Workers);
-
-// Benchmark: Async with 8 workers
-// FIXED: Setup/teardown moved outside loop, measures actual message flow
-static void BM_Async4LayerHierarchy_8Workers(benchmark::State& state) {
-  // Setup ONCE (not part of benchmark timing)
-  WorkStealingScheduler scheduler(8);
-  scheduler.start();
-
-  MessageBus bus;
-  bus.setScheduler(&scheduler);
-
-  auto chief = std::make_unique<AsyncChiefArchitectAgent>("chief");
-  auto comp_lead = std::make_unique<AsyncComponentLeadAgent>("comp_lead");
-  auto module1 = std::make_unique<AsyncModuleLeadAgent>("module1");
-  auto module2 = std::make_unique<AsyncModuleLeadAgent>("module2");
-
-  chief->setMessageBus(&bus);
-  chief->setScheduler(&scheduler);
-  comp_lead->setMessageBus(&bus);
-  comp_lead->setScheduler(&scheduler);
-  module1->setMessageBus(&bus);
-  module1->setScheduler(&scheduler);
-  module2->setMessageBus(&bus);
-  module2->setScheduler(&scheduler);
-
-  bus.registerAgent(chief->getAgentId(), chief.get());
-  bus.registerAgent(comp_lead->getAgentId(), comp_lead.get());
-  bus.registerAgent(module1->getAgentId(), module1.get());
-  bus.registerAgent(module2->getAgentId(), module2.get());
-
-  std::vector<std::unique_ptr<AsyncTaskAgent>> task_agents;
-  for (int i = 1; i <= 6; ++i) {
-    auto task = std::make_unique<AsyncTaskAgent>("task" + std::to_string(i));
-    task->setMessageBus(&bus);
-    task->setScheduler(&scheduler);
-    bus.registerAgent(task->getAgentId(), task.get());
-    task_agents.push_back(std::move(task));
-  }
-
-  comp_lead->setAvailableModuleLeads({"module1", "module2"});
-  module1->setAvailableTaskAgents({"task1", "task2", "task3"});
-  module2->setAvailableTaskAgents({"task4", "task5", "task6"});
-
-  // Warmup: ensure workers are ready
-  for (int i = 0; i < 10; ++i) {
     scheduler.submit([]() {
-      volatile int x = 42;
-      (void)x;
+      volatile int sum = 0;
+      for (int j = 0; j < 10; ++j) {
+        sum += j;
+      }
     });
   }
-  std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
-  // BENCHMARK LOOP: Only measures actual message flow
+  // Wait for all work to complete
+  std::this_thread::sleep_for(100ms);
+
+  scheduler.shutdown();
+  state.SetItemsProcessed(state.iterations());
+  state.counters["workers"] = num_workers;
+  state.counters["tasks/sec"] =
+      benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
+}
+BENCHMARK(BM_Scheduler_SubmissionRate)->Arg(1)->Arg(2)->Arg(4)->Arg(8);
+
+// Benchmark: Agent Message Processing Throughput
+static void BM_Agent_MessageProcessing(benchmark::State& state) {
+  MessageBus bus;
+  auto agent = std::make_shared<TaskAgent>("processor");
+  bus.registerAgent(agent->getAgentId(), agent);
+  agent->setMessageBus(&bus);
+
+  // Create messages to process
   for (auto _ : state) {
-    chief->sendCommandAsync(
-        "Component: Messaging(10+20+30) and Concurrency(40+50+60)",
-        "comp_lead");
-
-    // FIXED: Wait for actual processing (not arbitrary 10ms)
-    std::this_thread::sleep_for(std::chrono::microseconds(100));
+    auto msg = KeystoneMessage::create("sender", "processor", "echo 42");
+    bus.routeMessage(msg);
   }
 
-  // Teardown ONCE (not part of benchmark timing)
   state.SetItemsProcessed(state.iterations());
-  scheduler.shutdown();
+  state.counters["messages/sec"] =
+      benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
 }
-BENCHMARK(BM_Async4LayerHierarchy_8Workers);
+BENCHMARK(BM_Agent_MessageProcessing);
 
-// DISABLED: Long-running parameterized benchmarks
-// These run multiple times with different worker counts, taking too long.
-// Re-enable for detailed performance analysis when needed.
+// Benchmark: Component Leadership with Multiple Modules
+static void BM_ComponentLead_MultiModule(benchmark::State& state) {
+  const int num_modules = state.range(0);
 
-/*
-// Benchmark: Message throughput (async task agent only)
-static void BM_AsyncTaskAgentThroughput(benchmark::State& state) {
-    const int num_workers = state.range(0);
+  MessageBus bus;
+  auto comp_lead = std::make_shared<ComponentLeadAgent>("comp_lead");
+  bus.registerAgent(comp_lead->getAgentId(), comp_lead);
+  comp_lead->setMessageBus(&bus);
 
-    WorkStealingScheduler scheduler(num_workers);
-    scheduler.start();
+  std::vector<std::shared_ptr<ModuleLeadAgent>> modules;
+  for (int i = 0; i < num_modules; ++i) {
+    auto module = std::make_shared<ModuleLeadAgent>("module" + std::to_string(i));
+    bus.registerAgent(module->getAgentId(), module);
+    module->setMessageBus(&bus);
+    modules.push_back(module);
+  }
 
-    MessageBus bus;
-    bus.setScheduler(&scheduler);
+  // Benchmark: Route messages through component to modules
+  for (auto _ : state) {
+    auto msg = KeystoneMessage::create(
+        "chief", "comp_lead",
+        "Component: Process(100) Analyze(200) Report(300)");
+    bus.routeMessage(msg);
+  }
 
-    auto agent = std::make_unique<AsyncTaskAgent>("throughput_test");
-    agent->setMessageBus(&bus);
-    agent->setScheduler(&scheduler);
-    bus.registerAgent(agent->getAgentId(), agent.get());
-
-    for (auto _ : state) {
-        auto msg = KeystoneMessage::create("test", agent->getAgentId(), "echo
-42"); bus.routeMessage(msg);
-    }
-
-    // Wait for queue to drain
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-    state.SetItemsProcessed(state.iterations());
-    scheduler.shutdown();
+  state.SetItemsProcessed(state.iterations());
+  state.counters["modules"] = num_modules;
 }
-BENCHMARK(BM_AsyncTaskAgentThroughput)->Arg(1)->Arg(2)->Arg(4)->Arg(8);
+BENCHMARK(BM_ComponentLead_MultiModule)->Range(2, 16);
 
-// Benchmark: Work-stealing scheduler submission rate
-static void BM_SchedulerSubmissionRate(benchmark::State& state) {
-    const int num_workers = state.range(0);
+// Benchmark: Module Leadership with Multiple Tasks
+static void BM_ModuleLead_MultiTask(benchmark::State& state) {
+  const int num_tasks = state.range(0);
 
-    WorkStealingScheduler scheduler(num_workers);
-    scheduler.start();
+  MessageBus bus;
+  auto module = std::make_shared<ModuleLeadAgent>("module");
+  bus.registerAgent(module->getAgentId(), module);
+  module->setMessageBus(&bus);
 
-    for (auto _ : state) {
-        scheduler.submit([]() {
-            // Minimal work
-            volatile int x = 42;
-            (void)x;
-        });
-    }
+  std::vector<std::shared_ptr<TaskAgent>> tasks;
+  for (int i = 0; i < num_tasks; ++i) {
+    auto task = std::make_shared<TaskAgent>("task" + std::to_string(i));
+    bus.registerAgent(task->getAgentId(), task);
+    task->setMessageBus(&bus);
+    tasks.push_back(task);
+  }
 
-    scheduler.shutdown();
-    state.SetItemsProcessed(state.iterations());
+  // Benchmark: Route messages through module to tasks
+  for (auto _ : state) {
+    auto msg = KeystoneMessage::create(
+        "comp_lead", "module",
+        "Module: Task1(10) Task2(20) Task3(30)");
+    bus.routeMessage(msg);
+  }
+
+  state.SetItemsProcessed(state.iterations());
+  state.counters["tasks"] = num_tasks;
 }
-BENCHMARK(BM_SchedulerSubmissionRate)->Arg(1)->Arg(2)->Arg(4)->Arg(8)->Arg(16);
-*/
+BENCHMARK(BM_ModuleLead_MultiTask)->Range(3, 32);
 
 BENCHMARK_MAIN();
-
-#endif  // Disabled benchmarks
