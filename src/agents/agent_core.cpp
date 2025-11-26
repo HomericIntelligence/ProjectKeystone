@@ -180,5 +180,21 @@ void AgentCore::updateQueueDepthMetrics() {
 // FIX ISP (Issue #46): Changed from MessageBus* to IMessageRouter*
 void AgentCore::setMessageBus(core::IMessageRouter* router) { message_bus_ = router; }
 
+// Phase 1.2 (Issue #52): Task cancellation support
+void AgentCore::requestCancellation(const std::string& task_id) {
+  std::lock_guard<std::mutex> lock(cancellation_mutex_);
+  cancelled_tasks_.insert(task_id);
+}
+
+bool AgentCore::isCancelled(const std::string& task_id) const {
+  std::lock_guard<std::mutex> lock(cancellation_mutex_);
+  return cancelled_tasks_.find(task_id) != cancelled_tasks_.end();
+}
+
+void AgentCore::clearCancellation(const std::string& task_id) {
+  std::lock_guard<std::mutex> lock(cancellation_mutex_);
+  cancelled_tasks_.erase(task_id);
+}
+
 }  // namespace agents
 }  // namespace keystone

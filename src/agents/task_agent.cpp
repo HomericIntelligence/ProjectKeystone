@@ -45,6 +45,11 @@ concurrency::Task<core::Response> TaskAgent::processMessage(const core::Keystone
   // Record message processed for metrics tracking
   core::Metrics::getInstance().recordMessageProcessed(msg.msg_id);
 
+  // Phase 1.2 (Issue #52): Handle CANCEL_TASK action type
+  if (msg.action_type == core::ActionType::CANCEL_TASK) {
+    co_return handleCancellation(msg);
+  }
+
   // Check if deadline was missed
   if (msg.deadline.has_value() && msg.hasDeadlinePassed()) {
     auto time_remaining = msg.getTimeUntilDeadline();

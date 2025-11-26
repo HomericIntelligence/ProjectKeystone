@@ -40,6 +40,19 @@ class AsyncAgent : public AgentCore {
    * @return concurrency::Task<core::Response> Async task that resolves to response
    */
   virtual concurrency::Task<core::Response> processMessage(const core::KeystoneMessage& msg) = 0;
+
+ protected:
+  /**
+   * @brief Handle a cancellation request message
+   *
+   * Phase 1.2 (Issue #52): Helper method for processing CANCEL_TASK messages.
+   * Agents should call this in their processMessage() implementation when
+   * receiving CANCEL_TASK action type.
+   *
+   * @param msg The cancellation message
+   * @return core::Response Acknowledgement response
+   */
+  core::Response handleCancellation(const core::KeystoneMessage& msg);
 };
 
 }  // namespace agents

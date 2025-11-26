@@ -16,6 +16,12 @@ ChiefArchitectAgent::ChiefArchitectAgent(const std::string& agent_id) : AsyncAge
 concurrency::Task<core::Response> ChiefArchitectAgent::processMessage(
     const core::KeystoneMessage& msg) {
   // FIX C3: Changed to async (returns Task<Response>)
+
+  // Phase 1.2 (Issue #52): Handle CANCEL_TASK action type
+  if (msg.action_type == core::ActionType::CANCEL_TASK) {
+    co_return handleCancellation(msg);
+  }
+
   // For Phase 1, ChiefArchitect receives responses from TaskAgent
   // Defensive: check payload exists before dereferencing
   if (!msg.payload) {
