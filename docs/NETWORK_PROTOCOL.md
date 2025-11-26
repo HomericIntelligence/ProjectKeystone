@@ -844,34 +844,112 @@ stub->SubmitTask(&context, request, &response);
 
 ## Security
 
-### TLS/SSL (Future)
+### TLS/SSL Support
 
-**Current Status**: Using `InsecureChannelCredentials` and `InsecureServerCredentials`
+**Status**: ✅ **Implemented** in Phase 1.1 (Issue #52)
+
+**Implementation Date**: 2025-11-26
+
+ProjectKeystone now supports TLS/SSL for secure gRPC communication using environment variable configuration.
+
+#### Environment Variables
+
+- **`KEYSTONE_TLS_CERT_PATH`**: Server certificate file path (PEM format)
+- **`KEYSTONE_TLS_KEY_PATH`**: Server private key file path (PEM format)
+- **`KEYSTONE_TLS_CA_PATH`**: CA certificate for client verification (PEM format)
+
+#### Configuration Precedence
+
+1. **Environment variables** (highest priority)
+2. **Config struct values** (fallback)
+3. **Insecure credentials** (default if TLS not configured)
+
+#### Server Configuration
+
+```cpp
+// Using environment variables
+export KEYSTONE_TLS_CERT_PATH=/path/to/server.crt
+export KEYSTONE_TLS_KEY_PATH=/path/to/server.key
+export KEYSTONE_TLS_CA_PATH=/path/to/ca.crt
+
+// Or using config struct
+GrpcServerConfig config;
+config.enable_tls = true;
+config.tls_cert_path = "/path/to/server.crt";
+config.tls_key_path = "/path/to/server.key";
+config.tls_ca_path = "/path/to/ca.crt";
+
+// Server automatically uses TLS if configured
+auto server = std::make_unique<GrpcServer>(config);
+server->start();
+```
+
+#### Client Configuration
+
+```cpp
+// Using environment variables
+export KEYSTONE_TLS_CA_PATH=/path/to/ca.crt
+
+// Or using config struct
+GrpcClientConfig config;
+config.enable_tls = true;
+config.tls_ca_path = "/path/to/ca.crt";
+
+// Both HMASCoordinatorClient and ServiceRegistryClient support TLS
+auto coordinator = std::make_unique<HMASCoordinatorClient>(server_address, config);
+auto registry = std::make_unique<ServiceRegistryClient>(server_address, config);
+```
+
+#### Implementation Details
+
+**Files Modified**:
+- `src/network/grpc_server.cpp`: TLS credential building
+- `src/network/grpc_client.cpp`: TLS channel creation
+- `tests/unit/test_grpc_tls.cpp`: 14 comprehensive unit tests
+
+**Key Features**:
+- ✅ Backward compatible (TLS disabled by default)
+- ✅ Environment variable overrides for easy deployment
+- ✅ Clear error messages on misconfiguration
+- ✅ Binary file reading for certificates
+- ✅ Thread-safe implementation
+
+**Testing**:
+```bash
+# Build with gRPC support
+cmake -S . -B build/grpc -G Ninja -DENABLE_GRPC=ON
+cmake --build build/grpc
+
+# Run TLS tests
+./build/grpc/bin/unit_tests --gtest_filter="GrpcTlsTest.*"
+```
+
+#### Certificate Generation (Development)
+
+For local testing, generate self-signed certificates:
+
+```bash
+# Generate CA key and certificate
+openssl genrsa -out ca.key 4096
+openssl req -new -x509 -days 365 -key ca.key -out ca.crt -subj "/CN=ProjectKeystone CA"
+
+# Generate server key and certificate
+openssl genrsa -out server.key 4096
+openssl req -new -key server.key -out server.csr -subj "/CN=localhost"
+openssl x509 -req -days 365 -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt
+
+# Set environment variables
+export KEYSTONE_TLS_CERT_PATH=$(pwd)/server.crt
+export KEYSTONE_TLS_KEY_PATH=$(pwd)/server.key
+export KEYSTONE_TLS_CA_PATH=$(pwd)/ca.crt
+```
+
+#### Future Enhancements
 
 **Phase 9 Plan**: Mutual TLS (mTLS) with client certificates
-
-**Configuration** (skeleton):
-```cpp
-// Server
-grpc::SslServerCredentialsOptions ssl_opts;
-ssl_opts.pem_root_certs = readFile("ca.crt");
-ssl_opts.pem_key_cert_pairs.push_back({
-    readFile("server.key"),
-    readFile("server.crt")
-});
-
-auto creds = grpc::SslServerCredentials(ssl_opts);
-builder.AddListeningPort("0.0.0.0:50051", creds);
-
-// Client
-grpc::SslCredentialsOptions ssl_opts;
-ssl_opts.pem_root_certs = readFile("ca.crt");
-ssl_opts.pem_private_key = readFile("client.key");
-ssl_opts.pem_cert_chain = readFile("client.crt");
-
-auto creds = grpc::SslCredentials(ssl_opts);
-auto channel = grpc::CreateChannel(server_address, creds);
-```
+- Client certificate authentication
+- Certificate-based agent identification
+- Certificate rotation support
 
 ### Authentication (Future)
 
@@ -931,6 +1009,6 @@ grpc_client_started_total{grpc_method="RegisterAgent"} 567
 
 ---
 
-**Last Updated**: 2025-11-20
+**Last Updated**: 2025-11-26
 **Protocol Version**: v1alpha1
 **gRPC Version**: 1.50+
