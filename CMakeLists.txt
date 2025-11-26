@@ -98,18 +98,36 @@ file(MAKE_DIRECTORY "${ANALYSIS_OUTPUT_DIR}")
 # FetchContent for dependencies
 include(FetchContent)
 
-# Google Test
-find_package(GTest QUIET)
-if(NOT GTest_FOUND)
-  message(STATUS "GTest not found, fetching from GitHub...")
-  FetchContent_Declare(
-    googletest
-    URL https://github.com/google/googletest/archive/release-1.12.1.zip)
-  set(gtest_force_shared_crt
-      ON
-      CACHE BOOL "" FORCE)
-  FetchContent_MakeAvailable(googletest)
+# Google Test - Always use FetchContent to ensure GMock is available
+message(STATUS "Fetching GTest with GMock from GitHub...")
+FetchContent_Declare(
+  googletest
+  URL https://github.com/google/googletest/archive/release-1.12.1.zip)
+set(gtest_force_shared_crt
+    ON
+    CACHE BOOL "" FORCE)
+set(BUILD_GMOCK
+    ON
+    CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
+
+# After FetchContent_MakeAvailable, the targets are: gtest, gtest_main, gmock, gmock_main
+# Create GTest:: namespace aliases for compatibility
+if(NOT TARGET GTest::gtest)
+  add_library(GTest::gtest ALIAS gtest)
 endif()
+if(NOT TARGET GTest::gtest_main)
+  add_library(GTest::gtest_main ALIAS gtest_main)
+endif()
+if(NOT TARGET GTest::gmock)
+  add_library(GTest::gmock ALIAS gmock)
+endif()
+if(NOT TARGET GTest::gmock_main)
+  add_library(GTest::gmock_main ALIAS gmock_main)
+endif()
+
+# Include GoogleTest module for gtest_discover_tests()
+include(GoogleTest)
 
 # Google Benchmark
 find_package(benchmark QUIET)
@@ -374,7 +392,6 @@ add_executable(module_coordination_tests tests/e2e/module_coordination_test.cpp)
 target_link_libraries(module_coordination_tests keystone_agents keystone_core
                       GTest::gtest_main)
 
-include(GoogleTest)
 gtest_discover_tests(module_coordination_tests)
 
 # E2E Tests - Component Coordination
