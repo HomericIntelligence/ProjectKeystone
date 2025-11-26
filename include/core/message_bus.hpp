@@ -8,6 +8,10 @@
 #include <vector>
 
 #include "message.hpp"
+#include "i_agent_registry.hpp"
+#include "i_message_router.hpp"
+#include "i_scheduler_integration.hpp"
+#include "agent_id_interning.hpp"
 
 // Forward declarations (must be outside namespace keystone to avoid nesting)
 namespace keystone { namespace agents { class AgentCore; } }
@@ -23,16 +27,23 @@ namespace core {
  * @brief Central message routing hub for agent communication
  *
  * MessageBus decouples agents from each other, enabling:
- * - Dynamic agent registration/discovery
- * - Automatic message routing by agent ID
- * - Async message processing via WorkStealingScheduler (Phase A Week 3+)
- * - Backward compatibility with synchronous routing
+ * - Dynamic agent registration/discovery (IAgentRegistry)
+ * - Automatic message routing by agent ID (IMessageRouter)
+ * - Async message processing via WorkStealingScheduler (ISchedulerIntegration)
  *
  * Architecture:
+ * - Implements 3 separate interfaces following Interface Segregation Principle
  * - Without scheduler: Synchronous routing (Phase 1-3 behavior)
  * - With scheduler: Async routing via work-stealing threads
+ *
+ * Interface Segregation (Issue #46):
+ * This class implements all 3 interfaces but consumers should use the specific
+ * interface they need (IAgentRegistry for setup, IMessageRouter for routing,
+ * ISchedulerIntegration for async configuration).
  */
-class MessageBus {
+class MessageBus : public IAgentRegistry,
+                   public IMessageRouter,
+                   public ISchedulerIntegration {
  public:
   MessageBus() = default;
   ~MessageBus() = default;
@@ -43,6 +54,10 @@ class MessageBus {
   MessageBus(MessageBus&&) = delete;
   MessageBus& operator=(MessageBus&&) = delete;
 
+  // ========================================================================
+  // ISchedulerIntegration interface implementation
+  // ========================================================================
+
   /**
    * @brief Set the work-stealing scheduler for async message routing
    *
@@ -51,12 +66,16 @@ class MessageBus {
    *
    * @param scheduler Pointer to scheduler (must outlive MessageBus)
    */
-  void setScheduler(concurrency::WorkStealingScheduler* scheduler);
+  void setScheduler(concurrency::WorkStealingScheduler* scheduler) override;
 
   /**
    * @brief Get the current scheduler (may be nullptr)
    */
-  concurrency::WorkStealingScheduler* getScheduler() const;
+  concurrency::WorkStealingScheduler* getScheduler() const override;
+
+  // ========================================================================
+  // IAgentRegistry interface implementation
+  // ========================================================================
 
   /**
    * @brief Register an agent with the bus
@@ -68,7 +87,8 @@ class MessageBus {
    * @param agent Shared pointer to the agent (lifetime managed by shared_ptr)
    * @throws std::runtime_error if agent_id already registered
    */
-  void registerAgent(const std::string& agent_id, std::shared_ptr<agents::AgentCore> agent);
+  void registerAgent(const std::string& agent_id,
+                     std::shared_ptr<agents::AgentCore> agent) override;
 
   /**
    * @brief Register an agent with compile-time interface verification (Issue #24)
@@ -117,7 +137,11 @@ class MessageBus {
    *
    * @param agent_id Agent identifier to unregister
    */
-  void unregisterAgent(const std::string& agent_id);
+  void unregisterAgent(const std::string& agent_id) override;
+
+  // ========================================================================
+  // IMessageRouter interface implementation
+  // ========================================================================
 
   /**
    * @brief Route a message to the appropriate agent
@@ -130,7 +154,7 @@ class MessageBus {
    * @return true if message was delivered/submitted, false if receiver not
    * found
    */
-  bool routeMessage(const KeystoneMessage& msg);
+  bool routeMessage(const KeystoneMessage& msg) override;
 
   /**
    * @brief Check if an agent is registered
@@ -138,19 +162,25 @@ class MessageBus {
    * @param agent_id Agent identifier to check
    * @return true if agent is registered
    */
-  bool hasAgent(const std::string& agent_id) const;
+  bool hasAgent(const std::string& agent_id) const override;
 
   /**
    * @brief Get list of all registered agent IDs
    *
    * @return std::vector<std::string> List of agent IDs
    */
-  std::vector<std::string> listAgents() const;
+  std::vector<std::string> listAgents() const override;
 
  private:
   mutable std::mutex registry_mutex_;
+
+  // Phase A2: Agent ID interning for O(1) integer-based lookups
+  AgentIdInterning interning_;
+
   // FIX C2: Use shared_ptr for safe lifetime management in async scenarios
-  std::unordered_map<std::string, std::shared_ptr<agents::AgentCore>> agents_;
+  // Phase A2: Registry now uses integer IDs (interned from string IDs)
+  std::unordered_map<uint32_t, std::shared_ptr<agents::AgentCore>> agents_;
+
   // FIX C5: Atomic scheduler pointer for thread-safe access without registry_mutex
   std::atomic<concurrency::WorkStealingScheduler*> scheduler_{nullptr};
 };

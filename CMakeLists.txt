@@ -231,6 +231,7 @@ add_library(
   src/core/metrics.cpp
   src/core/profiling.cpp # Phase D.1: Performance profiling
   src/core/message_pool.cpp # Phase D.2: Message pooling
+  src/core/agent_id_interning.cpp # Phase A2: Agent ID interning optimization (FIX: added <mutex>)
   src/core/failure_injector.cpp # Phase 5.1: Chaos engineering - agent failures
   src/core/retry_policy.cpp # Phase 5.3: Chaos engineering - message retries
   src/core/heartbeat_monitor.cpp # Phase 5.4: Chaos engineering - heartbeat
@@ -451,6 +452,7 @@ add_executable(
   # tests/unit/test_async_task_agent.cpp
   tests/unit/test_message_priority.cpp
   tests/unit/test_agent_core.cpp  # Additional coverage for AgentCore
+  tests/unit/test_agent_id_interning.cpp  # Phase A2: Agent ID interning tests
   tests/unit/test_metrics.cpp
   tests/unit/test_deadline_scheduling.cpp
   tests/unit/test_profiling.cpp # Phase D: Profiling tests
@@ -465,12 +467,37 @@ add_executable(
   # breaker
   tests/unit/test_agent_concepts.cpp # Issue #24: Agent concepts type safety
   tests/unit/test_health_check_server.cpp # Phase 6.7: Health check endpoints (C4)
+  tests/unit/test_coordination_state.cpp # Stream B Phase B1: CoordinationState template tests (FIX: added mutexes)
 )
 
 target_link_libraries(unit_tests keystone_agents keystone_core
                       keystone_concurrency GTest::gtest_main)
 
 gtest_discover_tests(unit_tests)
+
+# Unit Tests - Agent Classes (Stream C Phase C2: Issue #45)
+# Comprehensive unit tests for all agent classes with mock infrastructure
+add_executable(
+  agent_unit_tests
+  tests/unit/test_task_agent.cpp
+  tests/unit/test_chief_architect_agent.cpp
+  tests/unit/test_module_lead_agent.cpp
+  tests/unit/test_component_lead_agent.cpp
+)
+
+target_include_directories(agent_unit_tests PRIVATE
+  ${PROJECT_SOURCE_DIR}/tests  # For mocks/ directory
+)
+
+target_link_libraries(agent_unit_tests
+  keystone_agents
+  keystone_core
+  keystone_concurrency
+  GTest::gtest_main
+  GTest::gmock
+)
+
+gtest_discover_tests(agent_unit_tests)
 
 # Unit Tests - Concurrency (Phase A)
 add_executable(
@@ -483,6 +510,7 @@ add_executable(
   tests/unit/test_pull_or_steal.cpp
   tests/unit/test_work_stealing_scheduler.cpp
   tests/unit/test_cpu_affinity.cpp # Phase D.2: CPU affinity tests
+  tests/unit/test_scheduler_backoff.cpp # Stream C1: 3-phase backoff tests
 )
 
 target_link_libraries(concurrency_unit_tests keystone_concurrency keystone_core
@@ -502,6 +530,14 @@ target_link_libraries(simulation_unit_tests keystone_simulation
 
 gtest_discover_tests(simulation_unit_tests)
 
+# Integration Tests (Phase C3: Registry integration tests)
+add_executable(registry_integration_tests tests/integration/test_registry_integration.cpp)
+
+target_link_libraries(registry_integration_tests keystone_agents keystone_core
+                      GTest::gtest_main)
+
+gtest_discover_tests(registry_integration_tests)
+
 # Add test target
 add_custom_target(
   run_tests
@@ -517,6 +553,7 @@ add_custom_target(
           unit_tests
           concurrency_unit_tests
           simulation_unit_tests
+          registry_integration_tests
   COMMENT "Running all ProjectKeystone tests with failure output")
 
 # Benchmarks
@@ -544,10 +581,21 @@ add_executable(string_allocation_benchmarks benchmarks/string_allocation_profili
 target_link_libraries(string_allocation_benchmarks keystone_core
                       benchmark::benchmark)
 
+# Phase A2: Registry performance benchmarks (agent ID interning optimization)
+add_executable(registry_performance_benchmarks benchmarks/registry_performance.cpp)
+
+target_link_libraries(registry_performance_benchmarks keystone_agents keystone_core
+                      benchmark::benchmark)
+
 # P2-06: Simple profiling harness for valgrind massif
 add_executable(profile_allocations benchmarks/profile_allocations.cpp)
 
 target_link_libraries(profile_allocations keystone_core)
+
+# Stream C1: Scheduler backoff benchmarks
+add_executable(scheduler_backoff_benchmarks benchmarks/scheduler_backoff_benchmark.cpp)
+
+target_link_libraries(scheduler_backoff_benchmarks keystone_concurrency keystone_core benchmark::benchmark)
 
 # FIX P3-10: Removed commented-out benchmarks (message_bus_performance.cpp, resilience_performance.cpp)
 # These had compilation errors and were never enabled. If needed in the future, they should be
@@ -708,6 +756,7 @@ install(
     unit_tests
     concurrency_unit_tests
     simulation_unit_tests
+    registry_integration_tests
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}/tests
   COMPONENT keystone-test
 )
