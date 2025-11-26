@@ -1,7 +1,8 @@
-**FIXME** - All install/test/build steps here need to be covered by CI/CD tests and scripts
 # ProjectKeystone - Hierarchical Multi-Agent System (HMAS)
 
 **C++20-based hierarchical agent system implementing TDD principles**
+
+> ✅ **All installation, build, and test steps are validated in CI/CD.** See [CI/CD Coverage Matrix](docs/CICD_COVERAGE.md) for complete documentation.
 
 [![Quality Gates](https://github.com/mvillmow/ProjectKeystone/actions/workflows/quality.yml/badge.svg)](https://github.com/mvillmow/ProjectKeystone/actions/workflows/quality.yml)
 [![Code Coverage](https://img.shields.io/badge/coverage-86.2%25-yellow)](https://github.com/mvillmow/ProjectKeystone/actions/workflows/quality.yml)
