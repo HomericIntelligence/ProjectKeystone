@@ -157,7 +157,11 @@ TEST(TaskCancellation, AsyncAgentHandlesCancellation) {
  * @brief Test: Missing task_id in cancellation message returns error
  */
 TEST(TaskCancellation, MissingTaskIdReturnsError) {
+  MessageBus bus;
   auto agent = std::make_shared<TaskAgent>("test_agent");
+
+  bus.registerAgent(agent->getAgentId(), agent);
+  agent->setMessageBus(&bus);
 
   // Create a CANCEL_TASK message without task_id
   KeystoneMessage msg;
