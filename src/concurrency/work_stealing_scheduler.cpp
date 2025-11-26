@@ -5,6 +5,7 @@
 
 #include "concurrency/work_stealing_scheduler.hpp"
 
+#include <random>
 #include <sstream>
 
 #include "concurrency/scheduler_accessor.hpp"
@@ -144,6 +145,29 @@ size_t WorkStealingScheduler::getApproximateWorkCount() const {
     total += queue->size_approx();
   }
   return total;
+}
+
+std::optional<std::function<void()>> WorkStealingScheduler::tryStealWork() {
+  // Try to steal from a random worker queue (for NUMA simulation)
+  // Randomly select a victim worker to steal from
+  static thread_local std::mt19937 rng(std::random_device{}());
+  std::uniform_int_distribution<size_t> dist(0, num_workers_ - 1);
+
+  size_t victim_idx = dist(rng);
+  auto work_item = worker_queues_[victim_idx]->steal();
+
+  if (work_item.has_value()) {
+    // Convert WorkItem to std::function<void()>
+    if (work_item->type == WorkItem::Type::Function) {
+      return work_item->func;
+    } else if (work_item->type == WorkItem::Type::Coroutine) {
+      // Wrap coroutine handle in a function
+      auto handle = work_item->handle;
+      return std::function<void()>([handle]() { handle.resume(); });
+    }
+  }
+
+  return std::nullopt;
 }
 
 size_t WorkStealingScheduler::getNextWorkerIndex() {

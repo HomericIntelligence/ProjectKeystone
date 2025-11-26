@@ -61,17 +61,17 @@ bool SimulatedNUMANode::hasAgent(const std::string& agent_id) const {
 }
 
 std::optional<std::function<void()>> SimulatedNUMANode::stealWork() {
-  // Try to steal from a random worker's queue
-  // In real work-stealing, this would be the scheduler's responsibility
-  // For simulation, we'll delegate to the scheduler's internal mechanism
-
-  // Note: This is a simplified steal - in practice, we'd need to expose
-  // the scheduler's steal mechanism or modify it to support cross-node stealing
-  // For now, we'll just increment the counter and return nullopt
-  // TODO: Implement actual work stealing from scheduler queues
-
+  // Increment counter on every steal attempt (for metrics)
   remote_steals_++;
-  return std::nullopt;  // Simplified for initial implementation
+
+  // Try to steal from the scheduler's worker queues
+  auto work = scheduler_->tryStealWork();
+
+  if (work.has_value()) {
+    Logger::debug("SimulatedNUMANode {}: Successfully stole work remotely", node_id_);
+  }
+
+  return work;
 }
 
 void SimulatedNUMANode::recordLocalSteal() { local_steals_++; }

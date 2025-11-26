@@ -133,6 +133,16 @@ class WorkStealingScheduler {
    */
   size_t getApproximateWorkCount() const;
 
+  /**
+   * @brief Try to steal work from a random worker queue (for NUMA simulation)
+   *
+   * This method is used by SimulatedNUMANode to implement cross-node work stealing.
+   * It attempts to steal from a random worker's queue.
+   *
+   * @return std::optional<std::function<void()>> Stolen work item, or nullopt if no work available
+   */
+  std::optional<std::function<void()>> tryStealWork();
+
  private:
   /**
    * @brief Worker thread main loop
