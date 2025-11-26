@@ -10,7 +10,8 @@
 // Forward declarations to avoid circular dependencies
 namespace keystone {
 namespace core {
-class MessageBus;
+// FIX ISP (Issue #46): Forward declare IMessageRouter instead of MessageBus
+class IMessageRouter;
 }
 namespace concurrency {
 class WorkStealingScheduler;
@@ -120,16 +121,19 @@ concept SchedulerAware = requires(T& agent, keystone::concurrency::WorkStealingS
 };
 
 /**
- * @brief Concept for agents that support message bus integration
+ * @brief Concept for agents that support message routing integration
+ *
+ * FIX ISP (Issue #46): Changed from MessageBus* to IMessageRouter*
+ * Agents only need routing capability, not full registry/scheduler access.
  *
  * Requires:
- * - setMessageBus(MessageBus*) method
+ * - setMessageBus(IMessageRouter*) method
  *
- * This concept is for agents that can be connected to a message bus.
+ * This concept is for agents that can be connected to a message router.
  */
 template <typename T>
-concept MessageBusAware = requires(T& agent, keystone::core::MessageBus* bus) {
-  { agent.setMessageBus(bus) } -> std::same_as<void>;
+concept MessageBusAware = requires(T& agent, keystone::core::IMessageRouter* router) {
+  { agent.setMessageBus(router) } -> std::same_as<void>;
 };
 
 /**

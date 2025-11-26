@@ -19,7 +19,8 @@ namespace keystone {
 // exist in the symbol table. By placing them here, we correctly forward-declare the classes in the
 // keystone::core and keystone::concurrency namespaces while allowing agent_base.hpp to use them
 // without including their headers.
-namespace core { class MessageBus; }
+// FIX ISP (Issue #46): Forward declare IMessageRouter instead of MessageBus
+namespace core { class IMessageRouter; }
 namespace concurrency { class WorkStealingScheduler; }
 namespace agents {
 
@@ -77,11 +78,14 @@ class AgentCore {
   const std::string& getAgentId() const { return agent_id_; }
 
   /**
-   * @brief Set the message bus for this agent
+   * @brief Set the message router for this agent
    *
-   * @param bus Pointer to message bus (must outlive agent)
+   * FIX ISP (Issue #46): Changed from MessageBus* to IMessageRouter*
+   * Agents only need routing capability, not full registry/scheduler access.
+   *
+   * @param router Pointer to message router (must outlive agent)
    */
-  void setMessageBus(core::MessageBus* bus);
+  void setMessageBus(core::IMessageRouter* router);
 
   /**
    * @brief Set the work-stealing scheduler for this agent
@@ -150,7 +154,8 @@ class AgentCore {
    */
   void updateQueueDepthMetrics();
   std::string agent_id_;
-  core::MessageBus* message_bus_{nullptr};
+  // FIX ISP (Issue #46): Use IMessageRouter* instead of MessageBus*
+  core::IMessageRouter* message_bus_{nullptr};
 
   // Phase C: Priority-based lock-free inboxes
   // Messages are routed to queues by priority and processed HIGH -> NORMAL ->
