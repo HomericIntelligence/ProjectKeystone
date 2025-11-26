@@ -1,16 +1,14 @@
 #pragma once
 
-#include <atomic>
 #include <map>
 #include <memory>
 #include <string>
-#include <thread>
 #include <vector>
 
 #include "agents/async_agent.hpp"
+#include "agents/coordination_state.hpp"
 
 #ifdef ENABLE_GRPC
-#include "network/grpc_client.hpp"
 #include "network/result_aggregator.hpp"
 #include "network/yaml_parser.hpp"
 #endif
@@ -84,10 +82,10 @@ class ModuleLeadAgent : public AsyncAgent {
   /**
    * @brief Get execution trace for testing/debugging
    *
-   * @return const std::vector<std::string>& State transition history
+   * @return std::vector<std::string> State transition history (copy for thread safety)
    */
-  const std::vector<std::string>& getExecutionTrace() const {
-    return execution_trace_;
+  std::vector<std::string> getExecutionTrace() const {
+    return coordination_.getExecutionTrace();
   }
 
   /**
@@ -95,7 +93,7 @@ class ModuleLeadAgent : public AsyncAgent {
    *
    * @return State Current agent state
    */
-  State getCurrentState() const { return current_state_; }
+  State getCurrentState() const { return coordination_.getCurrentState(); }
 
 #ifdef ENABLE_GRPC
   /**
@@ -151,13 +149,6 @@ class ModuleLeadAgent : public AsyncAgent {
   void delegateTasks(const std::vector<std::string>& tasks);
 
   /**
-   * @brief Transition to a new state
-   *
-   * @param new_state State to transition to
-   */
-  void transitionTo(State new_state);
-
-  /**
    * @brief Convert state enum to string for tracing
    *
    * @param state State to convert
@@ -165,53 +156,15 @@ class ModuleLeadAgent : public AsyncAgent {
    */
   std::string stateToString(State state) const;
 
-#ifdef ENABLE_GRPC
-  /**
-   * @brief Heartbeat loop (runs in separate thread)
-   */
-  void heartbeatLoop();
+  // Coordination state (eliminates ~300 lines of duplication)
+  CoordinationState<State, std::string> coordination_;
 
-  /**
-   * @brief Query ServiceRegistry for available TaskAgents
-   *
-   * @return std::vector<std::string> List of available TaskAgent IDs
-   */
-  std::vector<std::string> queryAvailableTaskAgents();
-#endif
-
-  // State management
-  State current_state_{State::IDLE};
-  std::vector<std::string> execution_trace_;
-
-  // Task coordination
+  // Agent-specific configuration
   std::vector<std::string> available_task_agents_;
-  std::map<std::string, std::string> pending_tasks_;  // task_id → agent_id
-  std::vector<std::string> task_results_;             // Collected results
-  std::string current_module_goal_;
-  std::string requester_id_;  // Who sent the module goal
-
-  // Task tracking
-  int expected_results_{0};
-  int received_results_{0};
 
 #ifdef ENABLE_GRPC
-  // gRPC clients
-  std::unique_ptr<network::HMASCoordinatorClient> coordinator_client_;
-  std::unique_ptr<network::ServiceRegistryClient> registry_client_;
-
-  // Result aggregator
+  // Result aggregator (module-specific, not in template)
   std::unique_ptr<network::ResultAggregator> result_aggregator_;
-
-  // Heartbeat thread
-  std::thread heartbeat_thread_;
-  std::atomic<bool> heartbeat_running_{false};
-
-  // Agent metadata
-  std::string agent_type_{"ModuleLeadAgent"};
-  int agent_level_{2};
-
-  // Current task being processed
-  std::string current_task_id_;
 #endif
 };
 
