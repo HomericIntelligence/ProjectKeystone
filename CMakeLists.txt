@@ -487,8 +487,16 @@ add_executable(
   tests/unit/test_coordination_state.cpp # Stream B Phase B1: CoordinationState template tests (FIX: added mutexes)
 )
 
-target_link_libraries(unit_tests keystone_agents keystone_core
-                      keystone_concurrency GTest::gtest_main)
+# Add gRPC test fixture if gRPC is enabled (Phase 2.2: Issue #53)
+if(ENABLE_GRPC)
+  target_sources(unit_tests PRIVATE tests/fixtures/grpc_test_fixture.cpp)
+  target_include_directories(unit_tests PRIVATE ${PROJECT_SOURCE_DIR}/tests)
+  target_link_libraries(unit_tests keystone_agents keystone_core
+                        keystone_concurrency keystone_network GTest::gtest_main)
+else()
+  target_link_libraries(unit_tests keystone_agents keystone_core
+                        keystone_concurrency GTest::gtest_main)
+endif()
 
 gtest_discover_tests(unit_tests)
 
