@@ -3,7 +3,44 @@
 #include <grpcpp/create_channel.h>
 #include <grpcpp/security/credentials.h>
 
+#include <cstdlib>
+#include <fstream>
+#include <sstream>
+#include <stdexcept>
+
 namespace keystone::network {
+
+namespace {
+
+/// Read file contents into a string
+/// @param file_path Path to the file
+/// @return File contents as string
+/// @throws std::runtime_error if file cannot be read
+std::string readFileContents(const std::string& file_path) {
+  std::ifstream file(file_path, std::ios::binary);
+  if (!file) {
+    throw std::runtime_error("Failed to open file: " + file_path);
+  }
+
+  std::ostringstream buffer;
+  buffer << file.rdbuf();
+
+  if (file.fail() && !file.eof()) {
+    throw std::runtime_error("Failed to read file: " + file_path);
+  }
+
+  return buffer.str();
+}
+
+/// Get environment variable value
+/// @param name Environment variable name
+/// @return Value if set, empty string otherwise
+std::string getEnvVar(const char* name) {
+  const char* value = std::getenv(name);
+  return value ? std::string(value) : std::string();
+}
+
+}  // anonymous namespace
 
 // HMASCoordinatorClient implementation
 HMASCoordinatorClient::HMASCoordinatorClient(const GrpcClientConfig& config)
@@ -115,8 +152,34 @@ hmas::CancelResponse HMASCoordinatorClient::cancelTask(
 std::shared_ptr<grpc::ChannelCredentials>
 HMASCoordinatorClient::createCredentials() {
   if (config_.enable_tls) {
-    // TODO: Implement TLS credentials loading from CA cert
-    return grpc::InsecureChannelCredentials();
+    // Get CA certificate path from environment variable
+    std::string ca_path = getEnvVar("KEYSTONE_TLS_CA_PATH");
+
+    // If path not in environment, fall back to config
+    if (ca_path.empty()) {
+      ca_path = config_.tls_ca_path;
+    }
+
+    // Validate that CA path is set
+    if (ca_path.empty()) {
+      throw std::runtime_error(
+          "TLS enabled but CA certificate path not provided. "
+          "Set KEYSTONE_TLS_CA_PATH environment variable.");
+    }
+
+    try {
+      // Read CA certificate file
+      std::string ca_contents = readFileContents(ca_path);
+
+      // Setup SSL credentials
+      grpc::SslCredentialsOptions ssl_opts;
+      ssl_opts.pem_root_certs = ca_contents;
+
+      return grpc::SslCredentials(ssl_opts);
+    } catch (const std::exception& e) {
+      throw std::runtime_error(std::string("Failed to load TLS credentials: ") +
+                               e.what());
+    }
   } else {
     return grpc::InsecureChannelCredentials();
   }
@@ -256,8 +319,34 @@ hmas::AgentList ServiceRegistryClient::listAllAgents(bool only_alive) {
 std::shared_ptr<grpc::ChannelCredentials>
 ServiceRegistryClient::createCredentials() {
   if (config_.enable_tls) {
-    // TODO: Implement TLS credentials loading from CA cert
-    return grpc::InsecureChannelCredentials();
+    // Get CA certificate path from environment variable
+    std::string ca_path = getEnvVar("KEYSTONE_TLS_CA_PATH");
+
+    // If path not in environment, fall back to config
+    if (ca_path.empty()) {
+      ca_path = config_.tls_ca_path;
+    }
+
+    // Validate that CA path is set
+    if (ca_path.empty()) {
+      throw std::runtime_error(
+          "TLS enabled but CA certificate path not provided. "
+          "Set KEYSTONE_TLS_CA_PATH environment variable.");
+    }
+
+    try {
+      // Read CA certificate file
+      std::string ca_contents = readFileContents(ca_path);
+
+      // Setup SSL credentials
+      grpc::SslCredentialsOptions ssl_opts;
+      ssl_opts.pem_root_certs = ca_contents;
+
+      return grpc::SslCredentials(ssl_opts);
+    } catch (const std::exception& e) {
+      throw std::runtime_error(std::string("Failed to load TLS credentials: ") +
+                               e.what());
+    }
   } else {
     return grpc::InsecureChannelCredentials();
   }
