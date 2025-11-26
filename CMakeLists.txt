@@ -604,11 +604,11 @@ add_custom_target(
   COMMENT "Running all ProjectKeystone tests with failure output")
 
 # Benchmarks
-# DISABLED: References async agents not yet implemented
-# add_executable(hierarchy_benchmarks benchmarks/hierarchy_performance.cpp)
-#
-# target_link_libraries(hierarchy_benchmarks keystone_agents keystone_core
-#                       keystone_concurrency benchmark::benchmark)
+# Phase 3.1: Re-enabled hierarchy benchmarks with unified async API
+add_executable(hierarchy_benchmarks benchmarks/hierarchy_performance.cpp)
+
+target_link_libraries(hierarchy_benchmarks keystone_agents keystone_core
+                      keystone_concurrency benchmark::benchmark)
 
 # Phase D.2: Message pool performance benchmarks
 add_executable(message_pool_benchmarks benchmarks/message_pool_performance.cpp)
@@ -644,9 +644,11 @@ add_executable(scheduler_backoff_benchmarks benchmarks/scheduler_backoff_benchma
 
 target_link_libraries(scheduler_backoff_benchmarks keystone_concurrency keystone_core benchmark::benchmark)
 
-# FIX P3-10: Removed commented-out benchmarks (message_bus_performance.cpp, resilience_performance.cpp)
-# These had compilation errors and were never enabled. If needed in the future, they should be
-# implemented from scratch with the current API (shared_ptr, async agents).
+# Phase 3.1: Re-enabled message bus performance benchmarks with unified async API
+add_executable(message_bus_performance_benchmarks benchmarks/message_bus_performance.cpp)
+
+target_link_libraries(message_bus_performance_benchmarks keystone_agents keystone_core
+                      benchmark::benchmark)
 
 # Phase 6.7 M1: Load testing for production readiness
 add_executable(hmas_load_test tests/load/hmas_load_test.cpp)
