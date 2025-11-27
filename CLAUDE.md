@@ -241,9 +241,84 @@ TEST(ThreadPoolTest, SubmitsAndExecutesTasks)
 
 ### Git Workflow
 
-- **Branch naming**: `claude/feature-name-<session-id>`
-- **Commit format**: `feat:`, `fix:`, `docs:`, `test:`, `refactor:`
-- **Always push** to feature branch before creating PR
+### ⚠️ MANDATORY: Branch-First Development
+
+**CRITICAL RULE: NEVER commit directly to `main` branch**
+
+All code changes MUST use the Pull Request workflow:
+
+#### 1. Create Feature Branch FIRST
+
+```bash
+# Create timestamped feature branch
+git checkout -b feat/descriptive-name-$(date +%Y%m%d-%H%M%S)
+
+# For fixes
+git checkout -b fix/issue-description-$(date +%Y%m%d-%H%M%S)
+```
+
+#### 2. Make Changes & Commit
+
+```bash
+git add <files>
+git commit -m "feat: descriptive commit message"
+git push -u origin feat/descriptive-name-...
+```
+
+#### 3. Create Pull Request
+
+```bash
+gh pr create --title "feat: Brief description" \
+             --body "## Summary
+- Change 1
+- Change 2
+
+## Testing
+- All tests pass (466/466)
+- No ASan/UBSan warnings
+
+🤖 Generated with Claude Code"
+```
+
+#### 4. Wait for Review & Merge
+
+- Do NOT merge your own PR
+- Let CI/CD or user merge after review
+
+#### Branch Naming Convention
+
+- **Features**: `feat/short-description-YYYYMMDD-HHMMSS`
+- **Fixes**: `fix/issue-description-YYYYMMDD-HHMMSS`
+- **Refactors**: `refactor/component-name-YYYYMMDD-HHMMSS`
+- **Tests**: `test/test-description-YYYYMMDD-HHMMSS`
+- **Docs**: `docs/doc-description-YYYYMMDD-HHMMSS`
+
+#### Commit Message Format
+
+- `feat:` - New feature
+- `fix:` - Bug fix
+- `refactor:` - Code refactoring
+- `test:` - Test changes
+- `docs:` - Documentation changes
+- `chore:` - Maintenance tasks
+
+#### What NOT To Do
+
+❌ **NEVER** `git checkout main` then commit
+❌ **NEVER** `git push origin main` directly
+❌ **NEVER** commit without being on a feature branch
+❌ **NEVER** skip creating a PR
+❌ **NEVER** merge your own PR without approval
+
+#### Pre-Commit Checklist
+
+Before every commit:
+
+1. ✅ On feature branch: `git branch --show-current`
+2. ✅ All tests pass: `just test-asan`
+3. ✅ Code formatted: `just format`
+4. ✅ No compilation warnings
+5. ✅ Changes are focused and atomic
 
 ## Agent Configuration
 
