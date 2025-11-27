@@ -204,3 +204,128 @@ TEST_F(SimulatedNUMANodeTest, MultipleNodes) {
   node1.shutdown();
   node2.shutdown();
 }
+
+TEST_F(SimulatedNUMANodeTest, SuccessfulWorkStealing) {
+  SimulatedNUMANode node(0, 4);
+  node.start();
+
+  // Submit work that will remain in queue
+  std::atomic<int> counter{0};
+  for (int i = 0; i < 10; ++i) {
+    node.submitToWorker(0, [&]() { counter++; });
+  }
+
+  // Give workers minimal time to process, but keep work in queue
+  std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+  // Attempt to steal work
+  auto stolen_work = node.stealWork();
+
+  // Check if we stole something (may or may not succeed depending on timing)
+  if (stolen_work.has_value()) {
+    // Execute the stolen work
+    stolen_work.value()();
+    EXPECT_EQ(counter.load(), 1);
+  }
+
+  node.shutdown();
+}
+
+TEST_F(SimulatedNUMANodeTest, StealFromEmptyQueue) {
+  SimulatedNUMANode node(0, 4);
+  node.start();
+
+  // Try to steal from empty queue
+  auto stolen_work = node.stealWork();
+
+  // Should return nullopt when queue is empty
+  EXPECT_FALSE(stolen_work.has_value());
+
+  node.shutdown();
+}
+
+TEST_F(SimulatedNUMANodeTest, RemoteStealCounterIncrementsOnAttempt) {
+  SimulatedNUMANode node(0, 4);
+
+  // Counter should increment on every steal attempt
+  EXPECT_EQ(node.getRemoteSteals(), 0);
+
+  // Try stealing multiple times (all will fail on empty queue)
+  for (int i = 0; i < 5; ++i) {
+    node.stealWork();
+  }
+
+  // Counter increments on each attempt, not just successes
+  EXPECT_EQ(node.getRemoteSteals(), 5);
+}
+
+TEST_F(SimulatedNUMANodeTest, CrossNodeWorkStealing) {
+  // Simulate cross-node stealing scenario
+  SimulatedNUMANode node0(0, 2);
+  SimulatedNUMANode node1(1, 2);
+
+  node0.start();
+  node1.start();
+
+  // Submit work to node1
+  std::atomic<int> counter{0};
+  for (int i = 0; i < 5; ++i) {
+    node1.submitToWorker(0, [&]() { counter++; });
+  }
+
+  // Give workers a moment but not enough to complete all work
+  std::this_thread::sleep_for(std::chrono::milliseconds(5));
+
+  // Node0 attempts to steal from node1
+  size_t initial_steals = node1.getRemoteSteals();
+  auto stolen_work = node1.stealWork();
+  size_t new_steals = node1.getRemoteSteals();
+
+  // Steal counter should have incremented
+  EXPECT_EQ(new_steals, initial_steals + 1);
+
+  // If we got work, execute it
+  if (stolen_work.has_value()) {
+    stolen_work.value()();
+    // Counter should increase
+    EXPECT_GT(counter.load(), 0);
+  }
+
+  node0.shutdown();
+  node1.shutdown();
+}
+
+TEST_F(SimulatedNUMANodeTest, MultipleSuccessfulSteals) {
+  SimulatedNUMANode node(0, 4);
+  node.start();
+
+  // Submit many work items that are slow to execute
+  std::atomic<int> counter{0};
+  for (int i = 0; i < 20; ++i) {
+    node.submit([&]() {
+      counter++;
+      std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    });
+  }
+
+  // Steal multiple work items
+  int stolen_count = 0;
+  for (int i = 0; i < 10; ++i) {
+    auto work = node.stealWork();
+    if (work.has_value()) {
+      work.value()();
+      stolen_count++;
+    }
+  }
+
+  // At least some steals should have been successful
+  EXPECT_GT(stolen_count, 0);
+
+  // Wait for remaining work to complete
+  std::this_thread::sleep_for(std::chrono::milliseconds(200));
+
+  // All work should eventually execute
+  EXPECT_EQ(counter.load(), 20);
+
+  node.shutdown();
+}
