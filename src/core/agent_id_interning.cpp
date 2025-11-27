@@ -1,5 +1,8 @@
 #include "core/agent_id_interning.hpp"
 
+#include <limits>
+#include <stdexcept>
+
 #include <shared_mutex>
 
 namespace keystone {
@@ -22,6 +25,14 @@ uint32_t AgentIdInterning::intern(const std::string& agent_id) {
   auto it = string_to_id_.find(agent_id);
   if (it != string_to_id_.end()) {
     return it->second;  // Another thread beat us to it
+  }
+
+  // SECURITY FIX: Check for ID space exhaustion before incrementing
+  // uint32_t wraps to 0 after 4,294,967,295, causing ID collisions
+  if (next_id_ == std::numeric_limits<uint32_t>::max()) {
+    throw std::overflow_error(
+        "Agent ID space exhausted: Cannot register more than " +
+        std::to_string(std::numeric_limits<uint32_t>::max()) + " agents");
   }
 
   // Create new ID

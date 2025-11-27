@@ -64,6 +64,16 @@ concurrency::Task<core::Response> LeadAgentBase<StateEnum>::processMessage(
     co_return core::Response::createError(msg, agent_id_, "Failed to decompose goal");
   }
 
+  // SECURITY FIX: Check for integer overflow before cast
+  // size_t can be much larger than int (e.g., 2^64-1 vs 2^31-1)
+  if (subtasks.size() > static_cast<size_t>(std::numeric_limits<int>::max())) {
+    coordination_.transitionTo(error_state_, stateToString(error_state_));
+    co_return core::Response::createError(
+        msg, agent_id_,
+        "Subtask count exceeds maximum: " + std::to_string(subtasks.size()) +
+            " > " + std::to_string(std::numeric_limits<int>::max()));
+  }
+
   // Step 5: Initialize coordination for expected results
   coordination_.initializeCoordination(static_cast<int>(subtasks.size()));
 

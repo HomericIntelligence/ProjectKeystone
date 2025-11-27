@@ -145,8 +145,18 @@ struct Config {
    * @return Queue depth threshold for clearing backpressure
    */
   static constexpr size_t getQueueLowWatermark() {
-    return static_cast<size_t>(AGENT_MAX_QUEUE_SIZE *
-                                AGENT_QUEUE_LOW_WATERMARK_PERCENT);
+    // SECURITY FIX: Compile-time validation of watermark configuration
+    static_assert(AGENT_QUEUE_LOW_WATERMARK_PERCENT >= 0.0 &&
+                      AGENT_QUEUE_LOW_WATERMARK_PERCENT <= 1.0,
+                  "AGENT_QUEUE_LOW_WATERMARK_PERCENT must be in range [0.0, 1.0]");
+
+    constexpr size_t result =
+        static_cast<size_t>(AGENT_MAX_QUEUE_SIZE * AGENT_QUEUE_LOW_WATERMARK_PERCENT);
+
+    static_assert(result < AGENT_MAX_QUEUE_SIZE,
+                  "Low watermark must be less than max queue size");
+
+    return result;
   }
 
   /**
