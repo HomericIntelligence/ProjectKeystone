@@ -314,13 +314,14 @@ BENCHMARK_MAIN();
 
 ```cpp
 // tests/stress/ChaosTest.cpp
-#include <catch2/catch_test_macros.hpp>
+#include <gtest/gtest.h>
 #include "agents/chief_architect_agent.hpp"
 #include "core/thread_pool.hpp"
 
 namespace Keystone::Stress::Test {
 
-struct ChaosFixture {
+class ChaosTest : public ::testing::Test {
+protected:
     // Randomly kill agents
     void injectAgentFailure() {
         // Implementation...
@@ -362,7 +363,7 @@ TEST_F(ChaosTest, SystemHandlesRandomAgentFailures) {
 }
 
 TEST(StressTest, LongDurationStability) {
-    // Run for 24 hours (tagged with .long to exclude from normal runs)
+    // Run for 24 hours (marked as long-running, exclude from regular test runs)
     auto start = std::chrono::steady_clock::now();
     auto end = start + std::chrono::hours(24);
 
@@ -454,7 +455,7 @@ Profiling tests are located in `tests/unit/test_profiling.cpp` and validate:
 
 ```cpp
 // Step 1: RED - Write failing test
-TEST_CASE("AgentBase can send messages", "[unit][agent-base]") {
+TEST(AgentBaseTest, CanSendMessages) {
     AgentBase sender, receiver;
     KeystoneMessage msg = MessageBuilder()
         .from(sender.getId())
@@ -726,23 +727,27 @@ TEST(RootAgentTest, CreatesMultipleBranchesForComplexTaskDecomposition)
 
 ```cpp
 // BAD: Tests depend on each other
-TEST_CASE("Initialize global state", "[bad]") {
-    global_state = initialize();  // ❌ Shared state
+static State global_state;  // ❌ Global state shared across tests
+
+TEST(BadTestExample, InitializeGlobalState) {
+    global_state = initialize();
 }
-TEST_CASE("Check state is ready", "[bad]") {
-    REQUIRE(global_state.isReady());  // ❌ Depends on previous test
+
+TEST(BadTestExample, CheckStateIsReady) {
+    EXPECT_TRUE(global_state.isReady());  // ❌ Depends on previous test
 }
 
 // GOOD: Each test is independent using fixtures
-struct GoodExampleFixture {
-    GoodExampleFixture() {
+class GoodExampleTest : public ::testing::Test {
+protected:
+    void SetUp() override {
         state_ = initialize();  // ✅ Fresh state per test
     }
     State state_;
 };
 
 TEST_F(GoodExampleTest, StateIsProperlyInitialized) {
-    ASSERT_TRUE(state_.isReady());
+    EXPECT_TRUE(state_.isReady());
 }
 ```
 
@@ -750,19 +755,19 @@ TEST_F(GoodExampleTest, StateIsProperlyInitialized) {
 
 ```cpp
 // BAD: Non-deterministic
-TEST_CASE("Work completes within timeout", "[bad]") {
+TEST(DeterministicTest, WorkCompletesWithinTimeout) {
     auto start = now();
     doWork();
     auto elapsed = now() - start;
-    REQUIRE(elapsed < 100ms);  // ❌ Flaky on slow machines
+    EXPECT_LT(elapsed, std::chrono::milliseconds(100));  // ❌ Flaky on slow machines
 }
 
 // GOOD: Deterministic with mocking
-TEST_CASE("Work uses expected clock time", "[unit]") {
+TEST(DeterministicTest, WorkUsesExpectedClockTime) {
     MockClock clock;
     clock.setTime(0);
     doWorkWithClock(clock);
-    REQUIRE(clock.getTime() == 50);  // ✅ Deterministic
+    EXPECT_EQ(clock.getTime(), 50);  // ✅ Deterministic
 }
 ```
 

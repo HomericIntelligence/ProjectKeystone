@@ -147,9 +147,9 @@ EXPECT_EQ(response.status, Response::Status::Success);
 
 ### Example: E2E Test Migration
 
-**Before** (`tests/e2e/phase1_basic_delegation.cpp`):
+**Before** (`tests/e2e/phase1_basic_delegation.cpp`) - C1 (unique_ptr + raw pointers):
 ```cpp
-TEST_CASE("ChiefArchitect delegates to TaskAgent") {
+TEST(E2E_Phase1, ChiefArchitectDelegatesToTaskAgent) {
     MessageBus bus;
 
     // Create agents (unique_ptr, raw pointer registration)
@@ -166,13 +166,13 @@ TEST_CASE("ChiefArchitect delegates to TaskAgent") {
     auto msg = KeystoneMessage::create("chief", "task", "echo hello");
     auto response = task->processMessage(msg);  // Sync
 
-    REQUIRE(response.status == Response::Status::Success);
+    EXPECT_EQ(response.status, Response::Status::Success);
 }
 ```
 
-**After** (`tests/e2e/phase1_basic_delegation.cpp`):
+**After** (`tests/e2e/phase1_basic_delegation.cpp`) - C2/C3 (shared_ptr + async):
 ```cpp
-TEST_CASE("ChiefArchitect delegates to TaskAgent") {
+TEST(E2E_Phase1, ChiefArchitectDelegatesToTaskAgent) {
     MessageBus bus;
 
     // FIX C2: Create agents with shared_ptr
@@ -190,7 +190,7 @@ TEST_CASE("ChiefArchitect delegates to TaskAgent") {
     auto task_result = task->processMessage(msg);  // Returns Task<Response>
     auto response = task_result.get();  // Get result from coroutine
 
-    REQUIRE(response.status == Response::Status::Success);
+    EXPECT_EQ(response.status, Response::Status::Success);
 }
 ```
 
