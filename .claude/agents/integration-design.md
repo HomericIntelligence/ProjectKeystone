@@ -1,7 +1,7 @@
 ---
 name: integration-design
 description: Design module-level integration including cross-component interfaces, APIs, integration tests, and dependency management
-tools: Read,Write,Grep,Glob,Task
+tools: Read,Write,Grep,Glob,Task,Bash
 model: sonnet
 ---
 
@@ -489,4 +489,33 @@ After creating PR:
 
 ---
 
+
+## Git Workflow - MANDATORY
+
+### ⚠️ CRITICAL: Never Commit Directly to Main
+
+**ALL design documentation MUST follow this workflow:**
+
+1. **Create Feature Branch**
+   ```bash
+   git checkout -b integration/descriptive-name-$(date +%Y%m%d-%H%M%S)
+   ```
+
+2. **Create Design** (Write design specs)
+
+3. **Commit & Push**
+   ```bash
+   git add <files>
+   git commit -m "integration: message"
+   git push -u origin integration/descriptive-name-...
+   ```
+
+4. **Create PR**
+
+### What NOT To Do
+
+❌ **NEVER** commit to `main`
+❌ **NEVER** skip PR
+
+---
 **Configuration File**: `.claude/agents/integration-design.md`

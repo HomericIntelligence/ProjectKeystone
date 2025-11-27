@@ -1,7 +1,7 @@
 ---
 name: dependency-review-specialist
 description: "Use when: Reviewing dependency management, version pinning, environment reproducibility, license compatibility, or security vulnerabilities in dependencies."
-tools: Read,Grep,Glob
+tools: Read,Grep,Glob,Bash
 model: haiku
 ---
 

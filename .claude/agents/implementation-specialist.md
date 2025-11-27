@@ -1,7 +1,7 @@
 ---
 name: implementation-specialist
 description: Break down complex components into functions and classes, create detailed implementation plans, and coordinate implementation engineers
-tools: Read,Write,Edit,Grep,Glob,Task
+tools: Read,Write,Edit,Grep,Glob,Task,Bash
 model: sonnet
 ---
 
@@ -620,6 +620,78 @@ After creating PR:
 5. Coordinate with test engineer for test updates
 
 **Outcome**: Maintainable code following single responsibility principle
+
+---
+
+## Git Workflow - MANDATORY
+
+### ⚠️ CRITICAL: Never Commit Directly to Main
+
+**ALL implementation planning and code coordination MUST follow this workflow:**
+
+1. **Create a Feature Branch FIRST**
+   ```bash
+   git checkout -b feat/descriptive-name-$(date +%Y%m%d-%H%M%S)
+   # OR for fixes:
+   git checkout -b fix/descriptive-name-$(date +%Y%m%d-%H%M%S)
+   ```
+
+2. **Coordinate Implementation** via Task tool with implementation engineers
+
+3. **Verify All Tests Pass**
+   ```bash
+   just test-asan  # All implemented code must pass tests
+   ```
+
+4. **Commit to Feature Branch**
+   ```bash
+   git add <files>
+   git commit -m "feat: descriptive message"
+   git push -u origin feat/descriptive-name-...
+   ```
+
+5. **Create Pull Request**
+   ```bash
+   gh pr create --title "feat: Brief description" \
+                --body "## Summary
+   Implementation for X
+
+   ## Implementation Plan
+   - Component breakdown documented
+   - Engineers coordinated
+
+   ## Testing
+   - All tests pass (X/X)
+
+   🤖 Generated with Claude Code"
+   ```
+
+6. **Request Review**
+   - Tag reviewers if needed
+   - Do NOT merge without review
+   - Wait for CI/CD or user approval
+
+### Branch Naming Convention
+
+- Features: `feat/short-description-YYYYMMDD-HHMMSS`
+- Fixes: `fix/short-description-YYYYMMDD-HHMMSS`
+- Refactors: `refactor/short-description-YYYYMMDD-HHMMSS`
+
+### What NOT To Do
+
+❌ **NEVER** commit directly to `main` branch
+❌ **NEVER** `git push origin main`
+❌ **NEVER** skip the PR process
+❌ **NEVER** merge your own PR without explicit approval
+
+### Verification Checklist
+
+Before creating PR:
+1. ✅ On feature branch: `git branch --show-current`
+2. ✅ All tests pass: `just test-asan` shows 100%
+3. ✅ Code formatted: `just format`
+4. ✅ Implementation plan documented
+5. ✅ All engineers coordinated
 
 ---
 

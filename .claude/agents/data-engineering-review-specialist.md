@@ -1,7 +1,7 @@
 ---
 name: data-engineering-review-specialist
 description: "Use when: Reviewing data pipelines, data loaders, preprocessing, augmentation, train/val/test splits, or ML data engineering practices. Validates data quality and correctness."
-tools: Read,Grep,Glob
+tools: Read,Grep,Glob,Bash
 model: haiku
 ---
 

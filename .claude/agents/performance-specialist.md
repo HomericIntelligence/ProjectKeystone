@@ -488,4 +488,79 @@ After creating PR:
 
 ---
 
+## Git Workflow - MANDATORY
+
+### ⚠️ CRITICAL: Never Commit Directly to Main
+
+**ALL performance planning and optimization coordination MUST follow this workflow:**
+
+1. **Create a Feature Branch FIRST**
+   ```bash
+   git checkout -b perf/descriptive-name-$(date +%Y%m%d-%H%M%S)
+   # OR for fixes:
+   git checkout -b fix/descriptive-name-$(date +%Y%m%d-%H%M%S)
+   ```
+
+2. **Coordinate Performance Work** via Task tool with performance-engineer
+
+3. **Verify Benchmarks & Tests**
+   ```bash
+   just test-asan  # All optimized code must pass tests
+   # Run benchmarks to verify improvements
+   ```
+
+4. **Commit to Feature Branch**
+   ```bash
+   git add <files>
+   git commit -m "perf: descriptive message"
+   git push -u origin perf/descriptive-name-...
+   ```
+
+5. **Create Pull Request**
+   ```bash
+   gh pr create --title "perf: Brief description" \
+                --body "## Summary
+   Performance improvements for X
+
+   ## Benchmarks
+   - Baseline: Y ms
+   - Optimized: Z ms
+   - Speedup: Nx
+
+   ## Testing
+   - All tests pass (X/X)
+   - Results verified correct
+
+   🤖 Generated with Claude Code"
+   ```
+
+6. **Request Review**
+   - Tag reviewers if needed
+   - Do NOT merge without review
+   - Wait for CI/CD or user approval
+
+### Branch Naming Convention
+
+- Performance: `perf/component-name-YYYYMMDD-HHMMSS`
+- Perf fixes: `fix/perf-description-YYYYMMDD-HHMMSS`
+
+### What NOT To Do
+
+❌ **NEVER** commit directly to `main` branch
+❌ **NEVER** `git push origin main`
+❌ **NEVER** skip the PR process
+❌ **NEVER** merge your own PR without explicit approval
+❌ **NEVER** commit optimizations without correctness verification
+
+### Verification Checklist
+
+Before creating PR:
+1. ✅ On feature branch: `git branch --show-current`
+2. ✅ All tests pass: `just test-asan` shows 100%
+3. ✅ Benchmarks show improvement
+4. ✅ Code formatted: `just format`
+5. ✅ Performance requirements met
+
+---
+
 **Configuration File**: `.claude/agents/performance-specialist.md`

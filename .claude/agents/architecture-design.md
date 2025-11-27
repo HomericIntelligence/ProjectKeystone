@@ -1,7 +1,7 @@
 ---
 name: architecture-design
 description: Design module-level architecture including component breakdown, interfaces, data flow, and reusable patterns
-tools: Read,Write,Grep,Glob,Task
+tools: Read,Write,Grep,Glob,Task,Bash
 model: sonnet
 ---
 
@@ -496,4 +496,33 @@ After creating PR:
 
 ---
 
+
+## Git Workflow - MANDATORY
+
+### ⚠️ CRITICAL: Never Commit Directly to Main
+
+**ALL design documentation MUST follow this workflow:**
+
+1. **Create Feature Branch**
+   ```bash
+   git checkout -b arch/descriptive-name-$(date +%Y%m%d-%H%M%S)
+   ```
+
+2. **Create Design** (Write design specs)
+
+3. **Commit & Push**
+   ```bash
+   git add <files>
+   git commit -m "arch: message"
+   git push -u origin arch/descriptive-name-...
+   ```
+
+4. **Create PR**
+
+### What NOT To Do
+
+❌ **NEVER** commit to `main`
+❌ **NEVER** skip PR
+
+---
 **Configuration File**: `.claude/agents/architecture-design.md`
