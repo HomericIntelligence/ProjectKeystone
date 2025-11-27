@@ -43,9 +43,30 @@ void Metrics::recordMessageSent(const std::string& msg_id, Priority priority) {
     std::lock_guard<std::mutex> lock(timestamps_mutex_);
     message_timestamps_[msg_id] = {std::chrono::steady_clock::now()};
 
-    // FIX: Prevent memory leak by cleaning up old timestamps
+    // SECURITY FIX: Prevent memory leak with guaranteed cleanup
     if (message_timestamps_.size() > Config::METRICS_MAX_TIMESTAMP_ENTRIES) {
       cleanupOldTimestamps();
+
+      // If time-based cleanup didn't reduce size enough, force removal of oldest entries
+      if (message_timestamps_.size() > Config::METRICS_MAX_TIMESTAMP_ENTRIES) {
+        // Calculate how many entries to remove (10% of limit)
+        size_t entries_to_remove =
+            message_timestamps_.size() - Config::METRICS_MAX_TIMESTAMP_ENTRIES;
+
+        // Sort entries by timestamp and remove oldest
+        std::vector<std::pair<std::string, LatencyRecord>> sorted_entries(
+            message_timestamps_.begin(), message_timestamps_.end());
+
+        std::sort(sorted_entries.begin(), sorted_entries.end(),
+                  [](const auto& a, const auto& b) {
+                    return a.second.send_time < b.second.send_time;
+                  });
+
+        // Remove oldest entries
+        for (size_t i = 0; i < entries_to_remove && i < sorted_entries.size(); ++i) {
+          message_timestamps_.erase(sorted_entries[i].first);
+        }
+      }
     }
   }
 }

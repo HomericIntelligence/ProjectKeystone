@@ -82,24 +82,44 @@ ProfilingSession& ProfilingSession::operator=(
 
 void ProfilingSession::recordDuration(const std::string& section_name,
                                       double duration_us) {
-  // FIX SAFE-001: Avoid nested locking by releasing global lock before section lock
-  // Old pattern: Hold global_lock while acquiring section.mutex (nested locks)
-  // New pattern: Acquire global_lock briefly, release, then acquire section.mutex
+  // SECURITY FIX: Use-after-free prevention
+  // Hold shared_lock during entire section access to prevent map rehashing
+  // which would invalidate section pointers.
 
-  SectionData* section_ptr = nullptr;
+  // First, check if section exists (read-only, shared lock)
+  {
+    std::shared_lock<std::shared_mutex> global_lock(getGlobalMutex());
+    auto& data = getSectionData();
+    auto it = data.find(section_name);
 
-  // Phase 1: Acquire unique_lock to get/create section reference
+    if (it != data.end()) {
+      // Section exists - record duration while holding shared_lock
+      // This prevents map modifications (including rehashing)
+      std::lock_guard<std::mutex> section_lock(it->second.mutex);
+      it->second.durations_us.push_back(duration_us);
+      return;
+    }
+  }  // Release shared_lock
+
+  // Section doesn't exist - need write lock to create it
   {
     std::unique_lock<std::shared_mutex> global_lock(getGlobalMutex());
     auto& data = getSectionData();
-    section_ptr = &data[section_name];  // Get/create section
-  }  // Release global_lock before acquiring section.mutex
 
-  // Phase 2: Acquire section-specific lock and update data
-  // Global lock released - no nested locking
-  {
-    std::lock_guard<std::mutex> section_lock(section_ptr->mutex);
-    section_ptr->durations_us.push_back(duration_us);
+    // Double-check after acquiring write lock (another thread may have created it)
+    auto it = data.find(section_name);
+    if (it == data.end()) {
+      // Create new section
+      // Use piecewise_construct because SectionData contains non-movable std::mutex
+      it = data.emplace(std::piecewise_construct,
+                        std::forward_as_tuple(section_name),
+                        std::forward_as_tuple()).first;
+    }
+
+    // Record duration while still holding unique_lock
+    // Safe: map cannot be modified by other threads
+    std::lock_guard<std::mutex> section_lock(it->second.mutex);
+    it->second.durations_us.push_back(duration_us);
   }
 }
 
