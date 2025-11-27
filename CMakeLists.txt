@@ -498,6 +498,7 @@ add_executable(
   tests/unit/test_coordination_state.cpp # Stream B Phase B1: CoordinationState template tests (FIX: added mutexes)
   tests/unit/test_task_cancellation.cpp # Phase 1.2 (Issue #52): Task cancellation notification
   tests/unit/test_security_regression.cpp # PR #1: Security vulnerability regression tests
+  tests/unit/test_agent_types.cpp # PR #2: AgentLevel enum and type definitions
 )
 
 # Add gRPC test fixture if gRPC is enabled (Phase 2.2: Issue #53)
