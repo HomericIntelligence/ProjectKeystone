@@ -1,7 +1,7 @@
 ---
 name: cicd-orchestrator
 description: Coordinate CI/CD pipeline including testing infrastructure, deployment processes, quality gates, and monitoring
-tools: Read,Grep,Glob,Task
+tools: Read,Grep,Glob,Task,Bash
 model: opus
 ---
 
@@ -536,6 +536,41 @@ After creating PR:
 4. Validate integration through testing phase
 
 **Outcome**: Unified interface with both components working correctly
+
+---
+
+
+## Git Workflow - MANDATORY
+
+### ⚠️ CRITICAL: Never Commit Directly to Main
+
+**ALL orchestration work MUST follow this workflow:**
+
+1. **Create Feature Branch**
+   ```bash
+   git checkout -b feat/descriptive-name-$(date +%Y%m%d-%H%M%S)
+   ```
+
+2. **Coordinate via Task tool**
+
+3. **Verify Tests**
+   ```bash
+   just test-asan
+   ```
+
+4. **Commit & Push**
+   ```bash
+   git add <files>
+   git commit -m "feat: message"
+   git push -u origin feat/descriptive-name-...
+   ```
+
+5. **Create PR**
+
+### What NOT To Do
+
+❌ **NEVER** commit to `main`
+❌ **NEVER** merge without approval
 
 ---
 

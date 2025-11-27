@@ -1,7 +1,7 @@
 ---
 name: agentic-workflows-orchestrator
 description: "Use when: Coordinating agentic workflow development, implementing research assistants, code review agents, or documentation automation. Orchestrates Section 06 automation efforts."
-tools: Read,Grep,Glob,Task,WebFetch
+tools: Read,Grep,Glob,Task,WebFetch,Bash
 model: opus
 ---
 
@@ -510,6 +510,41 @@ Agents handle errors gracefully
 4. Test with sample PRs and validate review quality
 
 **Outcome**: Automated code review system providing consistent feedback on all PRs
+
+---
+
+
+## Git Workflow - MANDATORY
+
+### ⚠️ CRITICAL: Never Commit Directly to Main
+
+**ALL orchestration work MUST follow this workflow:**
+
+1. **Create Feature Branch**
+   ```bash
+   git checkout -b feat/descriptive-name-$(date +%Y%m%d-%H%M%S)
+   ```
+
+2. **Coordinate via Task tool**
+
+3. **Verify Tests**
+   ```bash
+   just test-asan
+   ```
+
+4. **Commit & Push**
+   ```bash
+   git add <files>
+   git commit -m "feat: message"
+   git push -u origin feat/descriptive-name-...
+   ```
+
+5. **Create PR**
+
+### What NOT To Do
+
+❌ **NEVER** commit to `main`
+❌ **NEVER** merge without approval
 
 ---
 

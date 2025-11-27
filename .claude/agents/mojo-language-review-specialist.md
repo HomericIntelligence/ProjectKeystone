@@ -1,7 +1,7 @@
 ---
 name: mojo-language-review-specialist
 description: "Use when: Reviewing Mojo-specific code for language idioms, ownership patterns (owned/borrowed/inout), SIMD usage, compile-time optimizations, or struct/class usage."
-tools: Read,Grep,Glob
+tools: Read,Grep,Glob,Bash
 model: sonnet
 ---
 
