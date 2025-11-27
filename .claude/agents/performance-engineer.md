@@ -542,4 +542,78 @@ After creating PR:
 
 ---
 
+## Git Workflow - MANDATORY
+
+### ⚠️ CRITICAL: Never Commit Directly to Main
+
+**ALL performance optimization changes MUST follow this workflow:**
+
+1. **Create a Feature Branch FIRST**
+   ```bash
+   git checkout -b perf/descriptive-name-$(date +%Y%m%d-%H%M%S)
+   # OR for fixes:
+   git checkout -b fix/descriptive-name-$(date +%Y%m%d-%H%M%S)
+   ```
+
+2. **Implement Optimizations** (Write, Edit files)
+
+3. **Verify Performance & Correctness**
+   ```bash
+   just test-asan  # All tests must pass
+   # Run benchmarks to verify improvements
+   ```
+
+4. **Commit to the Feature Branch**
+   ```bash
+   git add <files>
+   git commit -m "perf: descriptive message"
+   git push -u origin perf/descriptive-name-...
+   ```
+
+5. **Create Pull Request**
+   ```bash
+   gh pr create --title "perf: Brief description" \
+                --body "## Summary
+   - Performance optimization for X
+
+   ## Benchmarks
+   - Before: Y ms
+   - After: Z ms
+   - Speedup: Nx
+
+   ## Testing
+   - All tests pass
+   - Results verified correct
+
+   🤖 Generated with Claude Code"
+   ```
+
+6. **Wait for Review/Merge**
+   - Do NOT merge your own PR unless explicitly instructed
+   - Let the user or CI/CD merge after review
+
+### Branch Naming Convention
+
+- Performance: `perf/short-description-YYYYMMDD-HHMMSS`
+- Perf fixes: `fix/perf-short-description-YYYYMMDD-HHMMSS`
+
+### What NOT To Do
+
+❌ **NEVER** `git checkout main` then commit
+❌ **NEVER** `git commit` without being on a feature branch
+❌ **NEVER** `git push origin main` directly
+❌ **NEVER** merge your own PR without approval
+❌ **NEVER** commit optimizations without correctness verification
+
+### Verification Before Every Commit
+
+Before committing, verify:
+1. ✅ On a feature branch (not main): `git branch --show-current`
+2. ✅ All tests pass: `just test-asan`
+3. ✅ Benchmarks show improvement
+4. ✅ Code formatted: `just format`
+5. ✅ Optimized code produces correct results
+
+---
+
 **Configuration File**: `.claude/agents/performance-engineer.md`

@@ -1,7 +1,7 @@
 ---
 name: documentation-engineer
 description: "Use when: Writing docstrings, creating code examples, writing README sections, updating documentation after code changes, or maintaining API documentation."
-tools: Read,Write,Edit,Grep,Glob
+tools: Read,Write,Edit,Grep,Glob,Bash
 model: haiku
 ---
 
@@ -509,6 +509,72 @@ After creating PR:
 - Examples clear and working
 - README complete
 - Documentation reviewed
+
+---
+
+## Git Workflow - MANDATORY
+
+### ⚠️ CRITICAL: Never Commit Directly to Main
+
+**ALL documentation changes MUST follow this workflow:**
+
+1. **Create a Feature Branch FIRST**
+   ```bash
+   git checkout -b docs/descriptive-name-$(date +%Y%m%d-%H%M%S)
+   # OR for fixes:
+   git checkout -b fix/descriptive-name-$(date +%Y%m%d-%H%M%S)
+   ```
+
+2. **Write or Update Documentation** (Write, Edit documentation files)
+
+3. **Validate Documentation**
+   ```bash
+   just format  # Format all files
+   ```
+
+4. **Commit to the Feature Branch**
+   ```bash
+   git add <files>
+   git commit -m "docs: descriptive message"
+   git push -u origin docs/descriptive-name-...
+   ```
+
+5. **Create Pull Request**
+   ```bash
+   gh pr create --title "docs: Brief description" \
+                --body "## Summary
+   - Documentation updates for X
+
+   ## Changes
+   - Updated docstrings
+   - Added examples
+
+   🤖 Generated with Claude Code"
+   ```
+
+6. **Wait for Review/Merge**
+   - Do NOT merge your own PR unless explicitly instructed
+   - Let the user or CI/CD merge after review
+
+### Branch Naming Convention
+
+- Documentation: `docs/short-description-YYYYMMDD-HHMMSS`
+- Doc fixes: `fix/docs-short-description-YYYYMMDD-HHMMSS`
+
+### What NOT To Do
+
+❌ **NEVER** `git checkout main` then commit
+❌ **NEVER** `git commit` without being on a feature branch
+❌ **NEVER** `git push origin main` directly
+❌ **NEVER** merge your own PR without approval
+
+### Verification Before Every Commit
+
+Before committing, verify:
+1. ✅ On a feature branch (not main): `git branch --show-current`
+2. ✅ Documentation formatted: `just format`
+3. ✅ Links work and examples are correct
+4. ✅ No typos or broken references
 
 ---
 

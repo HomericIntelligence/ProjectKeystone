@@ -1,7 +1,7 @@
 ---
 name: documentation-specialist
 description: Create comprehensive component documentation including READMEs, API docs, usage examples, and tutorials
-tools: Read,Write,Edit,Grep,Glob,Task
+tools: Read,Write,Edit,Grep,Glob,Task,Bash
 model: sonnet
 ---
 
@@ -469,6 +469,80 @@ After creating PR:
 - Usage examples provided
 - Documentation reviewed and approved
 - Accessible to target audience
+
+---
+
+## Git Workflow - MANDATORY
+
+### ⚠️ CRITICAL: Never Commit Directly to Main
+
+**ALL documentation changes MUST follow this workflow:**
+
+1. **Create a Feature Branch FIRST**
+   ```bash
+   git checkout -b docs/descriptive-name-$(date +%Y%m%d-%H%M%S)
+   # OR for fixes:
+   git checkout -b fix/descriptive-name-$(date +%Y%m%d-%H%M%S)
+   ```
+
+2. **Coordinate Documentation** via Task tool with documentation-engineer
+
+3. **Validate Documentation**
+   ```bash
+   just format  # Format all files
+   ```
+
+4. **Commit to Feature Branch**
+   ```bash
+   git add <files>
+   git commit -m "docs: descriptive message"
+   git push -u origin docs/descriptive-name-...
+   ```
+
+5. **Create Pull Request**
+   ```bash
+   gh pr create --title "docs: Brief description" \
+                --body "## Summary
+   Comprehensive documentation for X
+
+   ## Documentation Coverage
+   - API reference: Complete
+   - Usage examples: Y examples provided
+   - Tutorials: Z tutorials
+
+   ## Quality
+   - All links verified
+   - Examples tested
+   - Formatting validated
+
+   🤖 Generated with Claude Code"
+   ```
+
+6. **Request Review**
+   - Tag reviewers if needed
+   - Do NOT merge without review
+   - Wait for CI/CD or user approval
+
+### Branch Naming Convention
+
+- Documentation: `docs/component-name-YYYYMMDD-HHMMSS`
+- Doc fixes: `fix/docs-description-YYYYMMDD-HHMMSS`
+
+### What NOT To Do
+
+❌ **NEVER** commit directly to `main` branch
+❌ **NEVER** `git push origin main`
+❌ **NEVER** skip the PR process
+❌ **NEVER** merge your own PR without explicit approval
+
+### Verification Checklist
+
+Before creating PR:
+1. ✅ On feature branch: `git branch --show-current`
+2. ✅ Documentation formatted: `just format`
+3. ✅ All links work
+4. ✅ Examples tested
+5. ✅ Comprehensive coverage
 
 ---
 
