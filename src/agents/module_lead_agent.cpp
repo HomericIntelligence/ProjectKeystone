@@ -160,8 +160,8 @@ void ModuleLeadAgent::processYamlModule(const std::string& yaml_spec) {
 
   coordination_.transitionTo(State::PLANNING, stateToString(State::PLANNING));
 
-  // Decompose module into tasks
-  auto tasks = decomposeTasks(spec.hierarchy.level2_module.value_or(""));
+  // Decompose module into tasks using the hook method
+  auto tasks = decomposeGoal(spec.hierarchy.level2_module.value_or(""));
 
   if (tasks.empty()) {
     spec.status.phase = "FAILED";

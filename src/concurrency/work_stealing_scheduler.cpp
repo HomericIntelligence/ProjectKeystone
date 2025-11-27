@@ -150,7 +150,8 @@ size_t WorkStealingScheduler::getApproximateWorkCount() const {
 std::optional<std::function<void()>> WorkStealingScheduler::tryStealWork() {
   // Try to steal from a random worker queue (for NUMA simulation)
   // Randomly select a victim worker to steal from
-  static thread_local std::mt19937 rng(std::random_device{}());
+  // NOTE: Static initialization is thread-safe in C++11+
+  static std::mt19937 rng{std::random_device{}()};
   std::uniform_int_distribution<size_t> dist(0, num_workers_ - 1);
 
   size_t victim_idx = dist(rng);
@@ -162,8 +163,20 @@ std::optional<std::function<void()>> WorkStealingScheduler::tryStealWork() {
       return work_item->func;
     } else if (work_item->type == WorkItem::Type::Coroutine) {
       // Wrap coroutine handle in a function
+      // SAFETY: Validate handle before capture to prevent use-after-free
       auto handle = work_item->handle;
-      return std::function<void()>([handle]() { handle.resume(); });
+      if (!handle || handle.done()) {
+        Logger::warn("Attempted to steal completed/invalid coroutine handle");
+        return std::nullopt;
+      }
+
+      // WARNING: Returned function MUST be executed immediately before the
+      // coroutine is destroyed. Do NOT store for later execution.
+      return std::function<void()>([handle]() {
+        if (handle && !handle.done()) {
+          handle.resume();
+        }
+      });
     }
   }
 
