@@ -231,12 +231,22 @@ ProjectKeystone/
 
 ```cpp
 // E2E tests (Google Test)
-TEST(E2E_Phase1, ChiefArchitectDelegatesToTaskAgent)
-TEST(E2E_Phase2, ModuleLeadSynthesizesTaskResults)
+TEST(E2E_Phase1, ChiefArchitectDelegatesToTaskAgent) {
+    // Test implementation
+}
+
+TEST(E2E_Phase2, ModuleLeadSynthesizesTaskResults) {
+    // Test implementation
+}
 
 // Unit tests (Google Test)
-TEST(MessageQueueTest, CanPushAndPopMessages)
-TEST(ThreadPoolTest, SubmitsAndExecutesTasks)
+TEST(MessageQueueTest, CanPushAndPopMessages) {
+    // Test implementation
+}
+
+TEST(ThreadPoolTest, SubmitsAndExecutesTasks) {
+    // Test implementation
+}
 ```
 
 ### Git Workflow
@@ -394,8 +404,13 @@ E2E tests drive development. Each phase has specific E2E tests:
 **Phase 1**: Basic delegation (L0 → L3)
 
 ```cpp
-TEST_CASE("ChiefArchitect delegates to TaskAgent", "[e2e][phase1]")
-TEST_CASE("ChiefArchitect coordinates three TaskAgents", "[e2e][phase1]")
+TEST(E2E_Phase1, ChiefArchitectDelegatesToTaskAgent) {
+    // Test implementation
+}
+
+TEST(E2E_Phase1, ChiefArchitectCoordinatesThreeTaskAgents) {
+    // Test implementation
+}
 ```
 
 See [testing-strategy.md](docs/plan/testing-strategy.md) for complete test catalog.

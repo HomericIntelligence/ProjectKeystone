@@ -610,8 +610,11 @@ GoodTask<int> will_compile() {
 ### Testing Coroutine Safety
 
 ```cpp
+#include <gtest/gtest.h>
+#include "concurrency/task.hpp"
+
 // Unit test: Verify Task RAII
-TEST_CASE("Task destructor cleans up coroutine handle") {
+TEST(CoroutineSafetyTest, TaskDestructorCleansUpCoroutineHandle) {
     {
         Task<int> task = simple_coro();
         auto handle = task.get_handle();
@@ -621,13 +624,13 @@ TEST_CASE("Task destructor cleans up coroutine handle") {
 }
 
 // Unit test: Exception safety
-TEST_CASE("Task captures and re-throws exceptions") {
+TEST(CoroutineSafetyTest, TaskCapturesAndRethrowsExceptions) {
     Task<int> task = throwing_coro();
-    EXPECT_THROWS([&]() { task.get(); });
+    EXPECT_THROW(task.get(), std::runtime_error);
 }
 
 // Unit test: Symmetric transfer
-TEST_CASE("Coroutine chains work without stack overflow") {
+TEST(CoroutineSafetyTest, CoroutineChainsWorkWithoutStackOverflow) {
     Task<int> result = deep_chain(1000);  // 1000 levels deep
     EXPECT_EQ(result.get(), 1000);  // Should complete without stack error
 }
