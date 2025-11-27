@@ -1,7 +1,7 @@
 ---
 name: junior-test-engineer
 description: Write simple unit tests, update existing tests, run test suites, and verify CI integration
-tools: Read,Write,Edit,Grep,Glob
+tools: Read,Write,Edit,Grep,Glob,Bash
 model: haiku
 ---
 
@@ -487,6 +487,71 @@ After creating PR:
 5. Update documentation if needed
 
 **Outcome**: Correct gradient computation with all tests passing
+
+---
+
+## Git Workflow - MANDATORY
+
+### ⚠️ CRITICAL: Never Commit Directly to Main
+
+**ALL test changes MUST follow this workflow:**
+
+1. **Create a Feature Branch FIRST**
+   ```bash
+   git checkout -b test/descriptive-name-$(date +%Y%m%d-%H%M%S)
+   # OR for fixes:
+   git checkout -b fix/descriptive-name-$(date +%Y%m%d-%H%M%S)
+   ```
+
+2. **Write or Update Tests** (Write, Edit test files)
+
+3. **Run Tests Locally**
+   ```bash
+   just test-asan  # All tests must pass
+   ```
+
+4. **Commit to the Feature Branch**
+   ```bash
+   git add <files>
+   git commit -m "test: descriptive message"
+   git push -u origin test/descriptive-name-...
+   ```
+
+5. **Create Pull Request**
+   ```bash
+   gh pr create --title "test: Brief description" \
+                --body "## Summary
+   - Test updates for X
+
+   ## Testing
+   - All tests pass
+
+   🤖 Generated with Claude Code"
+   ```
+
+6. **Wait for Review/Merge**
+   - Do NOT merge your own PR unless explicitly instructed
+   - Let the user or CI/CD merge after review
+
+### Branch Naming Convention
+
+- New tests: `test/short-description-YYYYMMDD-HHMMSS`
+- Test fixes: `fix/test-short-description-YYYYMMDD-HHMMSS`
+
+### What NOT To Do
+
+❌ **NEVER** `git checkout main` then commit
+❌ **NEVER** `git commit` without being on a feature branch
+❌ **NEVER** `git push origin main` directly
+❌ **NEVER** merge your own PR without approval
+❌ **NEVER** commit failing tests
+
+### Verification Before Every Commit
+
+Before committing, verify:
+1. ✅ On a feature branch (not main): `git branch --show-current`
+2. ✅ All tests pass: `just test-asan`
+3. ✅ Code formatted: `just format`
 
 ---
 

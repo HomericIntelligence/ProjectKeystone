@@ -1,7 +1,7 @@
 ---
 name: senior-implementation-engineer
 description: Implement complex functions and classes in Mojo with advanced features including SIMD optimization, memory management, and performance tuning
-tools: Read,Write,Edit,Grep,Glob
+tools: Read,Write,Edit,Grep,Glob,Bash
 model: haiku
 ---
 
@@ -585,6 +585,76 @@ After creating PR:
 5. Update documentation if needed
 
 **Outcome**: Correct gradient computation with all tests passing
+
+---
+
+## Git Workflow - MANDATORY
+
+### ⚠️ CRITICAL: Never Commit Directly to Main
+
+**ALL code changes MUST follow this workflow:**
+
+1. **Create a Feature Branch FIRST**
+   ```bash
+   git checkout -b feat/descriptive-name-$(date +%Y%m%d-%H%M%S)
+   # OR for fixes:
+   git checkout -b fix/descriptive-name-$(date +%Y%m%d-%H%M%S)
+   ```
+
+2. **Make Your Changes** (Write, Edit, etc.)
+
+3. **Verify All Tests Pass**
+   ```bash
+   just test-asan  # Must show 100% pass rate
+   ```
+
+4. **Commit to the Feature Branch**
+   ```bash
+   git add <files>
+   git commit -m "feat: descriptive message"
+   git push -u origin feat/descriptive-name-...
+   ```
+
+5. **Create Pull Request**
+   ```bash
+   gh pr create --title "feat: Brief description" \
+                --body "## Summary
+   - Change 1
+   - Change 2
+
+   ## Testing
+   - All tests pass
+   - No compilation warnings
+
+   🤖 Generated with Claude Code"
+   ```
+
+6. **Wait for Review/Merge**
+   - Do NOT merge your own PR unless explicitly instructed
+   - Let the user or CI/CD merge after review
+
+### Branch Naming Convention
+
+- Features: `feat/short-description-YYYYMMDD-HHMMSS`
+- Fixes: `fix/short-description-YYYYMMDD-HHMMSS`
+- Refactors: `refactor/short-description-YYYYMMDD-HHMMSS`
+- Performance: `perf/short-description-YYYYMMDD-HHMMSS`
+
+### What NOT To Do
+
+❌ **NEVER** `git checkout main` then commit
+❌ **NEVER** `git commit` without being on a feature branch
+❌ **NEVER** `git push origin main` directly
+❌ **NEVER** merge your own PR without approval
+
+### Verification Before Every Commit
+
+Before committing, verify:
+1. ✅ On a feature branch (not main): `git branch --show-current`
+2. ✅ All tests pass: `just test-asan`
+3. ✅ Code formatted: `just format`
+4. ✅ No compilation warnings
+5. ✅ Complex code has inline documentation
 
 ---
 

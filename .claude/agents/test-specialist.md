@@ -619,4 +619,78 @@ After creating PR:
 
 ---
 
+## Git Workflow - MANDATORY
+
+### ⚠️ CRITICAL: Never Commit Directly to Main
+
+**ALL test planning and test code changes MUST follow this workflow:**
+
+1. **Create a Feature Branch FIRST**
+   ```bash
+   git checkout -b test/descriptive-name-$(date +%Y%m%d-%H%M%S)
+   # OR for fixes:
+   git checkout -b fix/descriptive-name-$(date +%Y%m%d-%H%M%S)
+   ```
+
+2. **Coordinate Test Implementation** via Task tool with test-engineer
+
+3. **Verify All Tests Pass**
+   ```bash
+   just test-asan  # All tests must pass
+   ```
+
+4. **Commit to Feature Branch**
+   ```bash
+   git add <files>
+   git commit -m "test: descriptive message"
+   git push -u origin test/descriptive-name-...
+   ```
+
+5. **Create Pull Request**
+   ```bash
+   gh pr create --title "test: Brief description" \
+                --body "## Summary
+   Test strategy and implementation for X
+
+   ## Test Coverage
+   - Unit tests: Y
+   - Integration tests: Z
+   - All tests pass (X/X)
+
+   ## Test Plan
+   - Critical paths covered
+   - Edge cases addressed
+
+   🤖 Generated with Claude Code"
+   ```
+
+6. **Request Review**
+   - Tag reviewers if needed
+   - Do NOT merge without review
+   - Wait for CI/CD or user approval
+
+### Branch Naming Convention
+
+- Test plans: `test/component-name-YYYYMMDD-HHMMSS`
+- Test fixes: `fix/test-description-YYYYMMDD-HHMMSS`
+
+### What NOT To Do
+
+❌ **NEVER** commit directly to `main` branch
+❌ **NEVER** `git push origin main`
+❌ **NEVER** skip the PR process
+❌ **NEVER** merge your own PR without explicit approval
+❌ **NEVER** push code with failing tests
+
+### Verification Checklist
+
+Before creating PR:
+1. ✅ On feature branch: `git branch --show-current`
+2. ✅ All tests pass: `just test-asan` shows 100%
+3. ✅ Code formatted: `just format`
+4. ✅ Test coverage meets requirements
+5. ✅ All critical paths covered
+
+---
+
 **Configuration File**: `.claude/agents/test-specialist.md`

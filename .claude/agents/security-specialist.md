@@ -1,7 +1,7 @@
 ---
 name: security-specialist
 description: Implement security requirements, apply security best practices, perform security testing, and fix vulnerabilities
-tools: Read,Write,Edit,Grep,Glob,Task
+tools: Read,Write,Edit,Grep,Glob,Task,Bash
 model: sonnet
 ---
 
@@ -414,6 +414,85 @@ After creating PR:
 5. Coordinate with test engineer for test updates
 
 **Outcome**: Maintainable code following single responsibility principle
+
+---
+
+## Git Workflow - MANDATORY
+
+### ⚠️ CRITICAL: Never Commit Directly to Main
+
+**ALL security-related code changes MUST follow this workflow:**
+
+1. **Create a Feature Branch FIRST**
+   ```bash
+   git checkout -b security/descriptive-name-$(date +%Y%m%d-%H%M%S)
+   # OR for fixes:
+   git checkout -b fix/security-descriptive-name-$(date +%Y%m%d-%H%M%S)
+   ```
+
+2. **Coordinate Security Implementation** via Task tool with implementation-engineer
+
+3. **Run Security Scans**
+   ```bash
+   just test-asan  # All tests must pass
+   # Run security-specific tools if available
+   ```
+
+4. **Commit to Feature Branch**
+   ```bash
+   git add <files>
+   git commit -m "security: descriptive message"
+   git push -u origin security/descriptive-name-...
+   ```
+
+5. **Create Pull Request**
+   ```bash
+   gh pr create --title "security: Brief description" \
+                --body "## Summary
+   Security improvements for X
+
+   ## Security Changes
+   - Vulnerability fixed: Y
+   - Controls added: Z
+
+   ## Testing
+   - All tests pass (X/X)
+   - Security scan clean
+   - No regressions
+
+   ## Risk Assessment
+   - Severity: [High/Medium/Low]
+   - Impact: Description
+
+   🤖 Generated with Claude Code"
+   ```
+
+6. **Request Review**
+   - Tag security reviewers
+   - Do NOT merge without review
+   - Wait for security approval
+
+### Branch Naming Convention
+
+- Security features: `security/description-YYYYMMDD-HHMMSS`
+- Security fixes: `fix/security-description-YYYYMMDD-HHMMSS`
+
+### What NOT To Do
+
+❌ **NEVER** commit directly to `main` branch
+❌ **NEVER** `git push origin main`
+❌ **NEVER** skip security review
+❌ **NEVER** merge without security approval
+❌ **NEVER** commit code with known vulnerabilities
+
+### Verification Checklist
+
+Before creating PR:
+1. ✅ On feature branch: `git branch --show-current`
+2. ✅ All tests pass: `just test-asan` shows 100%
+3. ✅ Security scans clean
+4. ✅ No vulnerabilities introduced
+5. ✅ Security controls validated
 
 ---
 
