@@ -6,17 +6,20 @@ services:
     build:
       context: .
       target: runtime
-    image: projectkeystone:latest
-    container_name: projectkeystone-test
-    # Uses default CMD from Dockerfile which runs all tests
+    image: projectkeystone:${GIT_COMMIT}-test
+    container_name: projectkeystone-test-${GIT_COMMIT}
+    environment:
+      - GIT_COMMIT=${GIT_COMMIT}
+      - BUILD_UID=${BUILD_UID}
+      - BUILD_GID=${BUILD_GID}
 
   # Production deployment
   production:
     build:
       context: .
       target: production
-    image: projectkeystone:production
-    container_name: projectkeystone-prod
+    image: projectkeystone:${GIT_COMMIT}-production
+    container_name: projectkeystone-prod-${GIT_COMMIT}
     ports:
       - "8080:8080"  # Health check
       - "9090:9090"  # Metrics
@@ -26,6 +29,9 @@ services:
       - LOG_LEVEL=info
       - HEALTH_CHECK_PORT=8080
       - METRICS_PORT=9090
+      - GIT_COMMIT=${GIT_COMMIT}
+      - BUILD_UID=${BUILD_UID}
+      - BUILD_GID=${BUILD_GID}
 
   # Development environment with mounted source
   dev:
@@ -33,33 +39,35 @@ services:
       context: .
       target: development
       args:
-        BUILD_UID: "${BUILD_UID:-1000}"
-        BUILD_GID: "${BUILD_GID:-1000}"
-    image: projectkeystone-dev:latest
-    container_name: projectkeystone-dev
-    user: "${BUILD_UID:-1000}:${BUILD_GID:-1000}"  # Run as host user
+        BUILD_UID: "${BUILD_UID}"
+        BUILD_GID: "${BUILD_GID}"
+    image: projectkeystone-dev:${GIT_COMMIT}-dev
+    container_name: projectkeystone-dev-${GIT_COMMIT}
+    user: "${BUILD_UID}:${BUILD_GID}"  # Run as host user
     volumes:
       - .:/workspace
-      # Removed build-cache volume to support multiple build directories (build/debug, build/asan, etc.)
     working_dir: /workspace
     stdin_open: true
     tty: true
     command: /bin/bash
     environment:
       - HOME=/workspace/.docker-home  # Avoid permission issues with $HOME
+      - GIT_COMMIT=${GIT_COMMIT}
+      - BUILD_UID=${BUILD_UID}
+      - BUILD_GID=${BUILD_GID}
 
   # Build only (for CI/CD)
   build:
     build:
       context: .
       target: builder
-    image: projectkeystone-builder:latest
-    container_name: projectkeystone-build
+    image: projectkeystone-builder:${GIT_COMMIT}-latest
+    container_name: projectkeystone-build-${GIT_COMMIT}
     volumes:
       - .:/workspace
-      # Removed build-cache volume to support multiple build directories
+    environment:
+      - GIT_COMMIT=${GIT_COMMIT}
+      - BUILD_UID=${BUILD_UID}
+      - BUILD_GID=${BUILD_GID}
     command: >
-      bash -c "cd build/asan && cmake -G Ninja ../.. && ninja"
-
-# Removed build-cache volume to support parallel builds in multiple directories
-# Each build mode (debug, release, asan, tsan) now uses its own build/MODE/ directory
+      bash -c "cd build/debug && cmake -G Ninja ../.. && ninja"
