@@ -42,16 +42,11 @@ RUN apt-get update && apt-get install -y \
 # Verify C++20 support
 RUN clang++ --version && cmake --version
 
-# Create builder user with host UID/GID for permission compatibility
-RUN groupadd -g ${BUILD_GID} builder 2>/dev/null || true && \
-    useradd -m -u ${BUILD_UID} -g ${BUILD_GID} builder && \
-    mkdir -p /workspace && \
-    chown -R builder:builder /workspace
+# Create workspace directory with proper permissions
+RUN mkdir -p /workspace && \
+    chmod 755 /workspace
 
-# Switch to builder user
-USER builder
-
-# Set working directory (now owned by builder)
+# Set working directory
 WORKDIR /workspace
 
 # Copy project files

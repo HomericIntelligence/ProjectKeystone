@@ -33,9 +33,12 @@ test_concurrency := "concurrency_unit_tests"
 test_simulation := "simulation_unit_tests"
 test_grpc := "distributed_grpc_tests"
 
-# Docker images
-docker_dev_image := "projectkeystone-dev:latest"
-docker_test_image := "projectkeystone:latest"
+# Load environment variables from .env
+set dotenv-load := true
+
+# Docker images (tagged by commit or latest)
+docker_dev_image := "projectkeystone-dev:{{env_var_or_default('GIT_COMMIT','latest')}}"
+docker_test_image := "projectkeystone:{{env_var_or_default('GIT_COMMIT','latest')}}"
 
 # Report directories (set by CMake or use defaults)
 report_dir := env_var_or_default("REPORTS_OUTPUT_DIR", "build/reports")
@@ -49,32 +52,28 @@ analysis_dir := env_var_or_default("ANALYSIS_OUTPUT_DIR", "build/reports/analysi
 
 # Build Docker images (default: dev)
 docker-build TARGET='dev':
-    @echo "Building Docker image: {{TARGET}}..."
+    @echo "Building Docker image: {{TARGET}} (commit {{env_var_or_default('GIT_COMMIT','latest')}})..."
     docker-compose build {{TARGET}}
 
-# Start dev container (idempotent)
 docker-up:
     #!/usr/bin/env bash
     set -e
-    export BUILD_UID=$(id -u)
-    export BUILD_GID=$(id -g)
     if ! docker-compose ps dev | grep -q "Up"; then
-        echo "Starting dev container with BUILD_UID=$BUILD_UID BUILD_GID=$BUILD_GID..."
+        echo "Starting dev container for commit ${GIT_COMMIT}..."
         docker-compose up -d dev
-        echo "Waiting for container to be ready..."
         sleep 2
     fi
+
+docker-clean:
+    @echo "Cleaning Docker resources..."
+    export GIT_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo latest)
+    docker-compose down -v
+    docker rmi -f {{docker_dev_image}} {{docker_test_image}} || true
 
 # Stop all containers
 docker-down:
     @echo "Stopping containers..."
     docker-compose down
-
-# Clean Docker resources (containers, volumes, images)
-docker-clean:
-    @echo "Cleaning Docker resources..."
-    docker-compose down -v
-    docker rmi -f {{docker_dev_image}} {{docker_test_image}} || true
 
 # Enter dev container shell
 docker-shell: docker-up
@@ -238,6 +237,11 @@ build-profiling: docker-up
 
 # Build (alias for build-debug)
 build: build-debug
+
+# Debug recipe - build and run development container
+debug: docker-up
+    @echo "Starting development container for debugging..."
+    docker-compose exec -it dev /bin/bash
 
 # Build with code coverage instrumentation
 build-coverage: docker-up
