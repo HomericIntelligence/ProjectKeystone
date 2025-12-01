@@ -36,7 +36,11 @@ BUILD_FLAGS_tsan := -fsanitize=thread -fno-omit-frame-pointer
 BUILD_FLAGS_msan := -fsanitize=memory -fno-omit-frame-pointer
 
 BUILD_DIR ?= build
-BUILD_TYPE ?= Debug
+EMPTY :=
+SPACE := $(EMPTY) $(EMPTY)
+BUILD_SUBDIR ?= x86
+BUILD_SUBDIR := $(subst $(SPACE),.,$(strip $(sort $(subst .,$(SPACE),$(BUILD_SUBDIR)))))
+CMAKE_BUILD_TYPE ?= Debug
 
 # ============================================================================
 # Default target
@@ -48,16 +52,16 @@ default: compile
 # Directory creation rule - only runs if directory doesn't exist
 .PHONY: $(BUILD_DIR)
 
-$(BUILD_DIR):
+$(BUILD_DIR)/$(BUILD_SUBDIR):
 	@echo "Creating build directory: $@"
-	@mkdir -p $(BUILD_DIR)
+	@mkdir -p $(BUILD_DIR)/$(BUILD_SUBDIR)
 
 # Generic build rule for any mode
-compile: $(BUILD_DIR)
+compile: $(BUILD_DIR)/$(BUILD_SUBDIR)
 	@echo "Building $* mode..."
 	$(DOCKER_CHECK)
-	$(DOCKER_PREFIX) bash -c "cmake -S . -B $(BUILD_DIR) -G Ninja -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DCMAKE_CXX_FLAGS=\"$(BUILD_FLAGS)\""
-	$(DOCKER_PREFIX) bash -c "cmake --build $(BUILD_DIR) -j$(NPROC)"
+	$(DOCKER_PREFIX) bash -c "cmake -S . -B $(BUILD_DIR)/$(BUILD_SUBDIR) -G Ninja -DCMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE) -DCMAKE_CXX_FLAGS=\"$(BUILD_FLAGS)\""
+	$(DOCKER_PREFIX) bash -c "cmake --build $(BUILD_DIR)/$(BUILD_SUBDIR) -j$(NPROC)"
 
 # ============================================================================
 # Linting & Static Analysis
@@ -68,23 +72,22 @@ compile: $(BUILD_DIR)
 lint:
 	@echo "Running static analysis..."
 	$(DOCKER_CHECK)
-	$(DOCKER_PREFIX) ./scripts/run_static_analysis.sh;
+	$(DOCKER_PREFIX) ./scripts/run_static_analysis.sh $(LINT_FLAGS);
 
-lint-clang-tidy:
+%.clang-tidy:
 	@echo "Running clang-tidy..."
-	$(DOCKER_CHECK)
-	$(DOCKER_PREFIX) ./scripts/run_static_analysis.sh --clang-tidy-only;
+	@$(MAKE) $* LINT_FLAGS=--clang-tidy-only
 
-lint-cppcheck:
+%.cppcheck:
 	@echo "Running cppcheck..."
 	$(DOCKER_CHECK)
-	$(DOCKER_PREFIX) ./scripts/run_static_analysis.sh --cppcheck-only;
+	@$(MAKE) $* LINT_FLAGS=--cppcheck-only
 
 # ============================================================================
 # Code Formatting
 # ============================================================================
 
-.PHONY: format format-check
+.PHONY: format format.check
 
 format:
 	@echo "Formatting C++ code with clang-format..."
@@ -92,10 +95,10 @@ format:
 	$(DOCKER_PREFIX) bash -c \
 			"find src include tests benchmarks -type f \( -name '*.cpp' -o -name '*.hpp' \) \
 			-not -path '*/build/*' -not -path '*/_deps/*' \
-			| xargs clang-format -i";
+			| xargs clang-format -i --Werror";
 	@echo "✓ Formatting complete"
 
-format-check:
+format.check:
 	@echo "Checking C++ formatting..."
 	$(DOCKER_CHECK)
 	$(DOCKER_PREFIX) bash -c \
@@ -113,37 +116,37 @@ format-check:
 # Clean specific build directory
 clean:
 	@echo "Cleaning directory $(BUILD_DIR)..."
-	rm -rf $(BUILD_DIR)
+	rm -rf $(BUILD_DIR)/$(BUILD_SUBDIR)
 
 # ============================================================================
 # Docker Management
 # ============================================================================
 
-.PHONY: docker-build docker-up docker-clean docker-down docker-shell
+.PHONY: docker.build docker.up docker.clean docker.down docker.shell
 
-docker-build:
+docker.build:
 	@echo "Building Docker image: dev (commit $(GIT_COMMIT))..."
 	docker-compose build dev
 
-docker-build-%:
+docker.build.%:
 	@echo "Building Docker image: $* (commit $(GIT_COMMIT))..."
 	docker-compose build $*
 
-docker-up:
+docker.up:
 	@echo "Starting dev container for commit $(GIT_COMMIT)..."
 	docker-compose up -d dev
 	sleep 2
 
-docker-clean:
+docker.clean:
 	@echo "Cleaning Docker resources..."
 	docker-compose down -v
 	docker rmi -f projectkeystone-dev:$(GIT_COMMIT) projectkeystone:$(GIT_COMMIT) || true
 
-docker-down:
+docker.down:
 	@echo "Stopping containers..."
 	docker-compose down
 
-docker-shell: docker-up
+docker.shell: docker-up
 	$(DOCKER_PREFIX) /bin/bash
 
 # ============================================================================
@@ -156,38 +159,38 @@ docker-shell: docker-up
 
 # Sanitizer pattern rules - append sanitizer flags to existing targets
 %.asan:
-	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) $(BUILD_FLAGS_asan)" BUILD_DIR="$(BUILD_DIR)$(suffix $@)"
+	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) $(BUILD_FLAGS_asan)" BUILD_SUBDIR="$(BUILD_SUBDIR)$(suffix $@)" CMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE)
 
 %.ubsan:
-	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) $(BUILD_FLAGS_ubsan)" BUILD_DIR="$(BUILD_DIR)$(suffix $@)"
+	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) $(BUILD_FLAGS_ubsan)" BUILD_SUBDIR="$(BUILD_SUBDIR)$(suffix $@)" CMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE)
 
 %.lsan:
-	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) $(BUILD_FLAGS_lsan)" BUILD_DIR="$(BUILD_DIR)$(suffix $@)"
+	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) $(BUILD_FLAGS_lsan)" BUILD_SUBDIR="$(BUILD_SUBDIR)$(suffix $@)" CMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE)
 
 %.tsan:
-	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) $(BUILD_FLAGS_tsan)" BUILD_DIR="$(BUILD_DIR)$(suffix $@)"
+	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) $(BUILD_FLAGS_tsan)" BUILD_SUBDIR="$(BUILD_SUBDIR)$(suffix $@)" CMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE)
 
 %.msan:
-	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) $(BUILD_FLAGS_msan)" BUILD_DIR="$(BUILD_DIR)$(suffix $@)"
+	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) $(BUILD_FLAGS_msan)" BUILD_SUBDIR="$(BUILD_SUBDIR)$(suffix $@)" CMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE)
 
 # Feature flag patterns
 %.grpc:
-	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) -DENABLE_GRPC=ON" BUILD_DIR="$(BUILD_DIR)$(suffix $@)"
+	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) -DENABLE_GRPC=ON" BUILD_SUBDIR="$(BUILD_SUBDIR)$(suffix $@)" CMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE)
 
 %.coverage:
-	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) -DENABLE_COVERAGE=ON" BUILD_DIR="$(BUILD_DIR)$(suffix $@)"
+	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) -DENABLE_COVERAGE=ON" BUILD_SUBDIR="$(BUILD_SUBDIR)$(suffix $@)" CMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE)
 
 %.profile:
-	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) -DENABLE_PROFILING=ON" BUILD_DIR="$(BUILD_DIR)$(suffix $@)"
+	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) -DENABLE_PROFILING=ON" BUILD_SUBDIR="$(BUILD_SUBDIR)$(suffix $@)" CMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE)
 
 %.fuzz:
-	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) -DENABLE_FUZZING=ON" BUILD_DIR="$(BUILD_DIR)$(suffix $@)"
+	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) -DENABLE_FUZZING=ON" BUILD_SUBDIR="$(BUILD_SUBDIR)$(suffix $@)" CMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE)
 
 %.debug:
-	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) $(BUILD_FLAGS_debug)" BUILD_DIR="$(BUILD_DIR)$(suffix $@)" BUILD_TYPE=Debug
+	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) $(BUILD_FLAGS_debug)" BUILD_SUBDIR="$(BUILD_SUBDIR)$(suffix $@)" CMAKE_BUILD_TYPE=Debug
 
 %.release:
-	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) $(BUILD_FLAGS_release)" BUILD_DIR="$(BUILD_DIR)$(suffix $@)" BUILD_TYPE=Release
+	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) $(BUILD_FLAGS_release)" BUILD_SUBDIR="$(BUILD_SUBDIR)$(suffix $@)" CMAKE_BUILD_TYPE=Release
 
 
 # ============================================================================
@@ -226,16 +229,16 @@ help:
 	@echo ""
 	@echo "Lint & Format:"
 	@echo "  make lint               Run all linters"
-	@echo "  make lint-clang-tidy    Run clang-tidy only"
-	@echo "  make lint-cppcheck      Run cppcheck only"
+	@echo "  make lint.clang-tidy    Run clang-tidy only"
+	@echo "  make lint.cppcheck      Run cppcheck only"
 	@echo "  make format             Format all C++ files"
-	@echo "  make format-check       Check formatting (CI)"
+	@echo "  make format.check       Check formatting (CI)"
 	@echo ""
 	@echo "Docker:"
-	@echo "  make docker-build       Build Docker image"
-	@echo "  make docker-up          Start dev container"
-	@echo "  make docker-down        Stop containers"
-	@echo "  make docker-shell       Enter dev container"
+	@echo "  make docker.build       Build Docker image"
+	@echo "  make docker.up          Start dev container"
+	@echo "  make docker.down        Stop containers"
+	@echo "  make docker.shell       Enter dev container"
 	@echo ""
 	@echo "Native Mode:"
 	@echo "  Add '.native' suffix to any target to run on host system"
