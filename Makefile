@@ -19,357 +19,45 @@ NPROC ?= $(shell nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
 
 # Docker mode detection
 ifeq ($(NATIVE),1)
-	NATIVE_MODE := true
+    DOCKER_CHECK :=
+    DOCKER_PREFIX :=
 else
-	NATIVE_MODE := false
+    DOCKER_CHECK := $(MAKE) -C docker ensure-running 2>/dev/null || true;
+    DOCKER_PREFIX := docker-compose exec -T dev 
 endif
 
-# Build type mappings
-BUILD_TYPE_debug := Debug
-BUILD_TYPE_release := Release
-BUILD_TYPE_debug.asan := Debug
-BUILD_TYPE_release.asan := Release
-
 # Compiler flags
-BUILD_FLAGS_debug :=
+BUILD_FLAGS_debug := -O0 -g -D_DEBUG
 BUILD_FLAGS_release := -O3 -DNDEBUG
-BUILD_FLAGS_debug.asan := -fsanitize=address,undefined -fno-omit-frame-pointer -g
-BUILD_FLAGS_release.asan := -O3 -DNDEBUG -fsanitize=address,undefined -fno-omit-frame-pointer -g
+BUILD_FLAGS_asan := -fsanitize=address -fno-omit-frame-pointer
+BUILD_FLAGS_ubsan := -fsanitize=undefined -fno-omit-frame-pointer
+BUILD_FLAGS_lsan := -fsanitize=leak -fno-omit-frame-pointer
+BUILD_FLAGS_tsan := -fsanitize=thread -fno-omit-frame-pointer
+BUILD_FLAGS_msan := -fsanitize=memory -fno-omit-frame-pointer
 
-# Test executables
-TEST_BASIC := bin/basic_delegation_tests
-TEST_MODULE := bin/module_coordination_tests
-TEST_COMPONENT := bin/component_coordination_tests
-TEST_ASYNC := bin/async_delegation_tests
-TEST_DISTRIBUTED := bin/distributed_hierarchy_tests
-TEST_UNIT := bin/unit_tests
-TEST_CONCURRENCY := bin/concurrency_unit_tests
-TEST_SIMULATION := bin/simulation_unit_tests
-TEST_GRPC := bin/distributed_grpc_tests
+BUILD_DIR ?= build
+BUILD_TYPE ?= Debug
 
 # ============================================================================
 # Default target
 # ============================================================================
 
-.PHONY: help
-
-default: debug
-
-# ============================================================================
-# Build Recipes
-# ============================================================================
-
-.PHONY: debug release debug.asan release.asan
-
-debug: build/debug/$(TEST_BASIC)
-	@echo "✓ Debug build complete: build/debug/"
-
-release: build/release/$(TEST_BASIC)
-	@echo "✓ Release build complete: build/release/"
-
-debug.asan: build/debug.asan/$(TEST_BASIC)
-	@echo "✓ Debug ASan build complete: build/debug.asan/"
-
-release.asan: build/release.asan/$(TEST_BASIC)
-	@echo "✓ Release ASan build complete: build/release.asan/"
+.PHONY: default
+default: compile
 
 # Directory creation rule - only runs if directory doesn't exist
-.PHONY: build/%/
+.PHONY: $(BUILD_DIR)
 
-build/%/:
-	@echo "Creating build directory: build/$*"
-	@mkdir -p build/$*
+$(BUILD_DIR):
+	@echo "Creating build directory: $@"
+	@mkdir -p $(BUILD_DIR)
 
 # Generic build rule for any mode
-build/%/$(TEST_BASIC): build/%/
+compile: $(BUILD_DIR)
 	@echo "Building $* mode..."
-	@if [ "$(NATIVE_MODE)" = "true" ]; then \
-		echo "  Native mode: Building on host system"; \
-		cmake -S . -B build/$* -G Ninja \
-			-DCMAKE_BUILD_TYPE=$(BUILD_TYPE_$*) \
-			$(if $(BUILD_FLAGS_$*),-DCMAKE_CXX_FLAGS="$(BUILD_FLAGS_$*)" ); \
-		cmake --build build/$* -j$(NPROC); \
-	else \
-		echo "  Docker mode: Building in container"; \
-		$(MAKE) -C docker ensure-running 2>/dev/null || true; \
-		docker-compose exec -T dev bash -c " \
-			cmake -S . -B build/$* -G Ninja \
-				-DCMAKE_BUILD_TYPE=$(BUILD_TYPE_$*) \
-				$(if $(BUILD_FLAGS_$*),-DCMAKE_CXX_FLAGS=\"$(BUILD_FLAGS_$*)\" ) && \
-			cmake --build build/$* -j$(NPROC)"; \
-	fi
-
-# Build all modes
-.PHONY: build-all
-build-all: debug release debug.asan release.asan
-
-# Debug recipe - build and run development container
-.PHONY: debug-shell
-debug-shell: docker-up
-	@echo "Starting development container for debugging..."
-	docker-compose exec -it dev /bin/bash
-
-# ============================================================================
-# Test Recipes
-# ============================================================================
-
-.PHONY: test test-basic test-module test-component test-async test-distributed test-unit test-concurrency test-simulation test-grpc test.asan
-
-# Test aliases - default to debug build
-test: test-basic
-test-basic: build/debug/$(TEST_BASIC)
-	@echo "Running basic delegation tests..."
-	@if [ "$(NATIVE_MODE)" = "true" ]; then \
-		./build/debug/$(TEST_BASIC); \
-	else \
-		docker-compose exec -T dev ./build/debug/$(TEST_BASIC); \
-	fi
-
-test-module: build/debug/$(TEST_MODULE)
-	@echo "Running module coordination tests..."
-	@if [ "$(NATIVE_MODE)" = "true" ]; then \
-		./build/debug/$(TEST_MODULE); \
-	else \
-		docker-compose exec -T dev ./build/debug/$(TEST_MODULE); \
-	fi
-
-test-component: build/debug/$(TEST_COMPONENT)
-	@echo "Running component coordination tests..."
-	@if [ "$(NATIVE_MODE)" = "true" ]; then \
-		./build/debug/$(TEST_COMPONENT); \
-	else \
-		docker-compose exec -T dev ./build/debug/$(TEST_COMPONENT); \
-	fi
-
-test-async: build/debug/$(TEST_ASYNC)
-	@echo "Running async delegation tests..."
-	@if [ "$(NATIVE_MODE)" = "true" ]; then \
-		./build/debug/$(TEST_ASYNC); \
-	else \
-		docker-compose exec -T dev ./build/debug/$(TEST_ASYNC); \
-	fi
-
-test-distributed: build/debug/$(TEST_DISTRIBUTED)
-	@echo "Running distributed hierarchy tests..."
-	@if [ "$(NATIVE_MODE)" = "true" ]; then \
-		./build/debug/$(TEST_DISTRIBUTED); \
-	else \
-		docker-compose exec -T dev ./build/debug/$(TEST_DISTRIBUTED); \
-	fi
-
-test-unit: build/debug/$(TEST_UNIT)
-	@echo "Running unit tests..."
-	@if [ "$(NATIVE_MODE)" = "true" ]; then \
-		./build/debug/$(TEST_UNIT); \
-	else \
-		docker-compose exec -T dev ./build/debug/$(TEST_UNIT); \
-	fi
-
-test-concurrency: build/debug/$(TEST_CONCURRENCY)
-	@echo "Running concurrency unit tests..."
-	@if [ "$(NATIVE_MODE)" = "true" ]; then \
-		./build/debug/$(TEST_CONCURRENCY); \
-	else \
-		docker-compose exec -T dev ./build/debug/$(TEST_CONCURRENCY); \
-	fi
-
-test-simulation: build/debug/$(TEST_SIMULATION)
-	@echo "Running simulation unit tests..."
-	@if [ "$(NATIVE_MODE)" = "true" ]; then \
-		./build/debug/$(TEST_SIMULATION); \
-	else \
-		docker-compose exec -T dev ./build/debug/$(TEST_SIMULATION); \
-	fi
-
-test-grpc: build/release/$(TEST_GRPC)
-	@echo "Running gRPC distributed tests..."
-	@if [ "$(NATIVE_MODE)" = "true" ]; then \
-		./build/release/$(TEST_GRPC); \
-	else \
-		docker-compose exec -T dev ./build/release/$(TEST_GRPC); \
-	fi
-
-# Run all tests for debug build
-test-all: build/debug/$(TEST_BASIC)
-	@echo "Running all tests for debug mode..."
-	@if [ "$(NATIVE_MODE)" = "true" ]; then \
-		cd build/debug && ctest --output-on-failure -j$(NPROC); \
-	else \
-		$(MAKE) -C docker ensure-running 2>/dev/null || true; \
-		docker-compose exec -T dev bash -c "cd build/debug && ctest --output-on-failure -j$(NPROC)"; \
-	fi
-
-# ASan test aliases - use debug.asan build
-test.asan: test-basic.asan
-test-basic.asan: build/debug.asan/$(TEST_BASIC)
-	@echo "Running basic delegation tests with ASan..."
-	@if [ "$(NATIVE_MODE)" = "true" ]; then \
-		./build/debug.asan/$(TEST_BASIC); \
-	else \
-		docker-compose exec -T dev ./build/debug.asan/$(TEST_BASIC); \
-	fi
-
-test-module.asan: build/debug.asan/$(TEST_MODULE)
-	@echo "Running module coordination tests with ASan..."
-	@if [ "$(NATIVE_MODE)" = "true" ]; then \
-		./build/debug.asan/$(TEST_MODULE); \
-	else \
-		docker-compose exec -T dev ./build/debug.asan/$(TEST_MODULE); \
-	fi
-
-test-component.asan: build/debug.asan/$(TEST_COMPONENT)
-	@echo "Running component coordination tests with ASan..."
-	@if [ "$(NATIVE_MODE)" = "true" ]; then \
-		./build/debug.asan/$(TEST_COMPONENT); \
-	else \
-		docker-compose exec -T dev ./build/debug.asan/$(TEST_COMPONENT); \
-	fi
-
-test-async.asan: build/debug.asan/$(TEST_ASYNC)
-	@echo "Running async delegation tests with ASan..."
-	@if [ "$(NATIVE_MODE)" = "true" ]; then \
-		./build/debug.asan/$(TEST_ASYNC); \
-	else \
-		docker-compose exec -T dev ./build/debug.asan/$(TEST_ASYNC); \
-	fi
-
-test-distributed.asan: build/debug.asan/$(TEST_DISTRIBUTED)
-	@echo "Running distributed hierarchy tests with ASan..."
-	@if [ "$(NATIVE_MODE)" = "true" ]; then \
-		./build/debug.asan/$(TEST_DISTRIBUTED); \
-	else \
-		docker-compose exec -T dev ./build/debug.asan/$(TEST_DISTRIBUTED); \
-	fi
-
-test-unit.asan: build/debug.asan/$(TEST_UNIT)
-	@echo "Running unit tests with ASan..."
-	@if [ "$(NATIVE_MODE)" = "true" ]; then \
-		./build/debug.asan/$(TEST_UNIT); \
-	else \
-		docker-compose exec -T dev ./build/debug.asan/$(TEST_UNIT); \
-	fi
-
-test-concurrency.asan: build/debug.asan/$(TEST_CONCURRENCY)
-	@echo "Running concurrency unit tests with ASan..."
-	@if [ "$(NATIVE_MODE)" = "true" ]; then \
-		./build/debug.asan/$(TEST_CONCURRENCY); \
-	else \
-		docker-compose exec -T dev ./build/debug.asan/$(TEST_CONCURRENCY); \
-	fi
-
-test-simulation.asan: build/debug.asan/$(TEST_SIMULATION)
-	@echo "Running simulation unit tests with ASan..."
-	@if [ "$(NATIVE_MODE)" = "true" ]; then \
-		./build/debug.asan/$(TEST_SIMULATION); \
-	else \
-		docker-compose exec -T dev ./build/debug.asan/$(TEST_SIMULATION); \
-	fi
-
-test-grpc.asan: build/release.asan/$(TEST_GRPC)
-	@echo "Running gRPC distributed tests with ASan..."
-	@if [ "$(NATIVE_MODE)" = "true" ]; then \
-		./build/release.asan/$(TEST_GRPC); \
-	else \
-		docker-compose exec -T dev ./build/release.asan/$(TEST_GRPC); \
-	fi
-
-# Run all tests for debug.asan build
-test-all.asan: build/debug.asan/$(TEST_BASIC)
-	@echo "Running all tests for debug.asan mode..."
-	@if [ "$(NATIVE_MODE)" = "true" ]; then \
-		cd build/debug.asan && ctest --output-on-failure -j$(NPROC); \
-	else \
-		$(MAKE) -C docker ensure-running 2>/dev/null || true; \
-		docker-compose exec -T dev bash -c "cd build/debug.asan && ctest --output-on-failure -j$(NPROC)"; \
-	fi
-
-# Test with GTest filter
-.PHONY: test-filter
-test-filter:
-	@echo "Usage: make test-filter BUILD=<build> SUITE=<suite> FILTER=<filter>"
-	@echo "Example: make test-filter BUILD=debug SUITE=basic_delegation_tests FILTER='E2E_Phase1.*'"
-
-test-filter-%:
-	@echo "Running $(SUITE) with filter: $(FILTER) on $(BUILD) build"
-	@if [ "$(NATIVE_MODE)" = "true" ]; then \
-		./build/$(BUILD)/$(SUITE) --gtest_filter="$(FILTER)"; \
-	else \
-		$(MAKE) -C docker ensure-running 2>/dev/null || true; \
-		docker-compose exec -T dev ./build/$(BUILD)/$(SUITE) --gtest_filter="$(FILTER)"; \
-	fi
-
-# ============================================================================
-# Load Testing & Benchmarks
-# ============================================================================
-
-.PHONY: load-test load-test-quick load-test-scenario benchmark benchmark-message-pool benchmark-distributed benchmark-strings
-
-load-test: build/release/$(TEST_BASIC)
-	@echo "Running load tests (full duration)..."
-	@if [ "$(NATIVE_MODE)" = "true" ]; then \
-		./tests/load/run_all_scenarios.sh; \
-	else \
-		$(MAKE) -C docker ensure-running 2>/dev/null || true; \
-		docker-compose exec -T dev ./tests/load/run_all_scenarios.sh; \
-	fi
-
-load-test-quick: build/release/$(TEST_BASIC)
-	@echo "Running load tests (quick mode)..."
-	@if [ "$(NATIVE_MODE)" = "true" ]; then \
-		./tests/load/run_all_scenarios.sh --quick; \
-	else \
-		$(MAKE) -C docker ensure-running 2>/dev/null || true; \
-		docker-compose exec -T dev ./tests/load/run_all_scenarios.sh --quick; \
-	fi
-
-load-test-scenario:
-	@echo "Usage: make load-test-scenario SCENARIO=<scenario>"
-	@echo "Example: make load-test-scenario SCENARIO=high_load"
-
-load-test-scenario-%: build/release/$(TEST_BASIC)
-	@echo "Running load test scenario: $*..."
-	@if [ "$(NATIVE_MODE)" = "true" ]; then \
-		./build/release/hmas_load_test --scenario=$* --duration=300; \
-	else \
-		$(MAKE) -C docker ensure-running 2>/dev/null || true; \
-		docker-compose exec -T dev ./build/release/hmas_load_test --scenario=$* --duration=300; \
-	fi
-
-benchmark: build/release/$(TEST_BASIC)
-	@echo "Running benchmarks..."
-	@if [ "$(NATIVE_MODE)" = "true" ]; then \
-		./scripts/run_benchmarks.sh; \
-	else \
-		$(MAKE) -C docker ensure-running 2>/dev/null || true; \
-		docker-compose exec -T dev ./scripts/run_benchmarks.sh; \
-	fi
-
-benchmark-message-pool: build/release/$(TEST_BASIC)
-	@echo "Running message pool benchmarks..."
-	@if [ "$(NATIVE_MODE)" = "true" ]; then \
-		./build/release/message_pool_benchmarks; \
-	else \
-		$(MAKE) -C docker ensure-running 2>/dev/null || true; \
-		docker-compose exec -T dev ./build/release/message_pool_benchmarks; \
-	fi
-
-benchmark-distributed: build/release/$(TEST_BASIC)
-	@echo "Running distributed benchmarks..."
-	@if [ "$(NATIVE_MODE)" = "true" ]; then \
-		./build/release/distributed_benchmarks; \
-	else \
-		$(MAKE) -C docker ensure-running 2>/dev/null || true; \
-		docker-compose exec -T dev ./build/release/distributed_benchmarks; \
-	fi
-
-benchmark-strings: build/release/$(TEST_BASIC)
-	@echo "Running string allocation benchmarks..."
-	@if [ "$(NATIVE_MODE)" = "true" ]; then \
-		./build/release/string_allocation_benchmarks; \
-	else \
-		$(MAKE) -C docker ensure-running 2>/dev/null || true; \
-		docker-compose exec -T dev ./build/release/string_allocation_benchmarks; \
-	fi
+	$(DOCKER_CHECK)
+	$(DOCKER_PREFIX) bash -c "cmake -S . -B $(BUILD_DIR) -G Ninja -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DCMAKE_CXX_FLAGS=\"$(BUILD_FLAGS)\""
+	$(DOCKER_PREFIX) bash -c "cmake --build $(BUILD_DIR) -j$(NPROC)"
 
 # ============================================================================
 # Linting & Static Analysis
@@ -379,30 +67,18 @@ benchmark-strings: build/release/$(TEST_BASIC)
 
 lint:
 	@echo "Running static analysis..."
-	@if [ "$(NATIVE_MODE)" = "true" ]; then \
-		./scripts/run_static_analysis.sh; \
-	else \
-		$(MAKE) -C docker ensure-running 2>/dev/null || true; \
-		docker-compose exec -T dev ./scripts/run_static_analysis.sh; \
-	fi
+	$(DOCKER_CHECK)
+	$(DOCKER_PREFIX) ./scripts/run_static_analysis.sh;
 
 lint-clang-tidy:
 	@echo "Running clang-tidy..."
-	@if [ "$(NATIVE_MODE)" = "true" ]; then \
-		./scripts/run_static_analysis.sh --clang-tidy-only; \
-	else \
-		$(MAKE) -C docker ensure-running 2>/dev/null || true; \
-		docker-compose exec -T dev ./scripts/run_static_analysis.sh --clang-tidy-only; \
-	fi
+	$(DOCKER_CHECK)
+	$(DOCKER_PREFIX) ./scripts/run_static_analysis.sh --clang-tidy-only;
 
 lint-cppcheck:
 	@echo "Running cppcheck..."
-	@if [ "$(NATIVE_MODE)" = "true" ]; then \
-		./scripts/run_static_analysis.sh --cppcheck-only; \
-	else \
-		$(MAKE) -C docker ensure-running 2>/dev/null || true; \
-		docker-compose exec -T dev ./scripts/run_static_analysis.sh --cppcheck-only; \
-	fi
+	$(DOCKER_CHECK)
+	$(DOCKER_PREFIX) ./scripts/run_static_analysis.sh --cppcheck-only;
 
 # ============================================================================
 # Code Formatting
@@ -412,32 +88,20 @@ lint-cppcheck:
 
 format:
 	@echo "Formatting C++ code with clang-format..."
-	@if [ "$(NATIVE_MODE)" = "true" ]; then \
-		find src include tests benchmarks -type f \( -name "*.cpp" -o -name "*.hpp" \) \
-			-not -path "*/build/*" -not -path "*/_deps/*" \
-			| xargs clang-format -i; \
-	else \
-		$(MAKE) -C docker ensure-running 2>/dev/null || true; \
-		docker-compose exec -T dev bash -c \
+	$(DOCKER_CHECK)
+	$(DOCKER_PREFIX) bash -c \
 			"find src include tests benchmarks -type f \( -name '*.cpp' -o -name '*.hpp' \) \
 			-not -path '*/build/*' -not -path '*/_deps/*' \
-			| xargs clang-format -i"; \
-	fi
+			| xargs clang-format -i";
 	@echo "✓ Formatting complete"
 
 format-check:
 	@echo "Checking C++ formatting..."
-	@if [ "$(NATIVE_MODE)" = "true" ]; then \
-		find src include tests benchmarks -type f \( -name "*.cpp" -o -name "*.hpp" \) \
-			-not -path "*/build/*" -not -path "*/_deps/*" \
-			| xargs clang-format --dry-run --Werror; \
-	else \
-		$(MAKE) -C docker ensure-running 2>/dev/null || true; \
-		docker-compose exec -T dev bash -c \
+	$(DOCKER_CHECK)
+	$(DOCKER_PREFIX) bash -c \
 			"find src include tests benchmarks -type f \( -name '*.cpp' -o -name '*.hpp' \) \
 			-not -path '*/build/*' -not -path '*/_deps/*' \
 			| xargs clang-format --dry-run --Werror"; \
-	fi
 	@echo "✓ Formatting check passed"
 
 # ============================================================================
@@ -448,33 +112,8 @@ format-check:
 
 # Clean specific build directory
 clean:
-	@echo "Usage: make clean BUILD=<build>"
-	@echo "Example: make clean BUILD=debug"
-
-clean-debug:
-	@echo "Cleaning build/debug..."
-	rm -rf build/debug
-
-clean-release:
-	@echo "Cleaning build/release..."
-	rm -rf build/release
-
-clean-debug.asan:
-	@echo "Cleaning build/debug.asan..."
-	rm -rf build/debug.asan
-
-clean-release.asan:
-	@echo "Cleaning build/release.asan..."
-	rm -rf build/release.asan
-
-# Clean all build directories
-clean-all:
-	@echo "Cleaning all build directories..."
-	rm -rf build/debug build/release build/debug.asan build/release.asan
-
-# Clean build artifacts and Docker resources
-clean-everything: clean-all docker-clean
-	@echo "Cleaned everything"
+	@echo "Cleaning directory $(BUILD_DIR)..."
+	rm -rf $(BUILD_DIR)
 
 # ============================================================================
 # Docker Management
@@ -505,59 +144,38 @@ docker-down:
 	docker-compose down
 
 docker-shell: docker-up
-	docker-compose exec dev /bin/bash
+	$(DOCKER_PREFIX) /bin/bash
 
 # ============================================================================
 # Native Variants (run on host system instead of Docker)
 # ============================================================================
-
-.PHONY: debug.native release.native debug.asan.native release.asan.native test.native test-basic.native test-module.native test-component.native test-async.native test-unit.native test-all.native test.asan.native test-basic.asan.native test-module.asan.native test-component.asan.native test-async.asan.native test-unit.asan.native test-all.asan.native lint.native lint-clang-tidy.native lint-cppcheck.native format.native format-check.native benchmark.native load-test.native load-test-quick.native ci.native ci-quick.native pre-commit.native
 
 # Pattern rule for native variants - matches any target with .native suffix
 %.native:
 	@$(MAKE) $* NATIVE=1
 
 # Sanitizer pattern rules - append sanitizer flags to existing targets
-%.asan: $(BUILD_TYPE)
-	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) $(BUILD_FLAGS_asan)"
+%.asan:
+	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) $(BUILD_FLAGS_asan)" BUILD_DIR="$(BUILD_DIR)$(suffix $@)"
 
-%.ubsan: $(BUILD_TYPE)
-	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) $(BUILD_FLAGS_ubsan)"
+%.ubsan:
+	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) $(BUILD_FLAGS_ubsan)" BUILD_DIR="$(BUILD_DIR)$(suffix $@)"
 
-%.lsan: $(BUILD_TYPE)
-	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) $(BUILD_FLAGS_lsan)"
+%.lsan:
+	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) $(BUILD_FLAGS_lsan)" BUILD_DIR="$(BUILD_DIR)$(suffix $@)"
 
-%.tsan: $(BUILD_TYPE)
-	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) $(BUILD_FLAGS_tsan)"
+%.tsan:
+	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) $(BUILD_FLAGS_tsan)" BUILD_DIR="$(BUILD_DIR)$(suffix $@)"
 
-%.msan: $(BUILD_TYPE)
-	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) $(BUILD_FLAGS_msan)"
+%.msan:
+	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) $(BUILD_FLAGS_msan)" BUILD_DIR="$(BUILD_DIR)$(suffix $@)"
 
-# Build type pattern rules - override build type
-%.debug: $(BUILD_TYPE)
-	@$(MAKE) $* BUILD_TYPE=Debug
+%.debug:
+	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) $(BUILD_FLAGS_debug)" BUILD_DIR="$(BUILD_DIR)$(suffix $@)" BUILD_TYPE=Debug
 
-%.release: $(BUILD_TYPE)
-	@$(MAKE) $* BUILD_TYPE=Release
+%.release:
+	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) $(BUILD_FLAGS_release)" BUILD_DIR="$(BUILD_DIR)$(suffix $@)" BUILD_TYPE=Release
 
-
-# ============================================================================
-# CI/CD Helper Recipes
-# ============================================================================
-
-.PHONY: ci ci-quick pre-commit
-
-# Full CI pipeline
-ci: debug.asan test-all.asan lint format-check
-	@echo "✓ CI pipeline complete"
-
-# Quick CI (for pull requests)
-ci-quick: debug.asan test-basic test-module test-component format-check
-	@echo "✓ Quick CI complete"
-
-# Pre-commit checks
-pre-commit: format-check lint-clang-tidy test-basic
-	@echo "✓ Pre-commit checks passed"
 
 # ============================================================================
 # Help & Info
@@ -576,7 +194,6 @@ help:
 	@echo "  make release            Build release mode (build/release)"
 	@echo "  make debug.asan         Build debug with ASan (build/debug.asan)"
 	@echo "  make release.asan       Build release with ASan (build/release.asan)"
-	@echo "  make build-all          Build all modes"
 	@echo ""
 	@echo "Sanitizer Patterns:"
 	@echo "  make debug.ubsan        Build debug with UBSan (build/debug.ubsan)"
@@ -587,55 +204,6 @@ help:
 	@echo "  make release.tsan       Build release with TSan (build/release.tsan)"
 	@echo "  make debug.msan         Build debug with MSan (build/debug.msan)"
 	@echo "  make release.msan       Build release with MSan (build/release.msan)"
-	@echo ""
-	@echo "Build Type Patterns:"
-	@echo "  make test.debug         Run tests with Debug build type"
-	@echo "  make test.release       Run tests with Release build type"
-	@echo ""
-	@echo "Test Commands:"
-	@echo "  make test               Run all tests (debug)"
-	@echo "  make test-basic         Run basic delegation tests (debug)"
-	@echo "  make test-module        Run module coordination tests (debug)"
-	@echo "  make test-component     Run component coordination tests (debug)"
-	@echo "  make test-async         Run async delegation tests (debug)"
-	@echo "  make test-unit          Run unit tests (debug)"
-	@echo "  make test-all           Run all tests (debug)"
-	@echo ""
-	@echo "  make test.asan          Run all tests with ASan (debug.asan)"
-	@echo "  make test-basic.asan    Run basic delegation tests with ASan (debug.asan)"
-	@echo "  make test-module.asan   Run module coordination tests with ASan (debug.asan)"
-	@echo "  make test-component.asan Run component coordination tests with ASan (debug.asan)"
-	@echo "  make test-async.asan    Run async delegation tests with ASan (debug.asan)"
-	@echo "  make test-unit.asan     Run unit tests with ASan (debug.asan)"
-	@echo "  make test-all.asan      Run all tests with ASan (debug.asan)"
-	@echo ""
-	@echo "  make test.ubsan         Run all tests with UBSan (debug.ubsan)"
-	@echo "  make test-basic.ubsan   Run basic delegation tests with UBSan (debug.ubsan)"
-	@echo "  make test-module.ubsan  Run module coordination tests with UBSan (debug.ubsan)"
-	@echo "  make test-component.ubsan Run component coordination tests with UBSan (debug.ubsan)"
-	@echo "  make test-async.ubsan   Run async delegation tests with UBSan (debug.ubsan)"
-	@echo "  make test-unit.ubsan    Run unit tests with UBSan (debug.ubsan)"
-	@echo "  make test-all.ubsan     Run all tests with UBSan (debug.ubsan)"
-	@echo ""
-	@echo "  make test.tsan          Run all tests with TSan (debug.tsan)"
-	@echo "  make test-basic.tsan    Run basic delegation tests with TSan (debug.tsan)"
-	@echo "  make test-module.tsan   Run module coordination tests with TSan (debug.tsan)"
-	@echo "  make test-component.tsan Run component coordination tests with TSan (debug.tsan)"
-	@echo "  make test-async.tsan    Run async delegation tests with TSan (debug.tsan)"
-	@echo "  make test-unit.tsan     Run unit tests with TSan (debug.tsan)"
-	@echo "  make test-all.tsan      Run all tests with TSan (debug.tsan)"
-	@echo ""
-	@echo "  make test-filter BUILD=<build> SUITE=<suite> FILTER=<filter>"
-	@echo "                          Run test with GTest filter"
-	@echo ""
-	@echo "Load & Benchmark:"
-	@echo "  make load-test          Run all load tests"
-	@echo "  make load-test-quick    Run quick load tests (CI)"
-	@echo "  make load-test-scenario SCENARIO=<scenario>  Run specific load test scenario"
-	@echo "  make benchmark          Run all benchmarks"
-	@echo "  make benchmark-message-pool  Run message pool benchmarks"
-	@echo "  make benchmark-distributed Run distributed benchmarks"
-	@echo "  make benchmark-strings  Run string allocation benchmarks"
 	@echo ""
 	@echo "Lint & Format:"
 	@echo "  make lint               Run all linters"
@@ -658,10 +226,7 @@ help:
 	@echo "    make benchmark.tsan.native Run TSan benchmarks on host"
 	@echo ""
 	@echo "Clean:"
-	@echo "  make clean BUILD=<build>  Clean specific build dir"
-	@echo "  make clean-all          Clean all build dirs"
-	@echo ""
-	@echo "CI/CD:"
-	@echo "  make ci                 Full CI pipeline"
-	@echo "  make ci-quick           Quick CI for PRs"
-	@echo "  make pre-commit         Pre-commit checks"
+	@echo "  make clean  		 Clean all builds"
+	@echo "  make clean.debug 	 Clean debug build"
+	@echo "  make clean.release.tsan Clean release thread sanitizer build"
+
