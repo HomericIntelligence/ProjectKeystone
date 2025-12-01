@@ -106,3 +106,5 @@ coverage/
 # Static analysis outputs
 clang-tidy-report.txt
 cppcheck-report.xml
+
+worktrees
