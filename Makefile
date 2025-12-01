@@ -170,6 +170,19 @@ docker-shell: docker-up
 %.msan:
 	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) $(BUILD_FLAGS_msan)" BUILD_DIR="$(BUILD_DIR)$(suffix $@)"
 
+# Feature flag patterns
+%.grpc:
+	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) -DENABLE_GRPC=ON" BUILD_DIR="$(BUILD_DIR)$(suffix $@)"
+
+%.coverage:
+	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) -DENABLE_COVERAGE=ON" BUILD_DIR="$(BUILD_DIR)$(suffix $@)"
+
+%.profile:
+	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) -DENABLE_PROFILING=ON" BUILD_DIR="$(BUILD_DIR)$(suffix $@)"
+
+%.fuzz:
+	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) -DENABLE_FUZZING=ON" BUILD_DIR="$(BUILD_DIR)$(suffix $@)"
+
 %.debug:
 	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) $(BUILD_FLAGS_debug)" BUILD_DIR="$(BUILD_DIR)$(suffix $@)" BUILD_TYPE=Debug
 
@@ -205,6 +218,12 @@ help:
 	@echo "  make debug.msan         Build debug with MSan (build/debug.msan)"
 	@echo "  make release.msan       Build release with MSan (build/release.msan)"
 	@echo ""
+	@echo "Feature Flags:"
+	@echo "  make debug.grpc         Build debug with gRPC (build/debug.grpc)"
+	@echo "  make debug.coverage     Build debug with coverage (build/debug.coverage)"
+	@echo "  make debug.profile      Build debug with profiling (build/debug.profile)"
+	@echo "  make debug.fuzz         Build debug with fuzzing (build/debug.fuzz)"
+	@echo ""
 	@echo "Lint & Format:"
 	@echo "  make lint               Run all linters"
 	@echo "  make lint-clang-tidy    Run clang-tidy only"
@@ -229,4 +248,3 @@ help:
 	@echo "  make clean  		 Clean all builds"
 	@echo "  make clean.debug 	 Clean debug build"
 	@echo "  make clean.release.tsan Clean release thread sanitizer build"
-
