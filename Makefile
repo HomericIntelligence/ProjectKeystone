@@ -540,30 +540,6 @@ docker-shell: docker-up
 %.release: $(BUILD_TYPE)
 	@$(MAKE) $* BUILD_TYPE=Release
 
-# Combined sanitizer patterns with build types
-debug.ubsan: debug
-	@$(MAKE) debug BUILD_FLAGS="$(BUILD_FLAGS_debug) $(BUILD_FLAGS_ubsan)"
-
-release.ubsan: release
-	@$(MAKE) release BUILD_FLAGS="$(BUILD_FLAGS_release) $(BUILD_FLAGS_ubsan)"
-
-debug.lsan: debug
-	@$(MAKE) debug BUILD_FLAGS="$(BUILD_FLAGS_debug) $(BUILD_FLAGS_lsan)"
-
-release.lsan: release
-	@$(MAKE) release BUILD_FLAGS="$(BUILD_FLAGS_release) $(BUILD_FLAGS_lsan)"
-
-debug.tsan: debug
-	@$(MAKE) debug BUILD_FLAGS="$(BUILD_FLAGS_debug) $(BUILD_FLAGS_tsan)"
-
-release.tsan: release
-	@$(MAKE) release BUILD_FLAGS="$(BUILD_FLAGS_release) $(BUILD_FLAGS_tsan)"
-
-debug.msan: debug
-	@$(MAKE) debug BUILD_FLAGS="$(BUILD_FLAGS_debug) $(BUILD_FLAGS_msan)"
-
-release.msan: debug
-	@$(MAKE) debug BUILD_FLAGS="$(BUILD_FLAGS_debug) $(BUILD_FLAGS_msan)"
 
 # ============================================================================
 # CI/CD Helper Recipes
