@@ -517,6 +517,54 @@ docker-shell: docker-up
 %.native:
 	@$(MAKE) $* NATIVE=1
 
+# Sanitizer pattern rules - append sanitizer flags to existing targets
+%.asan: $(BUILD_TYPE)
+	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) $(BUILD_FLAGS_asan)"
+
+%.ubsan: $(BUILD_TYPE)
+	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) $(BUILD_FLAGS_ubsan)"
+
+%.lsan: $(BUILD_TYPE)
+	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) $(BUILD_FLAGS_lsan)"
+
+%.tsan: $(BUILD_TYPE)
+	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) $(BUILD_FLAGS_tsan)"
+
+%.msan: $(BUILD_TYPE)
+	@$(MAKE) $* BUILD_FLAGS="$(BUILD_FLAGS) $(BUILD_FLAGS_msan)"
+
+# Build type pattern rules - override build type
+%.debug: $(BUILD_TYPE)
+	@$(MAKE) $* BUILD_TYPE=Debug
+
+%.release: $(BUILD_TYPE)
+	@$(MAKE) $* BUILD_TYPE=Release
+
+# Combined sanitizer patterns with build types
+debug.ubsan: debug
+	@$(MAKE) debug BUILD_FLAGS="$(BUILD_FLAGS_debug) $(BUILD_FLAGS_ubsan)"
+
+release.ubsan: release
+	@$(MAKE) release BUILD_FLAGS="$(BUILD_FLAGS_release) $(BUILD_FLAGS_ubsan)"
+
+debug.lsan: debug
+	@$(MAKE) debug BUILD_FLAGS="$(BUILD_FLAGS_debug) $(BUILD_FLAGS_lsan)"
+
+release.lsan: release
+	@$(MAKE) release BUILD_FLAGS="$(BUILD_FLAGS_release) $(BUILD_FLAGS_lsan)"
+
+debug.tsan: debug
+	@$(MAKE) debug BUILD_FLAGS="$(BUILD_FLAGS_debug) $(BUILD_FLAGS_tsan)"
+
+release.tsan: release
+	@$(MAKE) release BUILD_FLAGS="$(BUILD_FLAGS_release) $(BUILD_FLAGS_tsan)"
+
+debug.msan: debug
+	@$(MAKE) debug BUILD_FLAGS="$(BUILD_FLAGS_debug) $(BUILD_FLAGS_msan)"
+
+release.msan: debug
+	@$(MAKE) debug BUILD_FLAGS="$(BUILD_FLAGS_debug) $(BUILD_FLAGS_msan)"
+
 # ============================================================================
 # CI/CD Helper Recipes
 # ============================================================================
@@ -543,7 +591,7 @@ pre-commit: format-check lint-clang-tidy test-basic
 
 help:
 	@echo "ProjectKeystone Makefile"
-	@echo "Simple build system with debug, release, and asan modes"
+	@echo "Simple build system with debug, release, and sanitizer modes"
 	@echo ""
 	@echo "Usage: make <target>"
 	@echo ""
@@ -553,6 +601,20 @@ help:
 	@echo "  make debug.asan         Build debug with ASan (build/debug.asan)"
 	@echo "  make release.asan       Build release with ASan (build/release.asan)"
 	@echo "  make build-all          Build all modes"
+	@echo ""
+	@echo "Sanitizer Patterns:"
+	@echo "  make debug.ubsan        Build debug with UBSan (build/debug.ubsan)"
+	@echo "  make release.ubsan      Build release with UBSan (build/release.ubsan)"
+	@echo "  make debug.lsan         Build debug with LSan (build/debug.lsan)"
+	@echo "  make release.lsan       Build release with LSan (build/release.lsan)"
+	@echo "  make debug.tsan         Build debug with TSan (build/debug.tsan)"
+	@echo "  make release.tsan       Build release with TSan (build/release.tsan)"
+	@echo "  make debug.msan         Build debug with MSan (build/debug.msan)"
+	@echo "  make release.msan       Build release with MSan (build/release.msan)"
+	@echo ""
+	@echo "Build Type Patterns:"
+	@echo "  make test.debug         Run tests with Debug build type"
+	@echo "  make test.release       Run tests with Release build type"
 	@echo ""
 	@echo "Test Commands:"
 	@echo "  make test               Run all tests (debug)"
@@ -570,6 +632,22 @@ help:
 	@echo "  make test-async.asan    Run async delegation tests with ASan (debug.asan)"
 	@echo "  make test-unit.asan     Run unit tests with ASan (debug.asan)"
 	@echo "  make test-all.asan      Run all tests with ASan (debug.asan)"
+	@echo ""
+	@echo "  make test.ubsan         Run all tests with UBSan (debug.ubsan)"
+	@echo "  make test-basic.ubsan   Run basic delegation tests with UBSan (debug.ubsan)"
+	@echo "  make test-module.ubsan  Run module coordination tests with UBSan (debug.ubsan)"
+	@echo "  make test-component.ubsan Run component coordination tests with UBSan (debug.ubsan)"
+	@echo "  make test-async.ubsan   Run async delegation tests with UBSan (debug.ubsan)"
+	@echo "  make test-unit.ubsan    Run unit tests with UBSan (debug.ubsan)"
+	@echo "  make test-all.ubsan     Run all tests with UBSan (debug.ubsan)"
+	@echo ""
+	@echo "  make test.tsan          Run all tests with TSan (debug.tsan)"
+	@echo "  make test-basic.tsan    Run basic delegation tests with TSan (debug.tsan)"
+	@echo "  make test-module.tsan   Run module coordination tests with TSan (debug.tsan)"
+	@echo "  make test-component.tsan Run component coordination tests with TSan (debug.tsan)"
+	@echo "  make test-async.tsan    Run async delegation tests with TSan (debug.tsan)"
+	@echo "  make test-unit.tsan     Run unit tests with TSan (debug.tsan)"
+	@echo "  make test-all.tsan      Run all tests with TSan (debug.tsan)"
 	@echo ""
 	@echo "  make test-filter BUILD=<build> SUITE=<suite> FILTER=<filter>"
 	@echo "                          Run test with GTest filter"
@@ -596,14 +674,16 @@ help:
 	@echo "  make docker-down        Stop containers"
 	@echo "  make docker-shell       Enter dev container"
 	@echo ""
+	@echo "Native Mode:"
+	@echo "  Add '.native' suffix to any target to run on host system"
+	@echo "  Examples:"
+	@echo "    make debug.native     Build debug mode on host"
+	@echo "    make test.ubsan.native Run UBSan tests on host"
+	@echo "    make benchmark.tsan.native Run TSan benchmarks on host"
+	@echo ""
 	@echo "Clean:"
 	@echo "  make clean BUILD=<build>  Clean specific build dir"
 	@echo "  make clean-all          Clean all build dirs"
-	@echo ""
-	@echo "Native Mode:"
-	@echo "  Add 'native-' prefix or set NATIVE=1"
-	@echo "  Example: make native-debug"
-	@echo "           NATIVE=1 make debug"
 	@echo ""
 	@echo "CI/CD:"
 	@echo "  make ci                 Full CI pipeline"
