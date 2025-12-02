@@ -22,7 +22,7 @@ namespace core {
  * @return Sanitized error message safe for external consumption
  */
 inline std::string sanitizeErrorMessage(const std::string& error_message,
-                                         bool production_mode = false) {
+                                        bool production_mode = false) {
   std::string sanitized = error_message;
 
   // 1. Remove file paths (e.g., /path/to/file.cpp:123)
@@ -69,8 +69,8 @@ inline std::string sanitizeErrorMessage(const std::string& error_message,
  * @return Sanitized error message suitable for external responses
  */
 inline std::string createSafeErrorResponse(const std::string& original_error,
-                                            const std::string& user_facing_context = "",
-                                            bool production_mode = false) {
+                                           const std::string& user_facing_context = "",
+                                           bool production_mode = false) {
   std::string sanitized = sanitizeErrorMessage(original_error, production_mode);
 
   if (!user_facing_context.empty()) {

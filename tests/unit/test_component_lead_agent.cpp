@@ -11,12 +11,12 @@
  * Total: 12 tests
  */
 
-#include <gtest/gtest.h>
-
 #include "agents/component_lead_agent.hpp"
 #include "agents/module_lead_agent.hpp"
 #include "core/message_bus.hpp"
 #include "unit/agent_test_fixture.hpp"
+
+#include <gtest/gtest.h>
 
 using namespace keystone;
 using namespace keystone::test;
@@ -52,8 +52,7 @@ TEST_F(ComponentLeadAgentTest, DecomposeComponentIntoModules) {
   component->setAvailableModuleLeads(module_ids);
 
   // Send component goal
-  auto msg = core::KeystoneMessage::create("chief", "component_1",
-                                            "build feature X");
+  auto msg = core::KeystoneMessage::create("chief", "component_1", "build feature X");
   component->receiveMessage(msg);
 
   auto received = component->getMessage();
@@ -151,8 +150,8 @@ TEST_F(ComponentLeadAgentTest, CoordinateWithPartialFailures) {
   component->setAvailableModuleLeads(module_ids);
 
   // Try to send to both (one will fail routing)
-  EXPECT_NO_THROW(component->sendMessage(
-      core::KeystoneMessage::create("component_1", "module_1", "goal1")));
+  EXPECT_NO_THROW(
+      component->sendMessage(core::KeystoneMessage::create("component_1", "module_1", "goal1")));
   EXPECT_NO_THROW(component->sendMessage(
       core::KeystoneMessage::create("component_1", "module_2", "goal2")));  // Will fail routing
 }
@@ -240,8 +239,7 @@ TEST_F(ComponentLeadAgentTest, ConcurrentCoordination) {
 
   // Send many messages concurrently
   for (int i = 0; i < 50; ++i) {
-    auto msg = core::KeystoneMessage::create("sender", "component_1",
-                                              "cmd" + std::to_string(i));
+    auto msg = core::KeystoneMessage::create("sender", "component_1", "cmd" + std::to_string(i));
     EXPECT_NO_THROW(component->receiveMessage(msg));
   }
 

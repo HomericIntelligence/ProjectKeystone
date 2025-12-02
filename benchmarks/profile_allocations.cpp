@@ -5,8 +5,9 @@
  * Runs a focused workload for memory profiling
  */
 
-#include <vector>
 #include "core/message.hpp"
+
+#include <vector>
 
 using namespace keystone::core;
 
@@ -20,8 +21,7 @@ int main() {
   // Create many messages (typical hot path)
   for (int i = 0; i < num_messages; ++i) {
     messages.push_back(
-        KeystoneMessage::create("sender-agent-001", "receiver-agent-002",
-                                "EXECUTE"));
+        KeystoneMessage::create("sender-agent-001", "receiver-agent-002", "EXECUTE"));
   }
 
   // Clear to measure deallocation
@@ -29,7 +29,9 @@ int main() {
 
   // Test with payloads
   for (int i = 0; i < num_messages; ++i) {
-    auto msg = KeystoneMessage::create("sender", "receiver", "EXECUTE",
+    auto msg = KeystoneMessage::create("sender",
+                                       "receiver",
+                                       "EXECUTE",
                                        "payload-data-" + std::to_string(i));
     messages.push_back(std::move(msg));
   }

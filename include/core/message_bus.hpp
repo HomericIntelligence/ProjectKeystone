@@ -1,5 +1,11 @@
 #pragma once
 
+#include "agent_id_interning.hpp"
+#include "i_agent_registry.hpp"
+#include "i_message_router.hpp"
+#include "i_scheduler_integration.hpp"
+#include "message.hpp"
+
 #include <atomic>
 #include <memory>
 #include <mutex>
@@ -7,15 +13,17 @@
 #include <unordered_map>
 #include <vector>
 
-#include "message.hpp"
-#include "i_agent_registry.hpp"
-#include "i_message_router.hpp"
-#include "i_scheduler_integration.hpp"
-#include "agent_id_interning.hpp"
-
 // Forward declarations (must be outside namespace keystone to avoid nesting)
-namespace keystone { namespace agents { class AgentCore; } }
-namespace keystone { namespace concurrency { class WorkStealingScheduler; } }
+namespace keystone {
+namespace agents {
+class AgentCore;
+}
+}  // namespace keystone
+namespace keystone {
+namespace concurrency {
+class WorkStealingScheduler;
+}
+}  // namespace keystone
 
 // Include concepts for compile-time agent interface verification
 #include "agents/concepts.hpp"
@@ -41,9 +49,7 @@ namespace core {
  * interface they need (IAgentRegistry for setup, IMessageRouter for routing,
  * ISchedulerIntegration for async configuration).
  */
-class MessageBus : public IAgentRegistry,
-                   public IMessageRouter,
-                   public ISchedulerIntegration {
+class MessageBus : public IAgentRegistry, public IMessageRouter, public ISchedulerIntegration {
  public:
   MessageBus() = default;
   ~MessageBus() = default;

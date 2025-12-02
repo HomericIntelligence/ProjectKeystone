@@ -55,8 +55,7 @@ struct Config {
    *
    * Default: 100ms (guarantees max 100ms latency for low-priority messages)
    */
-  static constexpr std::chrono::milliseconds AGENT_LOW_PRIORITY_CHECK_INTERVAL{
-      100};
+  static constexpr std::chrono::milliseconds AGENT_LOW_PRIORITY_CHECK_INTERVAL{100};
 
   // ========================================================================
   // Metrics Configuration
@@ -150,11 +149,10 @@ struct Config {
                       AGENT_QUEUE_LOW_WATERMARK_PERCENT <= 1.0,
                   "AGENT_QUEUE_LOW_WATERMARK_PERCENT must be in range [0.0, 1.0]");
 
-    constexpr size_t result =
-        static_cast<size_t>(AGENT_MAX_QUEUE_SIZE * AGENT_QUEUE_LOW_WATERMARK_PERCENT);
+    constexpr size_t result = static_cast<size_t>(AGENT_MAX_QUEUE_SIZE *
+                                                  AGENT_QUEUE_LOW_WATERMARK_PERCENT);
 
-    static_assert(result < AGENT_MAX_QUEUE_SIZE,
-                  "Low watermark must be less than max queue size");
+    static_assert(result < AGENT_MAX_QUEUE_SIZE, "Low watermark must be less than max queue size");
 
     return result;
   }
@@ -165,8 +163,7 @@ struct Config {
    * @return Interval in nanoseconds
    */
   static constexpr int64_t getLowPriorityCheckIntervalNs() {
-    return std::chrono::duration_cast<std::chrono::nanoseconds>(
-               AGENT_LOW_PRIORITY_CHECK_INTERVAL)
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(AGENT_LOW_PRIORITY_CHECK_INTERVAL)
         .count();
   }
 

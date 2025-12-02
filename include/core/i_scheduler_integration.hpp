@@ -39,8 +39,7 @@ class ISchedulerIntegration {
    * @param scheduler Pointer to scheduler (must outlive this object, can be
    * nullptr)
    */
-  virtual void setScheduler(
-      concurrency::WorkStealingScheduler* scheduler) = 0;
+  virtual void setScheduler(concurrency::WorkStealingScheduler* scheduler) = 0;
 
   /**
    * @brief Get the current scheduler

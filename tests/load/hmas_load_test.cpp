@@ -17,6 +17,13 @@
  *   ./hmas_load_test --all-scenarios
  */
 
+#include "agents/chief_architect_agent.hpp"
+#include "agents/component_lead_agent.hpp"
+#include "agents/module_lead_agent.hpp"
+#include "agents/task_agent.hpp"
+#include "core/message_bus.hpp"
+#include "core/metrics.hpp"
+
 #include <atomic>
 #include <chrono>
 #include <fstream>
@@ -28,13 +35,6 @@
 #include <random>
 #include <thread>
 #include <vector>
-
-#include "agents/chief_architect_agent.hpp"
-#include "agents/component_lead_agent.hpp"
-#include "agents/module_lead_agent.hpp"
-#include "agents/task_agent.hpp"
-#include "core/message_bus.hpp"
-#include "core/metrics.hpp"
 
 using namespace keystone;
 using namespace std::chrono_literals;
@@ -110,9 +110,10 @@ class MessageGenerator {
   }
 
   core::KeystoneMessage createMessage() {
-    auto msg = core::KeystoneMessage::create(
-        "load_generator", "chief_architect",
-        "echo test_" + std::to_string(total_generated_.load()));
+    auto msg = core::KeystoneMessage::create("load_generator",
+                                             "chief_architect",
+                                             "echo test_" +
+                                                 std::to_string(total_generated_.load()));
 
     // Assign priority based on distribution
     double rand_val = priority_dist_(gen_);
@@ -232,8 +233,8 @@ class LoadTestHarness {
 
     // Create Component Leads (L1)
     for (int i = 0; i < config_.num_component_leads; ++i) {
-      auto comp = std::make_shared<agents::ComponentLeadAgent>(
-          "component_lead_" + std::to_string(i));
+      auto comp = std::make_shared<agents::ComponentLeadAgent>("component_lead_" +
+                                                               std::to_string(i));
       comp->setMessageBus(message_bus_.get());
       message_bus_->registerAgent(comp->getAgentId(), comp);
       component_leads_.push_back(comp);
@@ -241,8 +242,7 @@ class LoadTestHarness {
 
     // Create Module Leads (L2)
     for (int i = 0; i < config_.num_module_leads; ++i) {
-      auto mod = std::make_shared<agents::ModuleLeadAgent>(
-          "module_lead_" + std::to_string(i));
+      auto mod = std::make_shared<agents::ModuleLeadAgent>("module_lead_" + std::to_string(i));
       mod->setMessageBus(message_bus_.get());
       message_bus_->registerAgent(mod->getAgentId(), mod);
       module_leads_.push_back(mod);
@@ -258,8 +258,7 @@ class LoadTestHarness {
 
     // Create Task Agents (L3)
     for (int i = 0; i < config_.num_task_agents; ++i) {
-      auto task = std::make_shared<agents::TaskAgent>(
-          "task_agent_" + std::to_string(i));
+      auto task = std::make_shared<agents::TaskAgent>("task_agent_" + std::to_string(i));
       task->setMessageBus(message_bus_.get());
       message_bus_->registerAgent(task->getAgentId(), task);
       task_agents_.push_back(task);
@@ -309,7 +308,8 @@ class LoadTestHarness {
 
       // Show progress
       auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(
-          std::chrono::steady_clock::now() - start_time).count();
+                         std::chrono::steady_clock::now() - start_time)
+                         .count();
       int progress = (elapsed * 100) / config_.duration_seconds;
       if (progress > last_progress && progress % 10 == 0) {
         std::cout << "Progress: " << progress << "% (" << elapsed << "s)\n";
@@ -349,8 +349,7 @@ class LoadTestHarness {
 
  private:
   int getTotalAgents() const {
-    return 1 + config_.num_component_leads +
-           config_.num_module_leads + config_.num_task_agents;
+    return 1 + config_.num_component_leads + config_.num_module_leads + config_.num_task_agents;
   }
 
   void processGeneratorQueue(MessageGenerator& generator) {
@@ -385,23 +384,18 @@ class LoadTestHarness {
     auto prio_stats = metrics.getPriorityStats();
     std::cout << "\nPriority Distribution:\n";
     std::cout << "  HIGH: " << prio_stats.high_count << " ("
-              << (prio_stats.high_count * 100.0 / metrics.getTotalMessagesSent())
-              << "%)\n";
+              << (prio_stats.high_count * 100.0 / metrics.getTotalMessagesSent()) << "%)\n";
     std::cout << "  NORMAL: " << prio_stats.normal_count << " ("
-              << (prio_stats.normal_count * 100.0 / metrics.getTotalMessagesSent())
-              << "%)\n";
+              << (prio_stats.normal_count * 100.0 / metrics.getTotalMessagesSent()) << "%)\n";
     std::cout << "  LOW: " << prio_stats.low_count << " ("
-              << (prio_stats.low_count * 100.0 / metrics.getTotalMessagesSent())
-              << "%)\n";
+              << (prio_stats.low_count * 100.0 / metrics.getTotalMessagesSent()) << "%)\n";
 
     std::cout << "\nThroughput:\n";
-    std::cout << "  Average: " << metrics.getMessagesPerSecond()
-              << " msg/s\n";
+    std::cout << "  Average: " << metrics.getMessagesPerSecond() << " msg/s\n";
 
     auto latency = metrics.getAverageLatencyUs();
     std::cout << "\nLatency:\n";
-    std::cout << "  Average: "
-              << (latency.value_or(0.0) / 1000.0) << " ms\n";
+    std::cout << "  Average: " << (latency.value_or(0.0) / 1000.0) << " ms\n";
 
     std::cout << "\nQueue Depth:\n";
     std::cout << "  Maximum: " << metrics.getMaxQueueDepth() << " messages\n";
@@ -525,8 +519,7 @@ LoadTestConfig parseArgs(int argc, char** argv) {
     auto time_t = std::chrono::system_clock::to_time_t(now);
     std::stringstream ss;
     ss << "results/" << config.scenario << "_"
-       << std::put_time(std::localtime(&time_t), "%Y%m%d_%H%M%S")
-       << ".json";
+       << std::put_time(std::localtime(&time_t), "%Y%m%d_%H%M%S") << ".json";
     config.output_file = ss.str();
   }
 

@@ -9,9 +9,9 @@
  * - Compile-time errors for incomplete interfaces
  */
 
-#include "agents/concepts.hpp"
 #include "agents/chief_architect_agent.hpp"
 #include "agents/component_lead_agent.hpp"
+#include "agents/concepts.hpp"
 #include "agents/module_lead_agent.hpp"
 #include "agents/task_agent.hpp"
 #include "core/message_bus.hpp"
@@ -34,12 +34,9 @@ using namespace keystone::agents;
 TEST(AgentConcepts, ConcreteAgentsSatisfyAgentConcept) {
   // These will fail at compile time if the concept is not satisfied
   static_assert(Agent<TaskAgent>, "TaskAgent should satisfy Agent concept");
-  static_assert(Agent<ChiefArchitectAgent>,
-                "ChiefArchitectAgent should satisfy Agent concept");
-  static_assert(Agent<ModuleLeadAgent>,
-                "ModuleLeadAgent should satisfy Agent concept");
-  static_assert(Agent<ComponentLeadAgent>,
-                "ComponentLeadAgent should satisfy Agent concept");
+  static_assert(Agent<ChiefArchitectAgent>, "ChiefArchitectAgent should satisfy Agent concept");
+  static_assert(Agent<ModuleLeadAgent>, "ModuleLeadAgent should satisfy Agent concept");
+  static_assert(Agent<ComponentLeadAgent>, "ComponentLeadAgent should satisfy Agent concept");
 
   // Runtime assertion to satisfy gtest
   EXPECT_TRUE(true);
@@ -51,23 +48,19 @@ TEST(AgentConcepts, ConcreteAgentsSatisfyAgentConcept) {
 TEST(AgentConcepts, AgentsSatisfySubConcepts) {
   // Identifiable
   static_assert(Identifiable<TaskAgent>, "TaskAgent should be Identifiable");
-  static_assert(Identifiable<ChiefArchitectAgent>,
-                "ChiefArchitectAgent should be Identifiable");
+  static_assert(Identifiable<ChiefArchitectAgent>, "ChiefArchitectAgent should be Identifiable");
 
   // MessageSender
   static_assert(MessageSender<TaskAgent>, "TaskAgent should be MessageSender");
-  static_assert(MessageSender<ChiefArchitectAgent>,
-                "ChiefArchitectAgent should be MessageSender");
+  static_assert(MessageSender<ChiefArchitectAgent>, "ChiefArchitectAgent should be MessageSender");
 
   // MessageReceiver
-  static_assert(MessageReceiver<TaskAgent>,
-                "TaskAgent should be MessageReceiver");
+  static_assert(MessageReceiver<TaskAgent>, "TaskAgent should be MessageReceiver");
   static_assert(MessageReceiver<ChiefArchitectAgent>,
                 "ChiefArchitectAgent should be MessageReceiver");
 
   // AsyncMessageHandler
-  static_assert(AsyncMessageHandler<TaskAgent>,
-                "TaskAgent should be AsyncMessageHandler");
+  static_assert(AsyncMessageHandler<TaskAgent>, "TaskAgent should be AsyncMessageHandler");
   static_assert(AsyncMessageHandler<ChiefArchitectAgent>,
                 "ChiefArchitectAgent should be AsyncMessageHandler");
 
@@ -80,20 +73,17 @@ TEST(AgentConcepts, AgentsSatisfySubConcepts) {
  */
 TEST(AgentConcepts, AgentsSatisfyIntegrationConcepts) {
   // SchedulerAware
-  static_assert(SchedulerAware<TaskAgent>,
-                "TaskAgent should be SchedulerAware");
+  static_assert(SchedulerAware<TaskAgent>, "TaskAgent should be SchedulerAware");
   static_assert(SchedulerAware<ChiefArchitectAgent>,
                 "ChiefArchitectAgent should be SchedulerAware");
 
   // MessageBusAware
-  static_assert(MessageBusAware<TaskAgent>,
-                "TaskAgent should be MessageBusAware");
+  static_assert(MessageBusAware<TaskAgent>, "TaskAgent should be MessageBusAware");
   static_assert(MessageBusAware<ChiefArchitectAgent>,
                 "ChiefArchitectAgent should be MessageBusAware");
 
   // IntegratedAgent
-  static_assert(IntegratedAgent<TaskAgent>,
-                "TaskAgent should be IntegratedAgent");
+  static_assert(IntegratedAgent<TaskAgent>, "TaskAgent should be IntegratedAgent");
   static_assert(IntegratedAgent<ChiefArchitectAgent>,
                 "ChiefArchitectAgent should be IntegratedAgent");
 
@@ -299,8 +289,7 @@ TEST(AgentConcepts, CompileErrorMissingSendMessage) {
  */
 TEST(AgentConcepts, UsageDocumentation) {
   // Example 1: Generic function accepting any Agent type
-  auto register_any_agent = []<Agent A>(MessageBus& bus,
-                                        std::shared_ptr<A> agent) {
+  auto register_any_agent = []<Agent A>(MessageBus& bus, std::shared_ptr<A> agent) {
     bus.registerAgent(agent);
   };
 

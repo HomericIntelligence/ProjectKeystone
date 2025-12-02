@@ -49,13 +49,12 @@ TEST(E2E_PhaseB, AsyncAgentCoroutineWorkflow) {
   bus.registerAgent(agent3->getAgentId(), agent3);
 
   // Send commands to all agents
-  std::vector<std::pair<TaskAgent*, std::string>> commands = {
-      {agent1.get(), "echo $((10 + 5))"},
-      {agent2.get(), "echo $((20 * 3))"},
-      {agent3.get(), "echo $((100 - 25))"},
-      {agent1.get(), "echo hello"},
-      {agent2.get(), "echo world"},
-      {agent3.get(), "echo async"}};
+  std::vector<std::pair<TaskAgent*, std::string>> commands = {{agent1.get(), "echo $((10 + 5))"},
+                                                              {agent2.get(), "echo $((20 * 3))"},
+                                                              {agent3.get(), "echo $((100 - 25))"},
+                                                              {agent1.get(), "echo hello"},
+                                                              {agent2.get(), "echo world"},
+                                                              {agent3.get(), "echo async"}};
 
   for (const auto& [agent, cmd] : commands) {
     auto msg = KeystoneMessage::create("test", agent->getAgentId(), cmd);

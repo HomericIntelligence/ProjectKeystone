@@ -1,11 +1,12 @@
 #pragma once
 
-#include <gtest/gtest.h>
+#include "core/message_bus.hpp"
+#include "mocks/mock_agents.hpp"
+#include "mocks/mock_message_bus.hpp"
+
 #include <memory>
 
-#include "core/message_bus.hpp"
-#include "mocks/mock_message_bus.hpp"
-#include "mocks/mock_agents.hpp"
+#include <gtest/gtest.h>
 
 namespace keystone::test {
 
@@ -22,9 +23,7 @@ class AgentTestFixture : public ::testing::Test {
     bus_ = std::make_unique<core::MessageBus>();
   }
 
-  void TearDown() override {
-    bus_.reset();
-  }
+  void TearDown() override { bus_.reset(); }
 
   std::unique_ptr<core::MessageBus> bus_;
 };

@@ -6,8 +6,7 @@
 namespace keystone::network {
 
 // Parse YAML string
-std::optional<HierarchicalTaskSpec> YamlParser::parseTaskSpec(
-    const std::string& yaml_str) {
+std::optional<HierarchicalTaskSpec> YamlParser::parseTaskSpec(const std::string& yaml_str) {
   try {
     YAML::Node node = YAML::Load(yaml_str);
     return parseTaskSpec(node);
@@ -17,8 +16,7 @@ std::optional<HierarchicalTaskSpec> YamlParser::parseTaskSpec(
 }
 
 // Parse YAML node
-std::optional<HierarchicalTaskSpec> YamlParser::parseTaskSpec(
-    const YAML::Node& node) {
+std::optional<HierarchicalTaskSpec> YamlParser::parseTaskSpec(const YAML::Node& node) {
   if (!validateTaskSpec(node)) {
     return std::nullopt;
   }
@@ -93,8 +91,7 @@ bool YamlParser::validateTaskSpec(const YAML::Node& node) {
   }
 
   // Check required top-level fields
-  if (!node["apiVersion"] || !node["kind"] || !node["metadata"] ||
-      !node["spec"]) {
+  if (!node["apiVersion"] || !node["kind"] || !node["metadata"] || !node["spec"]) {
     return false;
   }
 
@@ -106,8 +103,7 @@ bool YamlParser::validateTaskSpec(const YAML::Node& node) {
 
   // Check required spec fields
   const auto& spec = node["spec"];
-  if (!spec["routing"] || !spec["hierarchy"] || !spec["action"] ||
-      !spec["payload"]) {
+  if (!spec["routing"] || !spec["hierarchy"] || !spec["action"] || !spec["payload"]) {
     return false;
   }
 
@@ -115,8 +111,7 @@ bool YamlParser::validateTaskSpec(const YAML::Node& node) {
 }
 
 // Parse duration string (e.g., "15m", "2h", "30s")
-std::optional<int64_t> YamlParser::parseDuration(
-    const std::string& duration_str) {
+std::optional<int64_t> YamlParser::parseDuration(const std::string& duration_str) {
   std::regex duration_regex(R"((\d+)(ms|s|m|h))");
   std::smatch match;
 
@@ -229,8 +224,7 @@ TaskPayload YamlParser::parsePayload(const YAML::Node& node) {
     payload.data = node["data"].as<std::string>();
   }
   if (node["metadata"] && node["metadata"]["estimatedDuration"]) {
-    payload.estimated_duration =
-        node["metadata"]["estimatedDuration"].as<std::string>();
+    payload.estimated_duration = node["metadata"]["estimatedDuration"].as<std::string>();
   }
   if (node["metadata"] && node["metadata"]["requiredCapabilities"]) {
     for (const auto& cap : node["metadata"]["requiredCapabilities"]) {
@@ -411,8 +405,7 @@ YAML::Node YamlParser::generatePayload(const TaskPayload& payload) {
     node["data"] = payload.data;
   }
 
-  if (payload.estimated_duration.has_value() ||
-      !payload.required_capabilities.empty()) {
+  if (payload.estimated_duration.has_value() || !payload.required_capabilities.empty()) {
     YAML::Node metadata;
 
     if (payload.estimated_duration.has_value()) {
@@ -452,8 +445,7 @@ YAML::Node YamlParser::generateTasks(const std::vector<SubtaskSpec>& tasks) {
 }
 
 // Generate aggregation
-YAML::Node YamlParser::generateAggregation(
-    const AggregationConfig& aggregation) {
+YAML::Node YamlParser::generateAggregation(const AggregationConfig& aggregation) {
   YAML::Node node;
   node["strategy"] = aggregation.strategy;
   node["timeout"] = aggregation.timeout;
@@ -496,8 +488,7 @@ YAML::Node YamlParser::generateStatus(const TaskStatus& status) {
 }
 
 // Generate subtasks
-YAML::Node YamlParser::generateSubtasks(
-    const std::vector<SubtaskStatus>& subtasks) {
+YAML::Node YamlParser::generateSubtasks(const std::vector<SubtaskStatus>& subtasks) {
   YAML::Node node;
 
   for (const auto& subtask : subtasks) {

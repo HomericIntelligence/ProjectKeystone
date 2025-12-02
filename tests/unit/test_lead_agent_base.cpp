@@ -12,12 +12,12 @@
  * Total: 22 tests
  */
 
-#include <gtest/gtest.h>
-
 #include "agents/lead_agent_base.hpp"
 #include "agents/lead_agent_base_impl.hpp"
 #include "core/message_bus.hpp"
 #include "unit/agent_test_fixture.hpp"
+
+#include <gtest/gtest.h>
 
 using namespace keystone;
 using namespace keystone::test;
@@ -26,13 +26,7 @@ using namespace keystone::test;
 // Test State Enum
 // ============================================================================
 
-enum class TestLeadState {
-  IDLE,
-  PLANNING,
-  WAITING_FOR_SUBORDINATES,
-  AGGREGATING,
-  ERROR
-};
+enum class TestLeadState { IDLE, PLANNING, WAITING_FOR_SUBORDINATES, AGGREGATING, ERROR };
 
 // ============================================================================
 // Concrete Test Implementation of LeadAgentBase
@@ -50,11 +44,11 @@ class TestLeadAgent : public agents::LeadAgentBase<TestLeadState> {
 
   explicit TestLeadAgent(const std::string& agent_id)
       : LeadAgentBase<State>(agent_id,
-                            State::IDLE,
-                            State::PLANNING,
-                            State::WAITING_FOR_SUBORDINATES,
-                            State::AGGREGATING,
-                            State::ERROR) {}
+                             State::IDLE,
+                             State::PLANNING,
+                             State::WAITING_FOR_SUBORDINATES,
+                             State::AGGREGATING,
+                             State::ERROR) {}
 
   // Track which methods were called
   mutable std::vector<std::string> method_calls_;
@@ -176,12 +170,14 @@ TEST_F(LeadAgentBaseTest, ProcessMessageIsTemplateMethod) {
   ASSERT_GE(agent_->method_calls_.size(), 3);
 
   // Should call decomposeGoal
-  EXPECT_TRUE(std::find(agent_->method_calls_.begin(), agent_->method_calls_.end(), "decomposeGoal")
-              != agent_->method_calls_.end());
+  EXPECT_TRUE(std::find(agent_->method_calls_.begin(),
+                        agent_->method_calls_.end(),
+                        "decomposeGoal") != agent_->method_calls_.end());
 
   // Should call delegateSubtasks
-  EXPECT_TRUE(std::find(agent_->method_calls_.begin(), agent_->method_calls_.end(), "delegateSubtasks")
-              != agent_->method_calls_.end());
+  EXPECT_TRUE(std::find(agent_->method_calls_.begin(),
+                        agent_->method_calls_.end(),
+                        "delegateSubtasks") != agent_->method_calls_.end());
 
   // Should call stateToString multiple times for transitions
   size_t state_to_string_count = std::count(agent_->method_calls_.begin(),
@@ -227,8 +223,7 @@ TEST_F(LeadAgentBaseTest, TemplateMethodTransitionsStatesCorrectly) {
   concurrency::sync_await(agent_->processMessage(msg));
 
   // After processing, should be in WAITING_FOR_SUBORDINATES state
-  EXPECT_EQ(agent_->getCoordination().getCurrentState(),
-            TestLeadState::WAITING_FOR_SUBORDINATES);
+  EXPECT_EQ(agent_->getCoordination().getCurrentState(), TestLeadState::WAITING_FOR_SUBORDINATES);
 }
 
 TEST_F(LeadAgentBaseTest, TemplateMethodSetsCurrentGoal) {
@@ -337,8 +332,7 @@ TEST_F(LeadAgentBaseTest, TransitionsToPlanningWhenReceivingGoal) {
   concurrency::sync_await(agent_->processMessage(msg));
 
   // Should end in WAITING (after going through PLANNING)
-  EXPECT_EQ(agent_->getCoordination().getCurrentState(),
-            TestLeadState::WAITING_FOR_SUBORDINATES);
+  EXPECT_EQ(agent_->getCoordination().getCurrentState(), TestLeadState::WAITING_FOR_SUBORDINATES);
 }
 
 TEST_F(LeadAgentBaseTest, TransitionsToWaitingAfterDelegation) {
@@ -347,8 +341,7 @@ TEST_F(LeadAgentBaseTest, TransitionsToWaitingAfterDelegation) {
   concurrency::sync_await(agent_->processMessage(msg));
 
   // After delegation, should be waiting for subordinates
-  EXPECT_EQ(agent_->getCoordination().getCurrentState(),
-            TestLeadState::WAITING_FOR_SUBORDINATES);
+  EXPECT_EQ(agent_->getCoordination().getCurrentState(), TestLeadState::WAITING_FOR_SUBORDINATES);
 }
 
 TEST_F(LeadAgentBaseTest, TransitionsToAggregatingWhenAllResultsReceived) {
@@ -356,8 +349,7 @@ TEST_F(LeadAgentBaseTest, TransitionsToAggregatingWhenAllResultsReceived) {
   auto task_msg = core::KeystoneMessage::create("requester", agent_->getAgentId(), "task1");
   concurrency::sync_await(agent_->processMessage(task_msg));
 
-  EXPECT_EQ(agent_->getCoordination().getCurrentState(),
-            TestLeadState::WAITING_FOR_SUBORDINATES);
+  EXPECT_EQ(agent_->getCoordination().getCurrentState(), TestLeadState::WAITING_FOR_SUBORDINATES);
 
   // Send result
   auto result_msg = core::KeystoneMessage::create("subordinate", agent_->getAgentId(), "result");
@@ -365,8 +357,7 @@ TEST_F(LeadAgentBaseTest, TransitionsToAggregatingWhenAllResultsReceived) {
   concurrency::sync_await(agent_->processMessage(result_msg));
 
   // Should transition to AGGREGATING when all results received
-  EXPECT_EQ(agent_->getCoordination().getCurrentState(),
-            TestLeadState::AGGREGATING);
+  EXPECT_EQ(agent_->getCoordination().getCurrentState(), TestLeadState::AGGREGATING);
 }
 
 // ============================================================================

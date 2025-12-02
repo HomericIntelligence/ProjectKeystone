@@ -1,5 +1,8 @@
 #include "agents/task_agent.hpp"
 
+#include "core/error_sanitizer.hpp"
+#include "core/metrics.hpp"
+
 #include <array>
 #include <cctype>
 #include <chrono>
@@ -10,11 +13,8 @@
 #include <thread>
 #include <unordered_set>
 
-#include "core/error_sanitizer.hpp"
-#include "core/metrics.hpp"
-
 #ifdef ENABLE_GRPC
-#include "hmas_coordinator.pb.h"
+#  include "hmas_coordinator.pb.h"
 #endif
 
 namespace keystone {
@@ -50,10 +50,11 @@ concurrency::Task<core::Response> TaskAgent::processMessage(const core::Keystone
     auto response = handleCancellation(msg);
 
     // Send acknowledgement back to sender via MessageBus
-    auto response_msg = core::KeystoneMessage::create(
-        agent_id_,
-        msg.sender_id,  // Route back to original sender
-        "response", response.result);
+    auto response_msg =
+        core::KeystoneMessage::create(agent_id_,
+                                      msg.sender_id,  // Route back to original sender
+                                      "response",
+                                      response.result);
     response_msg.msg_id = msg.msg_id;  // Keep same msg_id for tracking
 
     sendMessage(response_msg);
@@ -82,10 +83,11 @@ concurrency::Task<core::Response> TaskAgent::processMessage(const core::Keystone
     auto response = core::Response::createSuccess(msg, agent_id_, result);
 
     // Send response back to sender via MessageBus
-    auto response_msg = core::KeystoneMessage::create(
-        agent_id_,
-        msg.sender_id,  // Route back to original sender
-        "response", result);
+    auto response_msg =
+        core::KeystoneMessage::create(agent_id_,
+                                      msg.sender_id,  // Route back to original sender
+                                      "response",
+                                      result);
     response_msg.msg_id = msg.msg_id;  // Keep same msg_id for tracking
 
     // MessageBus routes it automatically
@@ -101,9 +103,10 @@ concurrency::Task<core::Response> TaskAgent::processMessage(const core::Keystone
     auto response = core::Response::createError(msg, agent_id_, sanitized_error);
 
     // Send error response back via MessageBus
-    auto response_msg =
-        core::KeystoneMessage::create(agent_id_, msg.sender_id, "response",
-                                      std::string("ERROR: ") + sanitized_error);
+    auto response_msg = core::KeystoneMessage::create(agent_id_,
+                                                      msg.sender_id,
+                                                      "response",
+                                                      std::string("ERROR: ") + sanitized_error);
     response_msg.msg_id = msg.msg_id;
 
     sendMessage(response_msg);
@@ -155,7 +158,7 @@ void TaskAgent::validateCommand(const std::string& command) {
     const std::string very_dangerous = ";|&`$<>!{}[]";  // Command injection chars
     if (args.find_first_of(very_dangerous) == std::string::npos &&
         args.find("..") == std::string::npos) {  // No directory traversal
-      return;  // SAFE: Whitelisted command with safe arguments
+      return;                                    // SAFE: Whitelisted command with safe arguments
     }
   }
 
@@ -168,7 +171,8 @@ void TaskAgent::validateCommand(const std::string& command) {
   ss << "  3. Whitelisted commands: ";
   bool first = true;
   for (const auto& cmd : ALLOWED_COMMANDS) {
-    if (!first) ss << ", ";
+    if (!first)
+      ss << ", ";
     ss << cmd;
     first = false;
   }
@@ -227,20 +231,19 @@ std::string TaskAgent::executeBash(const std::string& command) {
 #ifdef ENABLE_GRPC
 void TaskAgent::initializeGrpc(const std::string& coordinator_address,
                                const std::string& registry_address,
-                               const std::string& agent_type, int level) {
+                               const std::string& agent_type,
+                               int level) {
   agent_type_ = agent_type;
   agent_level_ = level;
 
   // Create gRPC clients
   network::GrpcClientConfig coordinator_config;
   coordinator_config.server_address = coordinator_address;
-  coordinator_client_ =
-      std::make_unique<network::HMASCoordinatorClient>(coordinator_config);
+  coordinator_client_ = std::make_unique<network::HMASCoordinatorClient>(coordinator_config);
 
   network::GrpcClientConfig registry_config;
   registry_config.server_address = registry_address;
-  registry_client_ =
-      std::make_unique<network::ServiceRegistryClient>(registry_config);
+  registry_client_ = std::make_unique<network::ServiceRegistryClient>(registry_config);
 
   // Register with ServiceRegistry
   hmas::AgentRegistration registration;
@@ -256,12 +259,10 @@ void TaskAgent::initializeGrpc(const std::string& coordinator_address,
       // Start heartbeat thread
       startHeartbeat();
     } else {
-      throw std::runtime_error("Failed to register with ServiceRegistry: " +
-                               response.message());
+      throw std::runtime_error("Failed to register with ServiceRegistry: " + response.message());
     }
   } catch (const std::exception& e) {
-    throw std::runtime_error("gRPC registration failed: " +
-                             std::string(e.what()));
+    throw std::runtime_error("gRPC registration failed: " + std::string(e.what()));
   }
 }
 
@@ -290,8 +291,7 @@ void TaskAgent::processYamlTask(const std::string& yaml_spec) {
   auto now = std::chrono::system_clock::now();
   auto time_t_now = std::chrono::system_clock::to_time_t(now);
   char time_buf[100];
-  std::strftime(time_buf, sizeof(time_buf), "%Y-%m-%dT%H:%M:%SZ",
-                std::gmtime(&time_t_now));
+  std::strftime(time_buf, sizeof(time_buf), "%Y-%m-%dT%H:%M:%SZ", std::gmtime(&time_t_now));
   spec.status.completion_time = std::string(time_buf);
 
   if (!spec.status.start_time) {
@@ -315,8 +315,7 @@ void TaskAgent::processYamlTask(const std::string& yaml_spec) {
       coordinator_client_->submitResult(task_result);
     } catch (const std::exception& e) {
       // Log error but don't fail the task
-      std::cerr << "Failed to submit result via gRPC: " << e.what()
-                << std::endl;
+      std::cerr << "Failed to submit result via gRPC: " << e.what() << std::endl;
     }
   }
 }

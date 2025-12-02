@@ -1,9 +1,10 @@
-#include <gtest/gtest.h>
+#include "core/agent_id_interning.hpp"
+
+#include <atomic>
 #include <thread>
 #include <vector>
-#include <atomic>
 
-#include "core/agent_id_interning.hpp"
+#include <gtest/gtest.h>
 
 using namespace keystone::core;
 
@@ -23,7 +24,7 @@ TEST(AgentIdInterningTest, InternExistingString) {
   uint32_t id1 = interning.intern("agent_1");
   uint32_t id2 = interning.intern("agent_1");
 
-  EXPECT_EQ(id1, id2);  // Should return same ID
+  EXPECT_EQ(id1, id2);             // Should return same ID
   EXPECT_EQ(interning.size(), 1);  // Only one unique string
 }
 
@@ -170,8 +171,7 @@ TEST(AgentIdInterningTest, BidirectionalConsistency) {
 
   // Intern multiple agents
   std::vector<std::string> agent_ids = {
-    "chief", "component_lead_1", "module_lead_1", "task_1", "task_2"
-  };
+      "chief", "component_lead_1", "module_lead_1", "task_1", "task_2"};
 
   for (const auto& agent_id : agent_ids) {
     interning.intern(agent_id);

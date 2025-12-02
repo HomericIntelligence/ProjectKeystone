@@ -1,12 +1,12 @@
 #pragma once
 
-#include <spdlog/fmt/fmt.h>
-#include <spdlog/sinks/stdout_color_sinks.h>
-#include <spdlog/spdlog.h>
-
 #include <memory>
 #include <string>
 #include <thread>
+
+#include <spdlog/fmt/fmt.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
+#include <spdlog/spdlog.h>
 
 namespace keystone {
 namespace concurrency {
@@ -30,8 +30,7 @@ class LogContext {
    * @param worker_id Worker thread index
    * @param session_id Session identifier
    */
-  static void set(const std::string& agent_id, int worker_id,
-                  const std::string& session_id);
+  static void set(const std::string& agent_id, int worker_id, const std::string& session_id);
 
   /**
    * @brief Clear the thread-local logging context
@@ -143,8 +142,7 @@ class Logger {
   static std::shared_ptr<spdlog::logger> logger_;
 
   template <typename... Args>
-  static void log(spdlog::level::level_enum level, const std::string& fmt,
-                  Args&&... args) {
+  static void log(spdlog::level::level_enum level, const std::string& fmt, Args&&... args) {
     if (!logger_) {
       init();
     }
@@ -154,8 +152,7 @@ class Logger {
     std::string full_fmt = context + " " + fmt;
 
     // Use runtime format to avoid compile-time format string requirement
-    logger_->log(spdlog::source_loc{}, level, fmt::runtime(full_fmt),
-                 std::forward<Args>(args)...);
+    logger_->log(spdlog::source_loc{}, level, fmt::runtime(full_fmt), std::forward<Args>(args)...);
   }
 };
 

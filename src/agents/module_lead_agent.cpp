@@ -8,7 +8,7 @@
 #include <thread>
 
 #ifdef ENABLE_GRPC
-#include "hmas_coordinator.pb.h"
+#  include "hmas_coordinator.pb.h"
 #endif
 
 namespace keystone {
@@ -16,11 +16,11 @@ namespace agents {
 
 ModuleLeadAgent::ModuleLeadAgent(const std::string& agent_id)
     : LeadAgentBase<State>(agent_id,
-                          State::IDLE,
-                          State::PLANNING,
-                          State::WAITING_FOR_TASKS,
-                          State::SYNTHESIZING,
-                          State::ERROR) {
+                           State::IDLE,
+                           State::PLANNING,
+                           State::WAITING_FOR_TASKS,
+                           State::SYNTHESIZING,
+                           State::ERROR) {
   // Base class constructor initializes coordination_ with IDLE state
 }
 
@@ -141,11 +141,12 @@ std::string ModuleLeadAgent::stateToString(State state) const {
 #ifdef ENABLE_GRPC
 void ModuleLeadAgent::initializeGrpc(const std::string& coordinator_address,
                                      const std::string& registry_address,
-                                     const std::string& agent_type, int level) {
+                                     const std::string& agent_type,
+                                     int level) {
   // Delegate gRPC initialization to coordination template
   std::vector<std::string> capabilities = {"task_coordination", "result_synthesis"};
-  coordination_.initializeGrpc(agent_id_, coordinator_address, registry_address,
-                               agent_type, level, capabilities, 5);
+  coordination_.initializeGrpc(
+      agent_id_, coordinator_address, registry_address, agent_type, level, capabilities, 5);
 }
 
 void ModuleLeadAgent::processYamlModule(const std::string& yaml_spec) {
@@ -222,8 +223,7 @@ void ModuleLeadAgent::processYamlModule(const std::string& yaml_spec) {
     child_spec.api_version = "v1";
     child_spec.kind = "HierarchicalTask";
     child_spec.metadata.name = "task-" + std::to_string(i);
-    child_spec.metadata.task_id =
-        spec.metadata.task_id + "-subtask-" + std::to_string(i);
+    child_spec.metadata.task_id = spec.metadata.task_id + "-subtask-" + std::to_string(i);
     child_spec.metadata.parent_task_id = spec.metadata.task_id;
     child_spec.metadata.session_id = spec.metadata.session_id;
 
@@ -249,16 +249,17 @@ void ModuleLeadAgent::processYamlModule(const std::string& yaml_spec) {
 
     // Submit task via gRPC
     try {
-      auto deadline_ms = network::YamlParser::parseDuration(
-                             spec.metadata.deadline.value_or("25m"))
+      auto deadline_ms = network::YamlParser::parseDuration(spec.metadata.deadline.value_or("25m"))
                              .value_or(25 * 60 * 1000);
       auto coordinator_client = coordination_.getCoordinatorClient();
-      auto response = coordinator_client->submitTask(
-          child_yaml, spec.metadata.session_id.value_or(""), deadline_ms,
-          hmas::TASK_PRIORITY_NORMAL, coordination_.getCurrentTaskId());
+      auto response = coordinator_client->submitTask(child_yaml,
+                                                     spec.metadata.session_id.value_or(""),
+                                                     deadline_ms,
+                                                     hmas::TASK_PRIORITY_NORMAL,
+                                                     coordination_.getCurrentTaskId());
 
       coordination_.trackPendingSubordinate(child_spec.metadata.task_id,
-                                           available_task_agents_[agent_index]);
+                                            available_task_agents_[agent_index]);
     } catch (const std::exception& e) {
       std::cerr << "Failed to submit task: " << e.what() << std::endl;
     }

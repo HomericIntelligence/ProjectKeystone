@@ -1,5 +1,7 @@
 #pragma once
 
+#include "agents/async_agent.hpp"
+
 #include <atomic>
 #include <cstdio>
 #include <memory>
@@ -7,11 +9,9 @@
 #include <utility>
 #include <vector>
 
-#include "agents/async_agent.hpp"
-
 #ifdef ENABLE_GRPC
-#include "network/grpc_client.hpp"
-#include "network/yaml_parser.hpp"
+#  include "network/grpc_client.hpp"
+#  include "network/yaml_parser.hpp"
 #endif
 
 namespace keystone {
@@ -48,8 +48,7 @@ class TaskAgent : public AsyncAgent {
    * @return const std::vector<std::pair<std::string, std::string>>& History of
    * (command, result) pairs
    */
-  const std::vector<std::pair<std::string, std::string>>& getCommandHistory()
-      const {
+  const std::vector<std::pair<std::string, std::string>>& getCommandHistory() const {
     return command_log_;
   }
 

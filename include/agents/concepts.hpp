@@ -1,18 +1,18 @@
 #pragma once
 
+#include "concurrency/task.hpp"
+#include "core/message.hpp"
+
 #include <concepts>
 #include <memory>
 #include <string>
-
-#include "concurrency/task.hpp"
-#include "core/message.hpp"
 
 // Forward declarations to avoid circular dependencies
 namespace keystone {
 namespace core {
 // FIX ISP (Issue #46): Forward declare IMessageRouter instead of MessageBus
 class IMessageRouter;
-}
+}  // namespace core
 namespace concurrency {
 class WorkStealingScheduler;
 }
@@ -100,11 +100,7 @@ concept AsyncMessageHandler = requires(T& handler, const core::KeystoneMessage& 
  * - Enables generic agent algorithms
  */
 template <typename T>
-concept Agent =
-    Identifiable<T> &&
-    MessageSender<T> &&
-    MessageReceiver<T> &&
-    AsyncMessageHandler<T>;
+concept Agent = Identifiable<T> && MessageSender<T> && MessageReceiver<T> && AsyncMessageHandler<T>;
 
 /**
  * @brief Concept for agents that support scheduler integration
@@ -116,7 +112,8 @@ concept Agent =
  * for concurrent task execution.
  */
 template <typename T>
-concept SchedulerAware = requires(T& agent, keystone::concurrency::WorkStealingScheduler* scheduler) {
+concept SchedulerAware = requires(T& agent,
+                                  keystone::concurrency::WorkStealingScheduler* scheduler) {
   { agent.setScheduler(scheduler) } -> std::same_as<void>;
 };
 
@@ -148,10 +145,7 @@ concept MessageBusAware = requires(T& agent, keystone::core::IMessageRouter* rou
  * generic code that requires full agent functionality.
  */
 template <typename T>
-concept IntegratedAgent =
-    Agent<T> &&
-    SchedulerAware<T> &&
-    MessageBusAware<T>;
+concept IntegratedAgent = Agent<T> && SchedulerAware<T> && MessageBusAware<T>;
 
 /**
  * @brief Concept for shared pointer to an agent

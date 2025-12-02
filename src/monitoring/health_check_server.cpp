@@ -1,9 +1,6 @@
 #include "monitoring/health_check_server.hpp"
 
-#include <netinet/in.h>
-#include <poll.h>
-#include <sys/socket.h>
-#include <unistd.h>
+#include "core/config.hpp"
 
 #include <array>
 #include <cstring>
@@ -11,7 +8,10 @@
 #include <sstream>
 #include <utility>  // For std::exchange
 
-#include "core/config.hpp"
+#include <netinet/in.h>
+#include <poll.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
 namespace keystone {
 namespace monitoring {
@@ -35,8 +35,7 @@ class SocketHandle {
   SocketHandle(const SocketHandle&) = delete;
   SocketHandle& operator=(const SocketHandle&) = delete;
 
-  SocketHandle(SocketHandle&& other) noexcept
-      : fd_(std::exchange(other.fd_, -1)) {}
+  SocketHandle(SocketHandle&& other) noexcept : fd_(std::exchange(other.fd_, -1)) {}
 
   SocketHandle& operator=(SocketHandle&& other) noexcept {
     if (this != &other) {
@@ -58,7 +57,9 @@ class SocketHandle {
 HealthCheckServer::HealthCheckServer(int port, ReadinessCheck readiness_check)
     : port_(port), readiness_check_(std::move(readiness_check)) {}
 
-HealthCheckServer::~HealthCheckServer() { stop(); }
+HealthCheckServer::~HealthCheckServer() {
+  stop();
+}
 
 bool HealthCheckServer::start() {
   if (running_.load()) {
@@ -89,8 +90,7 @@ bool HealthCheckServer::start() {
   address.sin_port = htons(port_);
 
   if (bind(server_fd_, (struct sockaddr*)&address, sizeof(address)) < 0) {
-    std::cerr << "HealthCheckServer: Failed to bind to port " << port_
-              << std::endl;
+    std::cerr << "HealthCheckServer: Failed to bind to port " << port_ << std::endl;
     close(server_fd_);
     server_fd_ = -1;
     return false;
@@ -112,8 +112,7 @@ bool HealthCheckServer::start() {
 
   // Listen for connections
   if (listen(server_fd_, core::Config::HTTP_MAX_PENDING_CONNECTIONS) < 0) {
-    std::cerr << "HealthCheckServer: Failed to listen on port " << port_
-              << std::endl;
+    std::cerr << "HealthCheckServer: Failed to listen on port " << port_ << std::endl;
     close(server_fd_);
     server_fd_ = -1;
     return false;
@@ -121,8 +120,7 @@ bool HealthCheckServer::start() {
 
   // Start server thread
   running_.store(true);
-  server_thread_ =
-      std::make_unique<std::thread>(&HealthCheckServer::serverLoop, this);
+  server_thread_ = std::make_unique<std::thread>(&HealthCheckServer::serverLoop, this);
 
   std::cout << "Health check server started on port " << port_ << std::endl;
   return true;
@@ -149,9 +147,13 @@ void HealthCheckServer::stop() {
   std::cout << "Health check server stopped" << std::endl;
 }
 
-bool HealthCheckServer::isRunning() const { return running_.load(); }
+bool HealthCheckServer::isRunning() const {
+  return running_.load();
+}
 
-int HealthCheckServer::getPort() const { return port_; }
+int HealthCheckServer::getPort() const {
+  return port_;
+}
 
 void HealthCheckServer::setReadinessCheck(ReadinessCheck check) {
   readiness_check_ = std::move(check);
@@ -186,8 +188,7 @@ void HealthCheckServer::serverLoop() {
     struct sockaddr_in client_address;
     socklen_t client_len = sizeof(client_address);
 
-    int client_fd =
-        accept(server_fd_, (struct sockaddr*)&client_address, &client_len);
+    int client_fd = accept(server_fd_, (struct sockaddr*)&client_address, &client_len);
     if (client_fd < 0) {
       if (running_.load()) {
         std::cerr << "HealthCheckServer: Accept failed" << std::endl;
@@ -200,15 +201,12 @@ void HealthCheckServer::serverLoop() {
 
     // Set socket read timeout to prevent slowloris attacks
     struct timeval timeout;
-    timeout.tv_sec = std::chrono::duration_cast<std::chrono::seconds>(
-                         core::Config::HTTP_READ_TIMEOUT)
-                         .count();
+    timeout.tv_sec =
+        std::chrono::duration_cast<std::chrono::seconds>(core::Config::HTTP_READ_TIMEOUT).count();
     timeout.tv_usec = 0;
 
-    if (setsockopt(client_socket.get(), SOL_SOCKET, SO_RCVTIMEO, &timeout,
-                   sizeof(timeout)) < 0) {
-      std::cerr << "HealthCheckServer: Failed to set socket read timeout"
-                << std::endl;
+    if (setsockopt(client_socket.get(), SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
+      std::cerr << "HealthCheckServer: Failed to set socket read timeout" << std::endl;
       continue;  // Still try to handle request without timeout
     }
 
@@ -237,10 +235,8 @@ void HealthCheckServer::handleRequest(int client_fd) {
 
   // Validate minimum request size (at least "GET /")
   if (bytes_read < 5) {
-    std::string bad_request =
-        "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n";
-    [[maybe_unused]] auto result =
-        write(client_fd, bad_request.c_str(), bad_request.size());
+    std::string bad_request = "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n";
+    [[maybe_unused]] auto result = write(client_fd, bad_request.c_str(), bad_request.size());
     return;
   }
 
@@ -258,8 +254,9 @@ void HealthCheckServer::handleRequest(int client_fd) {
         "HTTP/1.1 405 Method Not Allowed\r\n"
         "Allow: GET\r\n"
         "Content-Length: 0\r\n\r\n";
-    [[maybe_unused]] auto result =
-        write(client_fd, method_not_allowed.c_str(), method_not_allowed.size());
+    [[maybe_unused]] auto result = write(client_fd,
+                                         method_not_allowed.c_str(),
+                                         method_not_allowed.size());
     return;
   }
 
@@ -279,8 +276,7 @@ void HealthCheckServer::handleRequest(int client_fd) {
     response << body;
 
     std::string response_str = response.str();
-    [[maybe_unused]] auto result =
-        write(client_fd, response_str.c_str(), response_str.size());
+    [[maybe_unused]] auto result = write(client_fd, response_str.c_str(), response_str.size());
 
   } else if (is_readiness) {
     // Readiness probe - check if system is ready
@@ -301,8 +297,7 @@ void HealthCheckServer::handleRequest(int client_fd) {
     response << body;
 
     std::string response_str = response.str();
-    [[maybe_unused]] auto result =
-        write(client_fd, response_str.c_str(), response_str.size());
+    [[maybe_unused]] auto result = write(client_fd, response_str.c_str(), response_str.size());
 
   } else {
     // Send 404 for other paths
@@ -312,8 +307,7 @@ void HealthCheckServer::handleRequest(int client_fd) {
         "Content-Length: 27\r\n"
         "\r\n"
         "{\"error\":\"endpoint not found\"}";
-    [[maybe_unused]] auto result =
-        write(client_fd, not_found.c_str(), not_found.size());
+    [[maybe_unused]] auto result = write(client_fd, not_found.c_str(), not_found.size());
   }
 }
 

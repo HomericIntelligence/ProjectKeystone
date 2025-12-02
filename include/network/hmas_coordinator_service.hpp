@@ -1,16 +1,17 @@
 #pragma once
 
-#include <grpcpp/grpcpp.h>
+#include "network/service_registry.hpp"
+#include "network/task_router.hpp"
+#include "network/yaml_parser.hpp"
 
 #include <memory>
 #include <mutex>
 #include <string>
 #include <unordered_map>
 
+#include <grpcpp/grpcpp.h>
+
 #include "hmas_coordinator.grpc.pb.h"
-#include "network/service_registry.hpp"
-#include "network/task_router.hpp"
-#include "network/yaml_parser.hpp"
 
 namespace keystone {
 namespace network {
@@ -30,15 +31,13 @@ struct TaskState {
 };
 
 /// HMASCoordinator gRPC Service Implementation
-class HMASCoordinatorServiceImpl final
-    : public hmas::HMASCoordinator::Service {
+class HMASCoordinatorServiceImpl final : public hmas::HMASCoordinator::Service {
  public:
   /// Constructor
   /// @param registry Service registry for agent discovery
   /// @param router Task router for agent selection
-  explicit HMASCoordinatorServiceImpl(
-      std::shared_ptr<ServiceRegistry> registry,
-      std::shared_ptr<TaskRouter> router);
+  explicit HMASCoordinatorServiceImpl(std::shared_ptr<ServiceRegistry> registry,
+                                      std::shared_ptr<TaskRouter> router);
 
   /// Destructor
   ~HMASCoordinatorServiceImpl() override;
@@ -51,10 +50,9 @@ class HMASCoordinatorServiceImpl final
                           hmas::TaskResponse* response) override;
 
   /// Stream task status updates (server-side streaming)
-  grpc::Status StreamTaskStatus(
-      grpc::ServerContext* context,
-      const hmas::TaskStatusRequest* request,
-      grpc::ServerWriter<hmas::TaskStatusUpdate>* writer) override;
+  grpc::Status StreamTaskStatus(grpc::ServerContext* context,
+                                const hmas::TaskStatusRequest* request,
+                                grpc::ServerWriter<hmas::TaskStatusUpdate>* writer) override;
 
   /// Get final task result
   grpc::Status GetTaskResult(grpc::ServerContext* context,
@@ -83,7 +81,8 @@ class HMASCoordinatorServiceImpl final
   /// @param phase New phase
   /// @param progress Progress percentage (0-100)
   /// @param current_subtask Currently executing subtask name
-  void updateTaskStatus(const std::string& task_id, hmas::TaskPhase phase,
+  void updateTaskStatus(const std::string& task_id,
+                        hmas::TaskPhase phase,
                         int progress = 0,
                         const std::string& current_subtask = "");
 

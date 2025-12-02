@@ -61,8 +61,7 @@ class IAgentRegistry {
   template <agents::Agent A>
   void registerAgent(std::shared_ptr<A> agent) {
     if (!agent) {
-      throw std::runtime_error(
-          "IAgentRegistry::registerAgent: null agent pointer");
+      throw std::runtime_error("IAgentRegistry::registerAgent: null agent pointer");
     }
 
     std::string agent_id = agent->getAgentId();

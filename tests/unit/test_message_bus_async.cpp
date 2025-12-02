@@ -3,15 +3,15 @@
  * @brief Tests for MessageBus with WorkStealingScheduler integration
  */
 
-#include <gtest/gtest.h>
+#include "agents/base_agent.hpp"
+#include "concurrency/work_stealing_scheduler.hpp"
+#include "core/message_bus.hpp"
 
 #include <atomic>
 #include <chrono>
 #include <thread>
 
-#include "agents/base_agent.hpp"
-#include "concurrency/work_stealing_scheduler.hpp"
-#include "core/message_bus.hpp"
+#include <gtest/gtest.h>
 
 using namespace keystone::core;
 using namespace keystone::agents;
@@ -95,8 +95,7 @@ TEST(MessageBusAsyncTest, AsyncRoutingWithScheduler) {
 
   // Send messages - they will be delivered asynchronously
   for (int i = 0; i < 10; ++i) {
-    auto msg = KeystoneMessage::create("agent1", "agent2",
-                                       "test_" + std::to_string(i));
+    auto msg = KeystoneMessage::create("agent1", "agent2", "test_" + std::to_string(i));
     bus.routeMessage(msg);
   }
 
@@ -136,10 +135,8 @@ TEST(MessageBusAsyncTest, MultipleAgentsAsyncRouting) {
 
   // Send messages to multiple agents
   for (int i = 0; i < 20; ++i) {
-    auto msg2 =
-        KeystoneMessage::create("agent1", "agent2", "msg" + std::to_string(i));
-    auto msg3 =
-        KeystoneMessage::create("agent1", "agent3", "msg" + std::to_string(i));
+    auto msg2 = KeystoneMessage::create("agent1", "agent2", "msg" + std::to_string(i));
+    auto msg3 = KeystoneMessage::create("agent1", "agent3", "msg" + std::to_string(i));
     bus.routeMessage(msg2);
     bus.routeMessage(msg3);
   }
@@ -149,8 +146,10 @@ TEST(MessageBusAsyncTest, MultipleAgentsAsyncRouting) {
 
   // Check both agents received messages
   int count2 = 0, count3 = 0;
-  while (agent2->getMessage()) count2++;
-  while (agent3->getMessage()) count3++;
+  while (agent2->getMessage())
+    count2++;
+  while (agent3->getMessage())
+    count3++;
 
   EXPECT_EQ(count2, 20);
   EXPECT_EQ(count3, 20);
@@ -215,8 +214,7 @@ TEST(MessageBusAsyncTest, HighLoadAsyncRouting) {
   // Send many messages
   const int num_messages = 1000;
   for (int i = 0; i < num_messages; ++i) {
-    auto msg =
-        KeystoneMessage::create("agent1", "agent2", "msg" + std::to_string(i));
+    auto msg = KeystoneMessage::create("agent1", "agent2", "msg" + std::to_string(i));
     bus.routeMessage(msg);
   }
 
@@ -253,8 +251,7 @@ TEST(MessageBusAsyncTest, SchedulerShutdownGraceful) {
 
   // Send messages
   for (int i = 0; i < 5; ++i) {
-    auto msg =
-        KeystoneMessage::create("agent1", "agent2", "msg" + std::to_string(i));
+    auto msg = KeystoneMessage::create("agent1", "agent2", "msg" + std::to_string(i));
     bus.routeMessage(msg);
   }
 
@@ -341,7 +338,8 @@ TEST(MessageBusAsyncTest, ConcurrentLifecycleStressTest) {
         auto target = agents[idx];
 
         // Send message
-        auto msg = KeystoneMessage::create("test_sender", target,
+        auto msg = KeystoneMessage::create("test_sender",
+                                           target,
                                            "stress_test_" + std::to_string(counter));
         bool routed = bus.routeMessage(msg);
         if (routed) {
@@ -386,10 +384,8 @@ TEST(MessageBusAsyncTest, ConcurrentLifecycleStressTest) {
   scheduler.shutdown();
 
   // Verify no crashes occurred and operations completed
-  EXPECT_GT(agents_created.load(), 0)
-      << "Should have created some agents";
-  EXPECT_GT(messages_sent.load(), 0)
-      << "Should have sent some messages";
+  EXPECT_GT(agents_created.load(), 0) << "Should have created some agents";
+  EXPECT_GT(messages_sent.load(), 0) << "Should have sent some messages";
 
   // Some registration errors are expected due to duplicate IDs
   // but the system should handle them gracefully
@@ -427,8 +423,7 @@ TEST(MessageBusAsyncTest, ConcurrentUnregistrationSafety) {
   std::thread sender([&]() {
     int counter = 0;
     while (!stop.load()) {
-      auto msg = KeystoneMessage::create("agent1", "agent2",
-                                         "msg_" + std::to_string(counter++));
+      auto msg = KeystoneMessage::create("agent1", "agent2", "msg_" + std::to_string(counter++));
       bus.routeMessage(msg);
       std::this_thread::sleep_for(std::chrono::microseconds(100));
     }

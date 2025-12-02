@@ -1,12 +1,12 @@
 #include "network/grpc_client.hpp"
 
-#include <grpcpp/create_channel.h>
-#include <grpcpp/security/credentials.h>
-
 #include <cstdlib>
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
+
+#include <grpcpp/create_channel.h>
+#include <grpcpp/security/credentials.h>
 
 namespace keystone::network {
 
@@ -43,16 +43,16 @@ std::string getEnvVar(const char* name) {
 }  // anonymous namespace
 
 // HMASCoordinatorClient implementation
-HMASCoordinatorClient::HMASCoordinatorClient(const GrpcClientConfig& config)
-    : config_(config) {
+HMASCoordinatorClient::HMASCoordinatorClient(const GrpcClientConfig& config) : config_(config) {
   channel_ = grpc::CreateChannel(config_.server_address, createCredentials());
   stub_ = hmas::HMASCoordinator::NewStub(channel_);
 }
 
-hmas::TaskResponse HMASCoordinatorClient::submitTask(
-    const std::string& yaml_spec, const std::string& session_id,
-    int64_t deadline_unix_ms, hmas::TaskPriority priority,
-    const std::string& parent_task_id) {
+hmas::TaskResponse HMASCoordinatorClient::submitTask(const std::string& yaml_spec,
+                                                     const std::string& session_id,
+                                                     int64_t deadline_unix_ms,
+                                                     hmas::TaskPriority priority,
+                                                     const std::string& parent_task_id) {
   hmas::TaskRequest request;
   request.set_yaml_spec(yaml_spec);
   request.set_session_id(session_id);
@@ -68,30 +68,27 @@ hmas::TaskResponse HMASCoordinatorClient::submitTask(
   grpc::Status status = stub_->SubmitTask(context.get(), request, &response);
 
   if (!status.ok()) {
-    throw std::runtime_error("SubmitTask RPC failed: " +
-                             status.error_message());
+    throw std::runtime_error("SubmitTask RPC failed: " + status.error_message());
   }
 
   return response;
 }
 
-hmas::ResultAcknowledgement HMASCoordinatorClient::submitResult(
-    const hmas::TaskResult& result) {
+hmas::ResultAcknowledgement HMASCoordinatorClient::submitResult(const hmas::TaskResult& result) {
   hmas::ResultAcknowledgement response;
   auto context = createContext(config_.timeout_ms);
 
   grpc::Status status = stub_->SubmitResult(context.get(), result, &response);
 
   if (!status.ok()) {
-    throw std::runtime_error("SubmitResult RPC failed: " +
-                             status.error_message());
+    throw std::runtime_error("SubmitResult RPC failed: " + status.error_message());
   }
 
   return response;
 }
 
-hmas::TaskResult HMASCoordinatorClient::getTaskResult(
-    const std::string& task_id, int64_t timeout_ms) {
+hmas::TaskResult HMASCoordinatorClient::getTaskResult(const std::string& task_id,
+                                                      int64_t timeout_ms) {
   hmas::TaskResultRequest request;
   request.set_task_id(task_id);
   request.set_timeout_ms(timeout_ms);
@@ -99,19 +96,17 @@ hmas::TaskResult HMASCoordinatorClient::getTaskResult(
   hmas::TaskResult response;
   auto context = createContext(config_.timeout_ms);
 
-  grpc::Status status =
-      stub_->GetTaskResult(context.get(), request, &response);
+  grpc::Status status = stub_->GetTaskResult(context.get(), request, &response);
 
   if (!status.ok()) {
-    throw std::runtime_error("GetTaskResult RPC failed: " +
-                             status.error_message());
+    throw std::runtime_error("GetTaskResult RPC failed: " + status.error_message());
   }
 
   return response;
 }
 
-hmas::TaskProgress HMASCoordinatorClient::getTaskProgress(
-    const std::string& task_id, bool include_subtasks) {
+hmas::TaskProgress HMASCoordinatorClient::getTaskProgress(const std::string& task_id,
+                                                          bool include_subtasks) {
   hmas::TaskProgressRequest request;
   request.set_task_id(task_id);
   request.set_include_subtasks(include_subtasks);
@@ -119,19 +114,17 @@ hmas::TaskProgress HMASCoordinatorClient::getTaskProgress(
   hmas::TaskProgress response;
   auto context = createContext(config_.timeout_ms);
 
-  grpc::Status status =
-      stub_->GetTaskProgress(context.get(), request, &response);
+  grpc::Status status = stub_->GetTaskProgress(context.get(), request, &response);
 
   if (!status.ok()) {
-    throw std::runtime_error("GetTaskProgress RPC failed: " +
-                             status.error_message());
+    throw std::runtime_error("GetTaskProgress RPC failed: " + status.error_message());
   }
 
   return response;
 }
 
-hmas::CancelResponse HMASCoordinatorClient::cancelTask(
-    const std::string& task_id, const std::string& reason) {
+hmas::CancelResponse HMASCoordinatorClient::cancelTask(const std::string& task_id,
+                                                       const std::string& reason) {
   hmas::CancelRequest request;
   request.set_task_id(task_id);
   request.set_reason(reason);
@@ -142,15 +135,13 @@ hmas::CancelResponse HMASCoordinatorClient::cancelTask(
   grpc::Status status = stub_->CancelTask(context.get(), request, &response);
 
   if (!status.ok()) {
-    throw std::runtime_error("CancelTask RPC failed: " +
-                             status.error_message());
+    throw std::runtime_error("CancelTask RPC failed: " + status.error_message());
   }
 
   return response;
 }
 
-std::shared_ptr<grpc::ChannelCredentials>
-HMASCoordinatorClient::createCredentials() {
+std::shared_ptr<grpc::ChannelCredentials> HMASCoordinatorClient::createCredentials() {
   if (config_.enable_tls) {
     // Get CA certificate path from environment variable
     std::string ca_path = getEnvVar("KEYSTONE_TLS_CA_PATH");
@@ -177,29 +168,25 @@ HMASCoordinatorClient::createCredentials() {
 
       return grpc::SslCredentials(ssl_opts);
     } catch (const std::exception& e) {
-      throw std::runtime_error(std::string("Failed to load TLS credentials: ") +
-                               e.what());
+      throw std::runtime_error(std::string("Failed to load TLS credentials: ") + e.what());
     }
   } else {
     return grpc::InsecureChannelCredentials();
   }
 }
 
-std::unique_ptr<grpc::ClientContext> HMASCoordinatorClient::createContext(
-    int timeout_ms) {
+std::unique_ptr<grpc::ClientContext> HMASCoordinatorClient::createContext(int timeout_ms) {
   auto context = std::make_unique<grpc::ClientContext>();
 
   if (timeout_ms > 0) {
-    context->set_deadline(std::chrono::system_clock::now() +
-                          std::chrono::milliseconds(timeout_ms));
+    context->set_deadline(std::chrono::system_clock::now() + std::chrono::milliseconds(timeout_ms));
   }
 
   return context;
 }
 
 // ServiceRegistryClient implementation
-ServiceRegistryClient::ServiceRegistryClient(const GrpcClientConfig& config)
-    : config_(config) {
+ServiceRegistryClient::ServiceRegistryClient(const GrpcClientConfig& config) : config_(config) {
   channel_ = grpc::CreateChannel(config_.server_address, createCredentials());
   stub_ = hmas::ServiceRegistry::NewStub(channel_);
 }
@@ -209,26 +196,24 @@ hmas::RegistrationResponse ServiceRegistryClient::registerAgent(
   hmas::RegistrationResponse response;
   auto context = createContext(config_.timeout_ms);
 
-  grpc::Status status =
-      stub_->RegisterAgent(context.get(), registration, &response);
+  grpc::Status status = stub_->RegisterAgent(context.get(), registration, &response);
 
   if (!status.ok()) {
-    throw std::runtime_error("RegisterAgent RPC failed: " +
-                             status.error_message());
+    throw std::runtime_error("RegisterAgent RPC failed: " + status.error_message());
   }
 
   return response;
 }
 
-hmas::HeartbeatResponse ServiceRegistryClient::heartbeat(
-    const std::string& agent_id, float cpu_usage_percent,
-    float memory_usage_mb, int active_tasks) {
+hmas::HeartbeatResponse ServiceRegistryClient::heartbeat(const std::string& agent_id,
+                                                         float cpu_usage_percent,
+                                                         float memory_usage_mb,
+                                                         int active_tasks) {
   hmas::HeartbeatRequest request;
   request.set_agent_id(agent_id);
-  request.set_timestamp_unix_ms(
-      std::chrono::duration_cast<std::chrono::milliseconds>(
-          std::chrono::system_clock::now().time_since_epoch())
-          .count());
+  request.set_timestamp_unix_ms(std::chrono::duration_cast<std::chrono::milliseconds>(
+                                    std::chrono::system_clock::now().time_since_epoch())
+                                    .count());
   request.set_cpu_usage_percent(cpu_usage_percent);
   request.set_memory_usage_mb(memory_usage_mb);
   request.set_active_tasks(active_tasks);
@@ -239,15 +224,14 @@ hmas::HeartbeatResponse ServiceRegistryClient::heartbeat(
   grpc::Status status = stub_->Heartbeat(context.get(), request, &response);
 
   if (!status.ok()) {
-    throw std::runtime_error("Heartbeat RPC failed: " +
-                             status.error_message());
+    throw std::runtime_error("Heartbeat RPC failed: " + status.error_message());
   }
 
   return response;
 }
 
-hmas::UnregisterResponse ServiceRegistryClient::unregisterAgent(
-    const std::string& agent_id, const std::string& reason) {
+hmas::UnregisterResponse ServiceRegistryClient::unregisterAgent(const std::string& agent_id,
+                                                                const std::string& reason) {
   hmas::UnregisterRequest request;
   request.set_agent_id(agent_id);
   request.set_reason(reason);
@@ -255,27 +239,23 @@ hmas::UnregisterResponse ServiceRegistryClient::unregisterAgent(
   hmas::UnregisterResponse response;
   auto context = createContext(config_.timeout_ms);
 
-  grpc::Status status =
-      stub_->UnregisterAgent(context.get(), request, &response);
+  grpc::Status status = stub_->UnregisterAgent(context.get(), request, &response);
 
   if (!status.ok()) {
-    throw std::runtime_error("UnregisterAgent RPC failed: " +
-                             status.error_message());
+    throw std::runtime_error("UnregisterAgent RPC failed: " + status.error_message());
   }
 
   return response;
 }
 
-hmas::AgentList ServiceRegistryClient::queryAgents(
-    const hmas::AgentQuery& query) {
+hmas::AgentList ServiceRegistryClient::queryAgents(const hmas::AgentQuery& query) {
   hmas::AgentList response;
   auto context = createContext(config_.timeout_ms);
 
   grpc::Status status = stub_->QueryAgents(context.get(), query, &response);
 
   if (!status.ok()) {
-    throw std::runtime_error("QueryAgents RPC failed: " +
-                             status.error_message());
+    throw std::runtime_error("QueryAgents RPC failed: " + status.error_message());
   }
 
   return response;
@@ -291,8 +271,7 @@ hmas::AgentInfo ServiceRegistryClient::getAgent(const std::string& agent_id) {
   grpc::Status status = stub_->GetAgent(context.get(), request, &response);
 
   if (!status.ok()) {
-    throw std::runtime_error("GetAgent RPC failed: " +
-                             status.error_message());
+    throw std::runtime_error("GetAgent RPC failed: " + status.error_message());
   }
 
   return response;
@@ -305,19 +284,16 @@ hmas::AgentList ServiceRegistryClient::listAllAgents(bool only_alive) {
   hmas::AgentList response;
   auto context = createContext(config_.timeout_ms);
 
-  grpc::Status status =
-      stub_->ListAllAgents(context.get(), request, &response);
+  grpc::Status status = stub_->ListAllAgents(context.get(), request, &response);
 
   if (!status.ok()) {
-    throw std::runtime_error("ListAllAgents RPC failed: " +
-                             status.error_message());
+    throw std::runtime_error("ListAllAgents RPC failed: " + status.error_message());
   }
 
   return response;
 }
 
-std::shared_ptr<grpc::ChannelCredentials>
-ServiceRegistryClient::createCredentials() {
+std::shared_ptr<grpc::ChannelCredentials> ServiceRegistryClient::createCredentials() {
   if (config_.enable_tls) {
     // Get CA certificate path from environment variable
     std::string ca_path = getEnvVar("KEYSTONE_TLS_CA_PATH");
@@ -344,21 +320,18 @@ ServiceRegistryClient::createCredentials() {
 
       return grpc::SslCredentials(ssl_opts);
     } catch (const std::exception& e) {
-      throw std::runtime_error(std::string("Failed to load TLS credentials: ") +
-                               e.what());
+      throw std::runtime_error(std::string("Failed to load TLS credentials: ") + e.what());
     }
   } else {
     return grpc::InsecureChannelCredentials();
   }
 }
 
-std::unique_ptr<grpc::ClientContext> ServiceRegistryClient::createContext(
-    int timeout_ms) {
+std::unique_ptr<grpc::ClientContext> ServiceRegistryClient::createContext(int timeout_ms) {
   auto context = std::make_unique<grpc::ClientContext>();
 
   if (timeout_ms > 0) {
-    context->set_deadline(std::chrono::system_clock::now() +
-                          std::chrono::milliseconds(timeout_ms));
+    context->set_deadline(std::chrono::system_clock::now() + std::chrono::milliseconds(timeout_ms));
   }
 
   return context;

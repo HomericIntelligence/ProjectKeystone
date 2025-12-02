@@ -1,15 +1,15 @@
 #pragma once
 
+#include "agents/async_agent.hpp"
+
 #include <atomic>
 #include <map>
 #include <memory>
 #include <thread>
 
-#include "agents/async_agent.hpp"
-
 #ifdef ENABLE_GRPC
-#include "network/grpc_client.hpp"
-#include "network/yaml_parser.hpp"
+#  include "network/grpc_client.hpp"
+#  include "network/yaml_parser.hpp"
 #endif
 
 namespace keystone {
@@ -50,7 +50,7 @@ class ChiefArchitectAgent : public AsyncAgent {
    * @return concurrency::Task<core::Response> Async task with response
    */
   concurrency::Task<core::Response> sendCommand(const std::string& command,
-                                                 const std::string& task_agent_id);
+                                                const std::string& task_agent_id);
 
 #ifdef ENABLE_GRPC
   /**
@@ -73,8 +73,7 @@ class ChiefArchitectAgent : public AsyncAgent {
    * @param session_id Session identifier
    * @return std::string Final result from the component
    */
-  std::string submitUserGoal(const std::string& user_goal,
-                             const std::string& session_id = "");
+  std::string submitUserGoal(const std::string& user_goal, const std::string& session_id = "");
 
   /**
    * @brief Start heartbeat thread (sends heartbeat every 1s)

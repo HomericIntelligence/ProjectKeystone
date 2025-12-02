@@ -7,7 +7,7 @@
 #include <thread>
 
 #ifdef ENABLE_GRPC
-#include "hmas_coordinator.pb.h"
+#  include "hmas_coordinator.pb.h"
 #endif
 
 namespace keystone {
@@ -15,11 +15,11 @@ namespace agents {
 
 ComponentLeadAgent::ComponentLeadAgent(const std::string& agent_id)
     : LeadAgentBase<State>(agent_id,
-                          State::IDLE,
-                          State::PLANNING,
-                          State::WAITING_FOR_MODULES,
-                          State::AGGREGATING,
-                          State::ERROR) {
+                           State::IDLE,
+                           State::PLANNING,
+                           State::WAITING_FOR_MODULES,
+                           State::AGGREGATING,
+                           State::ERROR) {
   // Base class constructor initializes coordination_ with IDLE state
 }
 
@@ -39,14 +39,12 @@ bool ComponentLeadAgent::isSubordinateResult(const core::KeystoneMessage& msg) {
 std::vector<std::string> ComponentLeadAgent::decomposeGoal(const std::string& goal) {
   std::vector<std::string> module_goals;
 
-  // Parse component goal like "Implement Core component: Messaging(10+20+30) and Concurrency(40+50+60)"
-  // Extract module sections using regex
+  // Parse component goal like "Implement Core component: Messaging(10+20+30) and
+  // Concurrency(40+50+60)" Extract module sections using regex
 
   // Pattern to match "ModuleName(numbers)"
   std::regex module_regex(R"((\w+)\(([0-9+]+)\))");
-  auto modules_begin = std::sregex_iterator(goal.begin(),
-                                            goal.end(),
-                                            module_regex);
+  auto modules_begin = std::sregex_iterator(goal.begin(), goal.end(), module_regex);
   auto modules_end = std::sregex_iterator();
 
   for (std::sregex_iterator i = modules_begin; i != modules_end; ++i) {
@@ -149,8 +147,8 @@ void ComponentLeadAgent::initializeGrpc(const std::string& coordinator_address,
                                         int level) {
   // Delegate gRPC initialization to coordination template
   std::vector<std::string> capabilities = {"module_coordination", "component_synthesis"};
-  coordination_.initializeGrpc(agent_id_, coordinator_address, registry_address,
-                               agent_type, level, capabilities, 10);
+  coordination_.initializeGrpc(
+      agent_id_, coordinator_address, registry_address, agent_type, level, capabilities, 10);
 }
 
 void ComponentLeadAgent::processYamlComponent(const std::string& yaml_spec) {
@@ -165,8 +163,7 @@ void ComponentLeadAgent::processYamlComponent(const std::string& yaml_spec) {
   coordination_.transitionTo(State::PLANNING, stateToString(State::PLANNING));
 
   // Decompose component into modules using the hook method
-  auto module_goals =
-      decomposeGoal(spec.hierarchy.level1_directive.value_or(""));
+  auto module_goals = decomposeGoal(spec.hierarchy.level1_directive.value_or(""));
 
   if (module_goals.empty()) {
     spec.status.phase = "FAILED";
@@ -224,8 +221,7 @@ void ComponentLeadAgent::processYamlComponent(const std::string& yaml_spec) {
     child_spec.api_version = "v1";
     child_spec.kind = "HierarchicalTask";
     child_spec.metadata.name = "module-" + std::to_string(i);
-    child_spec.metadata.task_id =
-        spec.metadata.task_id + "-module-" + std::to_string(i);
+    child_spec.metadata.task_id = spec.metadata.task_id + "-module-" + std::to_string(i);
     child_spec.metadata.parent_task_id = spec.metadata.task_id;
     child_spec.metadata.session_id = spec.metadata.session_id;
 
@@ -251,16 +247,17 @@ void ComponentLeadAgent::processYamlComponent(const std::string& yaml_spec) {
 
     // Submit module via gRPC
     try {
-      auto deadline_ms = network::YamlParser::parseDuration(
-                             spec.metadata.deadline.value_or("25m"))
+      auto deadline_ms = network::YamlParser::parseDuration(spec.metadata.deadline.value_or("25m"))
                              .value_or(25 * 60 * 1000);
       auto coordinator_client = coordination_.getCoordinatorClient();
-      auto response = coordinator_client->submitTask(
-          child_yaml, spec.metadata.session_id.value_or(""), deadline_ms,
-          hmas::TASK_PRIORITY_NORMAL, coordination_.getCurrentTaskId());
+      auto response = coordinator_client->submitTask(child_yaml,
+                                                     spec.metadata.session_id.value_or(""),
+                                                     deadline_ms,
+                                                     hmas::TASK_PRIORITY_NORMAL,
+                                                     coordination_.getCurrentTaskId());
 
       coordination_.trackPendingSubordinate(child_spec.metadata.task_id,
-                                           available_module_leads_[agent_index]);
+                                            available_module_leads_[agent_index]);
     } catch (const std::exception& e) {
       std::cerr << "Failed to submit module: " << e.what() << std::endl;
     }

@@ -6,14 +6,14 @@
  * the monolithic MessageBus class, following the Interface Segregation Principle.
  */
 
-#include <gtest/gtest.h>
-
 #include "agents/task_agent.hpp"
 #include "core/i_agent_registry.hpp"
 #include "core/i_message_router.hpp"
 #include "core/i_scheduler_integration.hpp"
 #include "core/message_bus.hpp"
 #include "test_utilities.hpp"
+
+#include <gtest/gtest.h>
 
 using namespace keystone;
 using namespace keystone::core;
@@ -56,7 +56,7 @@ TEST(InterfaceSegregation, RegistryInterfaceOnly) {
  */
 TEST(InterfaceSegregation, RouterInterfaceOnly) {
   MessageBus bus;
-  IMessageRouter* router = &bus;  // Use specific interface
+  IMessageRouter* router = &bus;   // Use specific interface
   IAgentRegistry& registry = bus;  // Separate interface for registration
 
   auto agent = std::make_shared<TaskAgent>("test_agent");

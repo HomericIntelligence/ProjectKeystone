@@ -10,7 +10,13 @@
  * - Full 4-layer hierarchy across network nodes
  */
 
-#include <gtest/gtest.h>
+#include "network/grpc_client.hpp"
+#include "network/grpc_server.hpp"
+#include "network/hmas_coordinator_service.hpp"
+#include "network/result_aggregator.hpp"
+#include "network/service_registry.hpp"
+#include "network/task_router.hpp"
+#include "network/yaml_parser.hpp"
 
 #include <atomic>
 #include <chrono>
@@ -19,13 +25,7 @@
 #include <thread>
 #include <vector>
 
-#include "network/grpc_client.hpp"
-#include "network/grpc_server.hpp"
-#include "network/hmas_coordinator_service.hpp"
-#include "network/result_aggregator.hpp"
-#include "network/service_registry.hpp"
-#include "network/task_router.hpp"
-#include "network/yaml_parser.hpp"
+#include <gtest/gtest.h>
 
 using namespace keystone::network;
 using namespace std::chrono_literals;
@@ -79,8 +79,7 @@ class YamlSpecBuilder {
     return *this;
   }
 
-  YamlSpecBuilder& addSubtask(const std::string& name,
-                              const std::string& agent_type) {
+  YamlSpecBuilder& addSubtask(const std::string& name, const std::string& agent_type) {
     SubtaskSpec subtask;
     subtask.name = name;
     subtask.agent_type = agent_type;
@@ -147,8 +146,7 @@ class DistributedGrpcTest : public ::testing::Test {
     router_ = std::make_shared<TaskRouter>(registry_);
 
     // Create HMASCoordinator service
-    coordinator_ = std::make_shared<HMASCoordinatorServiceImpl>(registry_,
-                                                                 router_);
+    coordinator_ = std::make_shared<HMASCoordinatorServiceImpl>(registry_, router_);
   }
 
   void TearDown() override {
@@ -199,8 +197,7 @@ TEST_F(DistributedGrpcTest, YamlTaskSpecParsing) {
   EXPECT_EQ(parsed->metadata.task_id, original.metadata.task_id);
   EXPECT_EQ(parsed->hierarchy.level0_goal, original.hierarchy.level0_goal);
   EXPECT_EQ(parsed->routing.target_level, original.routing.target_level);
-  EXPECT_EQ(parsed->routing.target_agent_type,
-            original.routing.target_agent_type);
+  EXPECT_EQ(parsed->routing.target_agent_type, original.routing.target_agent_type);
   EXPECT_EQ(parsed->action.type, original.action.type);
   EXPECT_EQ(parsed->payload.command, original.payload.command);
   EXPECT_EQ(parsed->aggregation.strategy, original.aggregation.strategy);
@@ -265,13 +262,12 @@ TEST_F(DistributedGrpcTest, YamlDurationParsing) {
 
 TEST_F(DistributedGrpcTest, ServiceRegistryBasicRegistration) {
   // Register 3 agents
-  bool reg1 = registry_->registerAgent("agent-1", "TaskAgent", 3,
-                                       "192.168.1.10:50051", {"bash", "cpp20"});
-  bool reg2 = registry_->registerAgent("agent-2", "ModuleLeadAgent", 2,
-                                       "192.168.1.11:50051", {"cpp20", "cmake"});
-  bool reg3 = registry_->registerAgent("agent-3", "TaskAgent", 3,
-                                       "192.168.1.12:50051",
-                                       {"bash", "python3"});
+  bool reg1 =
+      registry_->registerAgent("agent-1", "TaskAgent", 3, "192.168.1.10:50051", {"bash", "cpp20"});
+  bool reg2 = registry_->registerAgent(
+      "agent-2", "ModuleLeadAgent", 2, "192.168.1.11:50051", {"cpp20", "cmake"});
+  bool reg3 = registry_->registerAgent(
+      "agent-3", "TaskAgent", 3, "192.168.1.12:50051", {"bash", "python3"});
 
   EXPECT_TRUE(reg1);
   EXPECT_TRUE(reg2);
@@ -291,12 +287,10 @@ TEST_F(DistributedGrpcTest, ServiceRegistryBasicRegistration) {
 
 TEST_F(DistributedGrpcTest, ServiceRegistryCapabilityQuery) {
   // Register 3 agents with different capabilities
-  registry_->registerAgent("agent-1", "TaskAgent", 3, "192.168.1.10:50051",
-                           {"cpp20", "cmake"});
-  registry_->registerAgent("agent-2", "TaskAgent", 3, "192.168.1.11:50051",
-                           {"cpp20", "python3"});
-  registry_->registerAgent("agent-3", "TaskAgent", 3, "192.168.1.12:50051",
-                           {"cpp20", "cmake", "catch2"});
+  registry_->registerAgent("agent-1", "TaskAgent", 3, "192.168.1.10:50051", {"cpp20", "cmake"});
+  registry_->registerAgent("agent-2", "TaskAgent", 3, "192.168.1.11:50051", {"cpp20", "python3"});
+  registry_->registerAgent(
+      "agent-3", "TaskAgent", 3, "192.168.1.12:50051", {"cpp20", "cmake", "catch2"});
 
   // Update heartbeats (make agents alive)
   registry_->updateHeartbeat("agent-1");
@@ -314,20 +308,16 @@ TEST_F(DistributedGrpcTest, ServiceRegistryCapabilityQuery) {
     returned_ids.push_back(agent.agent_id);
   }
 
-  EXPECT_TRUE(std::find(returned_ids.begin(), returned_ids.end(), "agent-1") !=
-              returned_ids.end());
-  EXPECT_TRUE(std::find(returned_ids.begin(), returned_ids.end(), "agent-3") !=
-              returned_ids.end());
+  EXPECT_TRUE(std::find(returned_ids.begin(), returned_ids.end(), "agent-1") != returned_ids.end());
+  EXPECT_TRUE(std::find(returned_ids.begin(), returned_ids.end(), "agent-3") != returned_ids.end());
   EXPECT_TRUE(std::find(returned_ids.begin(), returned_ids.end(), "agent-2") ==
               returned_ids.end());  // Missing "cmake"
 }
 
 TEST_F(DistributedGrpcTest, ServiceRegistryLevelFiltering) {
   // Register agents at different levels
-  registry_->registerAgent("chief", "ChiefArchitectAgent", 0, "node1:50051",
-                           {});
-  registry_->registerAgent("component", "ComponentLeadAgent", 1,
-                           "node2:50051", {});
+  registry_->registerAgent("chief", "ChiefArchitectAgent", 0, "node1:50051", {});
+  registry_->registerAgent("component", "ComponentLeadAgent", 1, "node2:50051", {});
   registry_->registerAgent("module", "ModuleLeadAgent", 2, "node3:50051", {});
   registry_->registerAgent("task1", "TaskAgent", 3, "node4:50051", {});
   registry_->registerAgent("task2", "TaskAgent", 3, "node5:50051", {});
@@ -421,9 +411,9 @@ TEST_F(DistributedGrpcTest, LoadBalancingLeastLoaded) {
   registry_->registerAgent("task-3", "TaskAgent", 3, "node3:50051", {});
 
   // Send heartbeats with different active_tasks counts
-  registry_->updateHeartbeat("task-1", 0.0f, 0.0f, 5);   // 5 active tasks
-  registry_->updateHeartbeat("task-2", 0.0f, 0.0f, 2);   // 2 active tasks (least)
-  registry_->updateHeartbeat("task-3", 0.0f, 0.0f, 7);   // 7 active tasks
+  registry_->updateHeartbeat("task-1", 0.0f, 0.0f, 5);  // 5 active tasks
+  registry_->updateHeartbeat("task-2", 0.0f, 0.0f, 2);  // 2 active tasks (least)
+  registry_->updateHeartbeat("task-3", 0.0f, 0.0f, 7);  // 7 active tasks
 
   // Route a new task (should go to task-2)
   auto result = router_->routeTask(3, "TaskAgent", {});
@@ -610,12 +600,9 @@ TEST_F(DistributedGrpcTest, ResultAggregationTimeout) {
 
 TEST_F(DistributedGrpcTest, TaskRoutingFromYamlSpec) {
   // Register agents
-  registry_->registerAgent("chief", "ChiefArchitectAgent", 0, "node1:50051",
-                           {});
-  registry_->registerAgent("component", "ComponentLeadAgent", 1,
-                           "node2:50051", {"cpp20"});
-  registry_->registerAgent("task-1", "TaskAgent", 3, "node3:50051",
-                           {"bash", "cpp20"});
+  registry_->registerAgent("chief", "ChiefArchitectAgent", 0, "node1:50051", {});
+  registry_->registerAgent("component", "ComponentLeadAgent", 1, "node2:50051", {"cpp20"});
+  registry_->registerAgent("task-1", "TaskAgent", 3, "node3:50051", {"bash", "cpp20"});
 
   // Send heartbeats
   registry_->updateHeartbeat("chief");
@@ -641,8 +628,7 @@ TEST_F(DistributedGrpcTest, TaskRoutingFromYamlSpec) {
 
 TEST_F(DistributedGrpcTest, TaskRoutingMissingCapability) {
   // Register agent without required capability
-  registry_->registerAgent("task-1", "TaskAgent", 3, "node1:50051",
-                           {"python3"});  // Missing "bash"
+  registry_->registerAgent("task-1", "TaskAgent", 3, "node1:50051", {"python3"});  // Missing "bash"
   registry_->updateHeartbeat("task-1");
 
   // Create spec requiring "bash"
@@ -693,8 +679,7 @@ TEST_F(DistributedGrpcTest, TaskStateTracking) {
   EXPECT_EQ(state->phase, hmas::TASK_PHASE_PENDING);
 
   // Update to EXECUTING
-  coordinator_->updateTaskStatus("task-001", hmas::TASK_PHASE_EXECUTING, 50,
-                                 "subtask-1");
+  coordinator_->updateTaskStatus("task-001", hmas::TASK_PHASE_EXECUTING, 50, "subtask-1");
 
   state = coordinator_->getTaskState("task-001");
   ASSERT_TRUE(state.has_value());
@@ -747,14 +732,12 @@ TEST_F(DistributedGrpcTest, MultipleTaskStateTracking) {
 TEST_F(DistributedGrpcTest, AggregationStrategyConversion) {
   // Test string to strategy conversion
   EXPECT_EQ(stringToStrategy("WAIT_ALL"), AggregationStrategy::WAIT_ALL);
-  EXPECT_EQ(stringToStrategy("FIRST_SUCCESS"),
-            AggregationStrategy::FIRST_SUCCESS);
+  EXPECT_EQ(stringToStrategy("FIRST_SUCCESS"), AggregationStrategy::FIRST_SUCCESS);
   EXPECT_EQ(stringToStrategy("MAJORITY"), AggregationStrategy::MAJORITY);
 
   // Test strategy to string conversion
   EXPECT_EQ(strategyToString(AggregationStrategy::WAIT_ALL), "WAIT_ALL");
-  EXPECT_EQ(strategyToString(AggregationStrategy::FIRST_SUCCESS),
-            "FIRST_SUCCESS");
+  EXPECT_EQ(strategyToString(AggregationStrategy::FIRST_SUCCESS), "FIRST_SUCCESS");
   EXPECT_EQ(strategyToString(AggregationStrategy::MAJORITY), "MAJORITY");
 }
 
@@ -767,16 +750,11 @@ TEST_F(DistributedGrpcTest, IntegrationFullTaskFlowSimulated) {
   // It validates that all components work together correctly
 
   // Step 1: Register agents in hierarchy
-  registry_->registerAgent("chief", "ChiefArchitectAgent", 0, "node1:50051",
-                           {});
-  registry_->registerAgent("component", "ComponentLeadAgent", 1,
-                           "node2:50051", {"cpp20"});
-  registry_->registerAgent("module", "ModuleLeadAgent", 2, "node3:50051",
-                           {"cpp20", "cmake"});
-  registry_->registerAgent("task-1", "TaskAgent", 3, "node4:50051",
-                           {"bash", "cpp20"});
-  registry_->registerAgent("task-2", "TaskAgent", 3, "node5:50051",
-                           {"bash", "cpp20"});
+  registry_->registerAgent("chief", "ChiefArchitectAgent", 0, "node1:50051", {});
+  registry_->registerAgent("component", "ComponentLeadAgent", 1, "node2:50051", {"cpp20"});
+  registry_->registerAgent("module", "ModuleLeadAgent", 2, "node3:50051", {"cpp20", "cmake"});
+  registry_->registerAgent("task-1", "TaskAgent", 3, "node4:50051", {"bash", "cpp20"});
+  registry_->registerAgent("task-2", "TaskAgent", 3, "node5:50051", {"bash", "cpp20"});
 
   // Send heartbeats
   registry_->updateHeartbeat("chief");
@@ -786,16 +764,15 @@ TEST_F(DistributedGrpcTest, IntegrationFullTaskFlowSimulated) {
   registry_->updateHeartbeat("task-2");
 
   // Step 2: Chief creates high-level goal YAML
-  auto chief_spec =
-      YamlSpecBuilder()
-          .setName("build-project")
-          .setTaskId("chief-task-001")
-          .setGoal("Build C++20 project")
-          .setTargetLevel(1)  // Delegate to ComponentLead
-          .setTargetAgentType("ComponentLeadAgent")
-          .setActionType("DECOMPOSE")
-          .addRequiredCapability("cpp20")
-          .build();
+  auto chief_spec = YamlSpecBuilder()
+                        .setName("build-project")
+                        .setTaskId("chief-task-001")
+                        .setGoal("Build C++20 project")
+                        .setTargetLevel(1)  // Delegate to ComponentLead
+                        .setTargetAgentType("ComponentLeadAgent")
+                        .setActionType("DECOMPOSE")
+                        .addRequiredCapability("cpp20")
+                        .build();
 
   // Step 3: Route task to ComponentLead
   auto route_to_component = router_->routeTask(chief_spec);
@@ -803,20 +780,19 @@ TEST_F(DistributedGrpcTest, IntegrationFullTaskFlowSimulated) {
   EXPECT_EQ(route_to_component.target_agent_id, "component");
 
   // Step 4: ComponentLead creates module-level tasks
-  auto module_spec =
-      YamlSpecBuilder()
-          .setName("build-messaging-module")
-          .setTaskId("module-task-001")
-          .setGoal("Build messaging module")
-          .setTargetLevel(2)  // Delegate to ModuleLead
-          .setTargetAgentType("ModuleLeadAgent")
-          .setActionType("DECOMPOSE")
-          .addRequiredCapability("cpp20")
-          .addRequiredCapability("cmake")
-          .addSubtask("compile-sources", "TaskAgent")
-          .addSubtask("run-tests", "TaskAgent")
-          .setAggregationStrategy("WAIT_ALL")
-          .build();
+  auto module_spec = YamlSpecBuilder()
+                         .setName("build-messaging-module")
+                         .setTaskId("module-task-001")
+                         .setGoal("Build messaging module")
+                         .setTargetLevel(2)  // Delegate to ModuleLead
+                         .setTargetAgentType("ModuleLeadAgent")
+                         .setActionType("DECOMPOSE")
+                         .addRequiredCapability("cpp20")
+                         .addRequiredCapability("cmake")
+                         .addSubtask("compile-sources", "TaskAgent")
+                         .addSubtask("run-tests", "TaskAgent")
+                         .setAggregationStrategy("WAIT_ALL")
+                         .build();
 
   // Step 5: Route to ModuleLead
   auto route_to_module = router_->routeTask(module_spec);
@@ -860,8 +836,7 @@ TEST_F(DistributedGrpcTest, IntegrationFullTaskFlowSimulated) {
   EXPECT_FALSE(route_task2.target_agent_id.empty());
 
   // Step 8: Simulate task execution and result aggregation
-  ResultAggregator module_aggregator(AggregationStrategy::WAIT_ALL, 60000ms,
-                                     2);
+  ResultAggregator module_aggregator(AggregationStrategy::WAIT_ALL, 60000ms, 2);
 
   hmas::TaskResult result1;
   result1.set_task_id("task-001");
@@ -903,10 +878,8 @@ TEST_F(DistributedGrpcTest, InvalidYamlParsing) {
 
 TEST_F(DistributedGrpcTest, DuplicateAgentRegistration) {
   // Register same agent twice
-  bool reg1 = registry_->registerAgent("agent-1", "TaskAgent", 3,
-                                       "node1:50051", {});
-  bool reg2 = registry_->registerAgent("agent-1", "TaskAgent", 3,
-                                       "node1:50051", {});
+  bool reg1 = registry_->registerAgent("agent-1", "TaskAgent", 3, "node1:50051", {});
+  bool reg2 = registry_->registerAgent("agent-1", "TaskAgent", 3, "node1:50051", {});
 
   EXPECT_TRUE(reg1);
   EXPECT_FALSE(reg2);  // Duplicate should fail
