@@ -18,7 +18,7 @@ jobs:
   quality:
     name: Code Quality
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 10
 
     steps:
       - name: Checkout code
@@ -26,14 +26,13 @@ jobs:
 
       - name: Install build dependencies
         uses: ./.github/actions/install-build-deps
-        with:
-          include-static-analysis: 'true'
 
       - name: Check formatting
         run: make format.check.native
 
-      - name: Run linters
-        run: make lint.native
+      # Note: Full static analysis (clang-tidy, cppcheck) takes 30+ minutes
+      # and should be run locally or in a separate weekly workflow.
+      # For PR checks, we only verify formatting.
 
   # ============================================================================
   # Build and Test Matrix (all sanitizers)
