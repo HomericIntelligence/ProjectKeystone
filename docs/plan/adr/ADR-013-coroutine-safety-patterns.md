@@ -640,7 +640,7 @@ TEST(CoroutineSafetyTest, CoroutineChainsWorkWithoutStackOverflow) {
 
 Run with ThreadSanitizer to detect data races:
 ```bash
-just test-tsan  # Run all tests with ThreadSanitizer
+make test.debug.tsan  # Run all tests with ThreadSanitizer
 ```
 
 ## Implementation Checklist

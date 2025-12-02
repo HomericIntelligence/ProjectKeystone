@@ -605,7 +605,7 @@ After creating PR:
 
 3. **Verify All Tests Pass**
    ```bash
-   just test-asan  # Must show 100% pass rate
+   make test.debug.asan  # Must show 100% pass rate
    ```
 
 4. **Commit to the Feature Branch**
@@ -651,8 +651,8 @@ After creating PR:
 
 Before committing, verify:
 1. ✅ On a feature branch (not main): `git branch --show-current`
-2. ✅ All tests pass: `just test-asan`
-3. ✅ Code formatted: `just format`
+2. ✅ All tests pass: `make test.debug.asan`
+3. ✅ Code formatted: `make format`
 4. ✅ No compilation warnings
 5. ✅ Complex code has inline documentation
 

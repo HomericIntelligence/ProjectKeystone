@@ -434,7 +434,7 @@ After creating PR:
 
 3. **Run Security Scans**
    ```bash
-   just test-asan  # All tests must pass
+   make test.debug.asan  # All tests must pass
    # Run security-specific tools if available
    ```
 
@@ -489,7 +489,7 @@ After creating PR:
 
 Before creating PR:
 1. ✅ On feature branch: `git branch --show-current`
-2. ✅ All tests pass: `just test-asan` shows 100%
+2. ✅ All tests pass: `make test.debug.asan` shows 100%
 3. ✅ Security scans clean
 4. ✅ No vulnerabilities introduced
 5. ✅ Security controls validated

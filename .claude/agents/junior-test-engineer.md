@@ -507,7 +507,7 @@ After creating PR:
 
 3. **Run Tests Locally**
    ```bash
-   just test-asan  # All tests must pass
+   make test.debug.asan  # All tests must pass
    ```
 
 4. **Commit to the Feature Branch**
@@ -550,8 +550,8 @@ After creating PR:
 
 Before committing, verify:
 1. ✅ On a feature branch (not main): `git branch --show-current`
-2. ✅ All tests pass: `just test-asan`
-3. ✅ Code formatted: `just format`
+2. ✅ All tests pass: `make test.debug.asan`
+3. ✅ Code formatted: `make format`
 
 ---
 

@@ -640,7 +640,7 @@ After creating PR:
 
 3. **Verify All Tests Pass**
    ```bash
-   just test-asan  # All implemented code must pass tests
+   make test.debug.asan  # All implemented code must pass tests
    ```
 
 4. **Commit to Feature Branch**
@@ -688,8 +688,8 @@ After creating PR:
 
 Before creating PR:
 1. ✅ On feature branch: `git branch --show-current`
-2. ✅ All tests pass: `just test-asan` shows 100%
-3. ✅ Code formatted: `just format`
+2. ✅ All tests pass: `make test.debug.asan` shows 100%
+3. ✅ Code formatted: `make format`
 4. ✅ Implementation plan documented
 5. ✅ All engineers coordinated
 

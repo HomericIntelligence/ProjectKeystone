@@ -1,0 +1,232 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop, 'claude/**']
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ============================================================================
+  # Code Quality Checks (fast, run first)
+  # ============================================================================
+  quality:
+    name: Code Quality
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        uses: ./.github/actions/install-build-deps
+        with:
+          include-static-analysis: 'true'
+
+      - name: Check formatting
+        run: make format.check.native
+
+      - name: Run linters
+        run: make lint.native
+
+  # ============================================================================
+  # Build and Test Matrix (all sanitizers)
+  # ============================================================================
+  sanitizers:
+    name: Test (${{ matrix.sanitizer }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    needs: quality
+
+    strategy:
+      fail-fast: false
+      matrix:
+        sanitizer: [asan, ubsan, tsan, lsan, msan]
+        include:
+          - sanitizer: asan
+            name: AddressSanitizer
+          - sanitizer: ubsan
+            name: UndefinedBehaviorSanitizer
+          - sanitizer: tsan
+            name: ThreadSanitizer
+          - sanitizer: lsan
+            name: LeakSanitizer
+          - sanitizer: msan
+            name: MemorySanitizer
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        uses: ./.github/actions/install-build-deps
+
+      - name: Build with ${{ matrix.name }}
+        run: make compile.debug.${{ matrix.sanitizer }}.native
+
+      - name: Run tests with ${{ matrix.name }}
+        run: make test.debug.${{ matrix.sanitizer }}.native
+
+      - name: Upload test logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs-${{ matrix.sanitizer }}
+          path: build/x86.debug.${{ matrix.sanitizer }}/Testing/
+          retention-days: 7
+
+  # ============================================================================
+  # Benchmarks (release build)
+  # ============================================================================
+  benchmarks:
+    name: Benchmarks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    needs: quality
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        uses: ./.github/actions/install-build-deps
+
+      - name: Build release
+        run: make compile.release.native
+
+      - name: Run benchmarks
+        run: make benchmark.native || true  # Don't fail on benchmark results
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: build/reports/benchmarks/
+          retention-days: 30
+          if-no-files-found: ignore
+
+  # ============================================================================
+  # Coverage Report
+  # ============================================================================
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    needs: quality
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        uses: ./.github/actions/install-build-deps
+        with:
+          include-coverage: 'true'
+
+      - name: Build with coverage
+        run: make compile.debug.coverage.native
+
+      - name: Run tests for coverage
+        run: make test.debug.coverage.native
+
+      - name: Generate coverage report
+        run: |
+          chmod +x scripts/generate_coverage.sh
+          ./scripts/generate_coverage.sh || true
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: build/coverage/html/
+          retention-days: 30
+          if-no-files-found: ignore
+
+  # ============================================================================
+  # Summary Report
+  # ============================================================================
+  summary:
+    name: CI Summary
+    runs-on: ubuntu-24.04
+    needs: [quality, sanitizers, benchmarks, coverage]
+    if: always()
+
+    steps:
+      - name: Check results
+        run: |
+          echo "Quality: ${{ needs.quality.result }}"
+          echo "Sanitizers: ${{ needs.sanitizers.result }}"
+          echo "Benchmarks: ${{ needs.benchmarks.result }}"
+          echo "Coverage: ${{ needs.coverage.result }}"
+
+          # Fail if critical jobs failed
+          if [ "${{ needs.quality.result }}" != "success" ]; then
+            echo "::error::Quality checks failed"
+            exit 1
+          fi
+          if [ "${{ needs.sanitizers.result }}" != "success" ]; then
+            echo "::error::Sanitizer tests failed"
+            exit 1
+          fi
+
+          echo "CI passed successfully"
+
+      - name: Post PR summary
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const sanitizerResult = '${{ needs.sanitizers.result }}';
+            const qualityResult = '${{ needs.quality.result }}';
+            const benchmarkResult = '${{ needs.benchmarks.result }}';
+            const coverageResult = '${{ needs.coverage.result }}';
+
+            const statusIcon = (result) => result === 'success' ? '✅' : result === 'failure' ? '❌' : '⚠️';
+
+            const body = `## CI Summary
+
+            | Check | Status |
+            |-------|--------|
+            | Code Quality | ${statusIcon(qualityResult)} ${qualityResult} |
+            | Sanitizers (ASan, UBSan, TSan, LSan, MSan) | ${statusIcon(sanitizerResult)} ${sanitizerResult} |
+            | Benchmarks | ${statusIcon(benchmarkResult)} ${benchmarkResult} |
+            | Coverage | ${statusIcon(coverageResult)} ${coverageResult} |
+
+            [View full run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            `;
+
+            // Find and update or create comment
+            const marker = '<!-- CI_SUMMARY_MARKER -->';
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const existingComment = comments.find(c =>
+              c.user.type === 'Bot' && c.body.includes(marker)
+            );
+
+            const fullBody = marker + '\n' + body;
+
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: fullBody
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: fullBody
+              });
+            }

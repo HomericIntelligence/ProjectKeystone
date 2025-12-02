@@ -196,7 +196,7 @@ The interface segregation enables:
 
 All existing tests pass without modification:
 ```bash
-just test-asan  # All tests pass ✅
+make test.debug.asan  # All tests pass ✅
 ```
 
 New tests validate interface segregation:

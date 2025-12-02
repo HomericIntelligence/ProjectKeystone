@@ -1,0 +1,65 @@
+name: Install Build Dependencies
+description: Install C++20 build tools (clang-18, cmake, ninja) for ProjectKeystone
+
+inputs:
+  include-coverage:
+    description: Include lcov for coverage builds
+    required: false
+    default: 'false'
+  include-static-analysis:
+    description: Include clang-tidy and cppcheck
+    required: false
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    - name: Update apt
+      run: sudo apt-get update
+      shell: bash
+
+    - name: Install core C++20 build tools
+      run: |
+        sudo apt-get install -y \
+          build-essential \
+          cmake \
+          ninja-build \
+          clang-18 \
+          clang++-18 \
+          libc++-18-dev \
+          libc++abi-18-dev
+      shell: bash
+
+    - name: Install coverage tools
+      if: inputs.include-coverage == 'true'
+      run: sudo apt-get install -y lcov bc
+      shell: bash
+
+    - name: Install static analysis tools
+      if: inputs.include-static-analysis == 'true'
+      run: sudo apt-get install -y clang-tidy-18 cppcheck
+      shell: bash
+
+    - name: Set up compiler alternatives
+      run: |
+        sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-18 100
+        sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-18 100
+        sudo update-alternatives --install /usr/bin/cc cc /usr/bin/clang-18 100
+        sudo update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++-18 100
+      shell: bash
+
+    - name: Set up clang-tidy alternatives
+      if: inputs.include-static-analysis == 'true'
+      run: |
+        sudo update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-18 100
+      shell: bash
+
+    - name: Verify installation
+      run: |
+        echo "Clang version:"
+        clang --version
+        echo "CMake version:"
+        cmake --version
+        echo "Ninja version:"
+        ninja --version
+      shell: bash

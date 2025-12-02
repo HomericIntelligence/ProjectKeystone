@@ -463,7 +463,7 @@ After creating PR:
 
 3. **Verify Tests**
    ```bash
-   just test-asan
+   make test.debug.asan
    ```
 
 4. **Commit & Push**

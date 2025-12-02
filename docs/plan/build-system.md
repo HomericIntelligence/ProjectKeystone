@@ -414,38 +414,38 @@ ProjectKeystone uses `just` for unified build commands. All commands run in Dock
 
 ```bash
 # Show all available commands
-just --list
-just help
+make help
+make help
 
 # Build with AddressSanitizer (Docker)
-just build-asan
+make compile.debug.asan
 
 # Build release mode
-just build-release
+make compile.release
 
 # Build debug mode
-just build-debug
+make compile.debug
 
 # Build with ThreadSanitizer
-just build-tsan
+make compile.debug.tsan
 
 # Run all tests
-just test-asan
+make test.debug.asan
 
 # Run specific test suites
-just test-basic
-just test-module
-just test-unit
+make test.basic
+make test.module
+make test.unit
 
 # Run linters
-just lint
-just format
+make lint
+make format
 
 # Native mode (run on host instead of Docker)
-just native-build-asan
-just native-test-asan
+make compile.debug.asan.native
+make test.debug.asan.native
 # or
-NATIVE=1 just build-asan
+NATIVE=1 make compile.debug.asan
 ```
 
 **Build Directory Structure:**

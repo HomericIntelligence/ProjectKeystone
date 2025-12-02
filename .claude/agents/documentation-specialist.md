@@ -489,7 +489,7 @@ After creating PR:
 
 3. **Validate Documentation**
    ```bash
-   just format  # Format all files
+   make format  # Format all files
    ```
 
 4. **Commit to Feature Branch**
@@ -539,7 +539,7 @@ After creating PR:
 
 Before creating PR:
 1. ✅ On feature branch: `git branch --show-current`
-2. ✅ Documentation formatted: `just format`
+2. ✅ Documentation formatted: `make format`
 3. ✅ All links work
 4. ✅ Examples tested
 5. ✅ Comprehensive coverage
