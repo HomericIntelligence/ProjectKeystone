@@ -1,0 +1,103 @@
+name: Run Tests
+description: Run ProjectKeystone tests with standardized output and JUnit support
+
+inputs:
+  build-dir:
+    description: Build directory containing test executables
+    required: false
+    default: 'build/x86.debug'
+  filter:
+    description: CTest filter regex (e.g., "unit" to match test names)
+    required: false
+    default: ''
+  parallel:
+    description: Number of parallel test jobs
+    required: false
+    default: '4'
+  output-junit:
+    description: Generate JUnit XML output
+    required: false
+    default: 'true'
+  junit-output-file:
+    description: JUnit XML output file path
+    required: false
+    default: 'test-results.xml'
+
+outputs:
+  test-count:
+    description: Number of tests run
+    value: ${{ steps.run-tests.outputs.test-count }}
+  failed-count:
+    description: Number of failed tests
+    value: ${{ steps.run-tests.outputs.failed-count }}
+  passed:
+    description: Whether all tests passed
+    value: ${{ steps.run-tests.outputs.passed }}
+
+runs:
+  using: composite
+  steps:
+    - name: Verify build directory exists
+      run: |
+        if [ ! -d "${{ inputs.build-dir }}" ]; then
+          echo "::error::Build directory '${{ inputs.build-dir }}' not found"
+          exit 1
+        fi
+      shell: bash
+
+    - name: Run tests with ctest
+      id: run-tests
+      run: |
+        cd "${{ inputs.build-dir }}"
+
+        # Build ctest arguments
+        ARGS="--output-on-failure -j${{ inputs.parallel }}"
+
+        # Add filter if specified
+        if [ -n "${{ inputs.filter }}" ]; then
+          ARGS="$ARGS -R '${{ inputs.filter }}'"
+        fi
+
+        # Add JUnit output if requested
+        if [ "${{ inputs.output-junit }}" == "true" ]; then
+          ARGS="$ARGS --output-junit ${{ inputs.junit-output-file }}"
+        fi
+
+        echo "Running: ctest $ARGS"
+
+        # Run ctest and capture result
+        set +e
+        ctest $ARGS
+        TEST_RESULT=$?
+        set -e
+
+        # Parse results from LastTest.log or JUnit
+        if [ -f "Testing/Temporary/LastTest.log" ]; then
+          TOTAL=$(grep -c "Test:" Testing/Temporary/LastTest.log || echo "0")
+          FAILED=$(grep -c "FAILED" Testing/Temporary/LastTest.log || echo "0")
+        else
+          TOTAL=0
+          FAILED=0
+        fi
+
+        echo "test-count=$TOTAL" >> $GITHUB_OUTPUT
+        echo "failed-count=$FAILED" >> $GITHUB_OUTPUT
+
+        if [ $TEST_RESULT -eq 0 ]; then
+          echo "passed=true" >> $GITHUB_OUTPUT
+          echo "All tests passed"
+        else
+          echo "passed=false" >> $GITHUB_OUTPUT
+          echo "::error::$FAILED test(s) failed"
+          exit $TEST_RESULT
+        fi
+      shell: bash
+
+    - name: Upload JUnit results
+      if: inputs.output-junit == 'true' && always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-${{ github.run_id }}
+        path: ${{ inputs.build-dir }}/${{ inputs.junit-output-file }}
+        retention-days: 30
+        if-no-files-found: ignore

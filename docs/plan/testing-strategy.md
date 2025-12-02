@@ -402,7 +402,7 @@ TEST(StressTest, LongDurationStability) {
 
 ```bash
 # Using justfile (recommended)
-just test-profiling
+make test.profiling
 
 # Or manually with CMake
 cmake -S . -B build/profiling -G Ninja -DENABLE_PROFILING=ON

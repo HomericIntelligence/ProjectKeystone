@@ -325,8 +325,8 @@ gh pr create --title "feat: Brief description" \
 Before every commit:
 
 1. ✅ On feature branch: `git branch --show-current`
-2. ✅ All tests pass: `just test-asan`
-3. ✅ Code formatted: `just format`
+2. ✅ All tests pass: `make test.debug.asan.native`
+3. ✅ Code formatted: `make format.native`
 4. ✅ No compilation warnings
 5. ✅ Changes are focused and atomic
 
@@ -445,81 +445,87 @@ Write unit tests for:
 
 ### Test Execution
 
-**All builds and tests use `just` commands (wraps Docker by default).**
+**All builds and tests use the Makefile (Docker by default, native mode with `.native` suffix).**
 
 ```bash
-# Using justfile (recommended)
-just test-asan           # Run all tests with AddressSanitizer
-just test-tsan           # Run all tests with ThreadSanitizer
-just test-basic          # Run basic delegation tests
-just test-module         # Run module coordination tests
-just test-unit           # Run unit tests
+# Run all tests with sanitizers
+make test.debug.asan          # Run all tests with AddressSanitizer (Docker)
+make test.debug.tsan          # Run all tests with ThreadSanitizer
+make test.debug.ubsan         # Run all tests with UBSan
+make test.debug.lsan          # Run all tests with LeakSanitizer
+make test.debug.msan          # Run all tests with MemorySanitizer
 
-# Run with GTest filter
-just test-filter basic_delegation_tests "E2E_Phase1.*"
+# Run specific test suites
+make test.basic               # Run basic delegation tests
+make test.module              # Run module coordination tests
+make test.unit                # Run unit tests
+make test.component           # Run component coordination tests
+make test.async               # Run async delegation tests
 
-# Native mode (faster iteration)
-just native-test-asan
-NATIVE=1 just test-basic
+# Native mode (faster iteration - runs on host)
+make test.debug.asan.native   # Run ASan tests on host
+make test.basic.native        # Run basic tests on host
 
-# Manual Docker commands (if not using justfile)
-docker-compose up test
-docker build -t projectkeystone:latest .
-docker run --rm projectkeystone:latest
+# Show all available commands
+make help
 ```
 
 ## Build System
 
-**All development uses `justfile` commands (Docker by default, native mode available).**
+**All development uses the Makefile (Docker by default, native mode with `.native` suffix).**
 
 ### Prerequisites
 
-- **just** - Command runner ([install guide](https://github.com/casey/just#installation))
+- **GNU Make** - Standard on Linux/macOS
 - **Docker** 20.10+ installed (for default Docker mode)
 - **docker-compose** 1.29+ (optional but recommended)
 
-### Quick Start with Justfile
+### Quick Start with Makefile
 
 ```bash
 # Show all available commands
-just --list
-just help
+make help
 
-# Build with AddressSanitizer (Docker mode)
-just build-asan
-
-# Build release mode
-just build-release
+# Build with different configurations
+make compile.debug            # Build debug mode (Docker)
+make compile.release          # Build release mode
+make compile.debug.asan       # Build with AddressSanitizer
+make compile.debug.tsan       # Build with ThreadSanitizer
 
 # Run all tests
-just test-asan
+make test.debug.asan          # Run tests with ASan
 
 # Run specific test suites
-just test-basic
-just test-module
+make test.basic               # Run basic delegation tests
+make test.module              # Run module coordination tests
 
-# Native mode (run on host)
-just native-build-asan
-just native-test-asan
+# Native mode (run on host instead of Docker)
+make compile.debug.asan.native  # Build with ASan on host
+make test.debug.asan.native     # Run tests on host
+
+# Lint and format
+make lint                     # Run all linters
+make format                   # Format C++ code
+make format.check             # Check formatting (CI)
 ```
 
 ### Build Directory Structure
 
-Builds output to `build/<mode>/` for parallel builds:
+Builds output to `build/x86.<mode>.<sanitizer>/` for parallel builds:
 
 ```
 build/
-├── debug/      # Debug build
-├── release/    # Release build
-├── asan/       # AddressSanitizer + UBSan
-├── tsan/       # ThreadSanitizer
-├── ubsan/      # UndefinedBehaviorSanitizer
-├── lsan/       # LeakSanitizer
-├── grpc/       # With gRPC support
-└── coverage/   # With coverage instrumentation
+├── x86.debug/           # Debug build
+├── x86.release/         # Release build
+├── x86.debug.asan/      # Debug + AddressSanitizer
+├── x86.debug.tsan/      # Debug + ThreadSanitizer
+├── x86.debug.ubsan/     # Debug + UBSan
+├── x86.debug.lsan/      # Debug + LeakSanitizer
+├── x86.debug.grpc/      # Debug + gRPC
+└── x86.debug.coverage/  # Debug + Coverage
 ```
 
-### Manual Docker Commands (if not using justfile)
+### Manual Docker Commands (if not using Makefile)
 
 ```bash
 # Development environment
@@ -768,50 +774,49 @@ Phase 8 adds distributed multi-node communication via gRPC, YAML task specificat
 
 ### Quick Commands
 
-**Using Justfile (Recommended):**
+**Using Makefile:**
 
 ```bash
 # Show all available commands
-just --list
-just help
+make help
 
 # Build
-just build-asan          # Build with ASan (Docker)
-just build-release       # Build release mode
-just build-tsan          # Build with TSan
+make compile.debug.asan       # Build with ASan (Docker)
+make compile.release          # Build release mode
+make compile.debug.tsan       # Build with TSan
 
 # Test
-just test-asan           # Run all tests with ASan
-just test-basic          # Run basic delegation tests
-just test-module         # Run module coordination tests
-just test-unit           # Run unit tests
+make test.debug.asan          # Run all tests with ASan
+make test.basic               # Run basic delegation tests
+make test.module              # Run module coordination tests
+make test.unit                # Run unit tests
 
 # Lint & Format
-just lint                # Run all linters
-just format              # Format code
-just format-check        # Check formatting (CI)
+make lint                     # Run all linters
+make format                   # Format code
+make format.check             # Check formatting (CI)
 
 # Benchmarks & Load Tests
-just benchmark           # Run all benchmarks
-just load-test           # Run load tests
-just load-test-quick     # Quick load tests (CI)
+make benchmark                # Run all benchmarks
+make load-test                # Run load tests
+make load-test.quick          # Quick load tests (CI)
 
-# Native Mode (run on host)
-just native-build-asan
-just native-test-asan
+# Native Mode (run on host - add .native suffix)
+make compile.debug.asan.native
+make test.debug.asan.native
 
 # Docker Management
-just docker-build        # Build Docker images
-just docker-up           # Start dev container
-just docker-shell        # Enter dev container
+make docker.build             # Build Docker images
+make docker.up                # Start dev container
+make docker.shell             # Enter dev container
 ```
 
 **With Phase 8 (Distributed Features):**
 
 ```bash
 # Build with gRPC support
-just build-grpc
-just test-grpc
+make compile.debug.grpc
+make test.grpc
 
 # Or manually
 cmake -S . -B build/grpc -G Ninja -DENABLE_GRPC=ON

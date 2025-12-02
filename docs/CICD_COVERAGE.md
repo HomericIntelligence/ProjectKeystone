@@ -12,12 +12,12 @@ This document maps README.md instructions to CI/CD workflow validation.
 
 | README Instruction | CI Workflow | Job/Step | Status |
 |-------------------|-------------|----------|--------|
-| `just build-asan` | `sanitizers.yml` | `asan-ubsan: Build with ASan + UBSan` | ✅ Covered |
-| `just build-release` | `quality.yml` | `benchmarks: Build benchmarks` | ✅ Covered |
-| `just test-asan` | `sanitizers.yml` | `asan-ubsan: Run tests with ASan + UBSan` | ✅ Covered |
-| `just test-tsan` | `sanitizers.yml` | `tsan: Run tests with TSan` | ✅ Covered |
-| `just native-build-asan` | N/A | - | ⚠️ Local only |
-| `just native-test-asan` | N/A | - | ⚠️ Local only |
+| `make compile.debug.asan` | `sanitizers.yml` | `asan-ubsan: Build with ASan + UBSan` | ✅ Covered |
+| `make compile.release` | `quality.yml` | `benchmarks: Build benchmarks` | ✅ Covered |
+| `make test.debug.asan` | `sanitizers.yml` | `asan-ubsan: Run tests with ASan + UBSan` | ✅ Covered |
+| `make test.debug.tsan` | `sanitizers.yml` | `tsan: Run tests with TSan` | ✅ Covered |
+| `make compile.debug.asan.native` | N/A | - | ⚠️ Local only |
+| `make test.debug.asan.native` | N/A | - | ⚠️ Local only |
 | Manual CMake build | `build-validation.yml` | `build-native: Build` | ✅ Covered |
 | Manual CMake test | `installation-verification.yml` | `verify-readme-commands: Test Quick Start` | ✅ Covered |
 
@@ -25,19 +25,19 @@ This document maps README.md instructions to CI/CD workflow validation.
 
 | README Instruction | CI Workflow | Job/Step | Status |
 |-------------------|-------------|----------|--------|
-| `just test-basic` | `quality.yml` | `tests: Unit & E2E Tests` | ✅ Covered |
-| `just test-module` | `quality.yml` | `tests: Unit & E2E Tests` | ✅ Covered |
-| `just test-component` | `quality.yml` | `tests: Unit & E2E Tests` | ✅ Covered |
-| `just test-unit` | `unit-tests.yml` | `test-cpp: Run unit tests` | ✅ Covered |
+| `make test.basic` | `quality.yml` | `tests: Unit & E2E Tests` | ✅ Covered |
+| `make test.module` | `quality.yml` | `tests: Unit & E2E Tests` | ✅ Covered |
+| `make test.component` | `quality.yml` | `tests: Unit & E2E Tests` | ✅ Covered |
+| `make test.unit` | `unit-tests.yml` | `test-cpp: Run unit tests` | ✅ Covered |
 | `ctest --output-on-failure` | `quality.yml` | `tests: Build and test` | ✅ Covered |
 
 ### 3. Docker Commands
 
 | README Instruction | CI Workflow | Job/Step | Status |
 |-------------------|-------------|----------|--------|
-| `just docker-build` | `build-validation.yml` | `build-docker: Build Docker image` | ✅ Covered |
-| `just docker-up` | `docker-tests.yml` | `docker-tests: Test 4 - Dev Environment` | ✅ Covered |
-| `just docker-shell` | N/A | - | ⚠️ Interactive only |
+| `make docker.build` | `build-validation.yml` | `build-docker: Build Docker image` | ✅ Covered |
+| `make docker.up` | `docker-tests.yml` | `docker-tests: Test 4 - Dev Environment` | ✅ Covered |
+| `make docker.shell` | N/A | - | ⚠️ Interactive only |
 | `docker build --target runtime` | `docker-tests.yml` | `docker-tests: Test 1 - Build Runtime Image` | ✅ Covered |
 | `docker run --rm projectkeystone:latest` | `docker-tests.yml` | `docker-tests: Test 2 - Run Tests in Container` | ✅ Covered |
 | `docker-compose up test` | `docker-tests.yml` | `docker-tests: Test 3 - Docker Compose Test Service` | ✅ Covered |
@@ -48,25 +48,25 @@ This document maps README.md instructions to CI/CD workflow validation.
 
 | README Instruction | CI Workflow | Job/Step | Status |
 |-------------------|-------------|----------|--------|
-| `just lint` | `quality.yml` | `static-analysis: Run static analysis` | ✅ Covered |
-| `just lint-clang-tidy` | `quality.yml` | `static-analysis: Run static analysis` | ✅ Covered |
-| `just lint-cppcheck` | `quality.yml` | `static-analysis: Run static analysis` | ✅ Covered |
-| `just format` | `pre-commit.yml` | `pre-commit: Run hooks` | ✅ Covered |
-| `just format-check` | `pre-commit.yml` | `pre-commit: Run hooks` | ✅ Covered |
+| `make lint` | `quality.yml` | `static-analysis: Run static analysis` | ✅ Covered |
+| `make lint.clang-tidy` | `quality.yml` | `static-analysis: Run static analysis` | ✅ Covered |
+| `make lint.cppcheck` | `quality.yml` | `static-analysis: Run static analysis` | ✅ Covered |
+| `make format` | `pre-commit.yml` | `pre-commit: Run hooks` | ✅ Covered |
+| `make format.check` | `pre-commit.yml` | `pre-commit: Run hooks` | ✅ Covered |
 | `./scripts/run_static_analysis.sh` | `quality.yml` | `static-analysis: Run static analysis` | ✅ Covered |
 
 ### 5. Coverage & Benchmarking
 
 | README Instruction | CI Workflow | Job/Step | Status |
 |-------------------|-------------|----------|--------|
-| `just build-coverage` | `quality.yml` | `coverage: Run coverage script` | ✅ Covered |
-| `just coverage` | `quality.yml` | `coverage: Run coverage script` | ✅ Covered |
+| `make compile.debug.coverage` | `quality.yml` | `coverage: Run coverage script` | ✅ Covered |
+| `make coverage` | `quality.yml` | `coverage: Run coverage script` | ✅ Covered |
 | `./scripts/generate_coverage.sh` | `quality.yml` | `coverage: Run coverage script` | ✅ Covered |
-| `just benchmark` | `quality.yml` | `benchmarks: Run benchmarks` | ✅ Covered |
-| `just benchmark-message-pool` | `quality.yml` | `benchmarks: Run benchmarks` | ✅ Covered |
+| `make benchmark` | `quality.yml` | `benchmarks: Run benchmarks` | ✅ Covered |
+| `make benchmark-message-pool` | `quality.yml` | `benchmarks: Run benchmarks` | ✅ Covered |
 | `./scripts/run_benchmarks.sh` | `quality.yml` | `benchmarks: Run benchmarks` | ✅ Covered |
-| `just load-test` | N/A | - | ⚠️ Not in CI (too long) |
-| `just load-test-quick` | N/A | - | ⚠️ Not in CI yet |
+| `make load-test` | N/A | - | ⚠️ Not in CI (too long) |
+| `make load-test.quick` | N/A | - | ⚠️ Not in CI yet |
 
 ### 6. Fuzz Testing
 
@@ -106,7 +106,7 @@ This document maps README.md instructions to CI/CD workflow validation.
 2. **tsan** - ThreadSanitizer
 3. **msan** - MemorySanitizer (manual trigger only)
 
-**README Coverage**: ✅ Covers `just build-asan`, `just test-asan`, `just test-tsan`
+**README Coverage**: ✅ Covers `make compile.debug.asan`, `make test.debug.asan`, `make test.debug.tsan`
 
 ### build-validation.yml - Build Testing
 **Purpose**: Validate all Docker targets and native builds
@@ -153,7 +153,7 @@ This document maps README.md instructions to CI/CD workflow validation.
 ### pre-commit.yml - Pre-commit Hooks
 **Purpose**: Enforce code formatting and linting standards
 
-**README Coverage**: ✅ Covers `just format`, `just format-check`
+**README Coverage**: ✅ Covers `make format`, `make format.check`
 
 ### security-scan.yml - Security Scanning
 **Purpose**: CodeQL analysis for security vulnerabilities
@@ -164,11 +164,11 @@ This document maps README.md instructions to CI/CD workflow validation.
 
 These commands are **intentionally not covered in CI** as they are for local development only:
 
-1. **`just docker-shell`** - Interactive shell (requires TTY)
-2. **`just native-build-asan`** - Local development convenience wrapper
-3. **`just native-test-asan`** - Local development convenience wrapper
-4. **`just load-test`** - Too long for CI (run manually or in scheduled jobs)
-5. **`just load-test-quick`** - Could be added to CI if needed
+1. **`make docker.shell`** - Interactive shell (requires TTY)
+2. **`make compile.debug.asan.native`** - Local development convenience wrapper
+3. **`make test.debug.asan.native`** - Local development convenience wrapper
+4. **`make load-test`** - Too long for CI (run manually or in scheduled jobs)
+5. **`make load-test.quick`** - Could be added to CI if needed
 
 ## Coverage Summary
 

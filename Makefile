@@ -64,6 +64,156 @@ compile: $(BUILD_DIR)/$(BUILD_SUBDIR)
 	$(DOCKER_PREFIX) bash -c "cmake --build $(BUILD_DIR)/$(BUILD_SUBDIR) -j$(NPROC)"
 
 # ============================================================================
+# Test Recipes
+# ============================================================================
+
+.PHONY: test test.unit test.basic test.module test.component test.async test.distributed test.concurrency test.simulation test.grpc test.profiling
+
+# Test executables
+TEST_BASIC := basic_delegation_tests
+TEST_MODULE := module_coordination_tests
+TEST_COMPONENT := component_coordination_tests
+TEST_ASYNC := async_delegation_tests
+TEST_DISTRIBUTED := distributed_hierarchy_tests
+TEST_UNIT := unit_tests
+TEST_CONCURRENCY := concurrency_unit_tests
+TEST_SIMULATION := simulation_unit_tests
+TEST_GRPC := distributed_grpc_tests
+TEST_PROFILING := profiling_tests
+
+# Run all tests with ctest
+test: compile
+	@echo "Running all tests..."
+	$(DOCKER_CHECK)
+	$(DOCKER_PREFIX) bash -c "cd $(BUILD_DIR)/$(BUILD_SUBDIR) && ctest --output-on-failure -j$(NPROC)"
+
+# Individual test suites (run specific executable)
+test.unit: compile
+	@echo "Running unit tests..."
+	$(DOCKER_CHECK)
+	$(DOCKER_PREFIX) ./$(BUILD_DIR)/$(BUILD_SUBDIR)/$(TEST_UNIT)
+
+test.basic: compile
+	@echo "Running basic delegation tests..."
+	$(DOCKER_CHECK)
+	$(DOCKER_PREFIX) ./$(BUILD_DIR)/$(BUILD_SUBDIR)/$(TEST_BASIC)
+
+test.module: compile
+	@echo "Running module coordination tests..."
+	$(DOCKER_CHECK)
+	$(DOCKER_PREFIX) ./$(BUILD_DIR)/$(BUILD_SUBDIR)/$(TEST_MODULE)
+
+test.component: compile
+	@echo "Running component coordination tests..."
+	$(DOCKER_CHECK)
+	$(DOCKER_PREFIX) ./$(BUILD_DIR)/$(BUILD_SUBDIR)/$(TEST_COMPONENT)
+
+test.async: compile
+	@echo "Running async delegation tests..."
+	$(DOCKER_CHECK)
+	$(DOCKER_PREFIX) ./$(BUILD_DIR)/$(BUILD_SUBDIR)/$(TEST_ASYNC)
+
+test.distributed: compile
+	@echo "Running distributed hierarchy tests..."
+	$(DOCKER_CHECK)
+	$(DOCKER_PREFIX) ./$(BUILD_DIR)/$(BUILD_SUBDIR)/$(TEST_DISTRIBUTED)
+
+test.concurrency: compile
+	@echo "Running concurrency unit tests..."
+	$(DOCKER_CHECK)
+	$(DOCKER_PREFIX) ./$(BUILD_DIR)/$(BUILD_SUBDIR)/$(TEST_CONCURRENCY)
+
+test.simulation: compile
+	@echo "Running simulation unit tests..."
+	$(DOCKER_CHECK)
+	$(DOCKER_PREFIX) ./$(BUILD_DIR)/$(BUILD_SUBDIR)/$(TEST_SIMULATION)
+
+test.grpc: compile.grpc
+	@echo "Running gRPC distributed tests..."
+	$(DOCKER_CHECK)
+	$(DOCKER_PREFIX) ./$(BUILD_DIR)/$(BUILD_SUBDIR)/$(TEST_GRPC)
+
+test.profiling: compile.profile
+	@echo "Running profiling tests..."
+	$(DOCKER_CHECK)
+	$(DOCKER_PREFIX) ./$(BUILD_DIR)/$(BUILD_SUBDIR)/$(TEST_PROFILING)
+
+# ============================================================================
+# Benchmark Recipes
+# ============================================================================
+
+.PHONY: benchmark benchmark.message-pool benchmark.distributed benchmark.strings
+
+# Run all benchmarks
+benchmark: compile.release
+	@echo "Running benchmarks..."
+	$(DOCKER_CHECK)
+	$(DOCKER_PREFIX) ./scripts/run_benchmarks.sh
+
+# Individual benchmark targets
+benchmark.message-pool: compile.release
+	@echo "Running message pool benchmarks..."
+	$(DOCKER_CHECK)
+	$(DOCKER_PREFIX) ./$(BUILD_DIR)/$(BUILD_SUBDIR)/message_pool_benchmarks
+
+benchmark.distributed: compile.release
+	@echo "Running distributed benchmarks..."
+	$(DOCKER_CHECK)
+	$(DOCKER_PREFIX) ./$(BUILD_DIR)/$(BUILD_SUBDIR)/distributed_benchmarks
+
+benchmark.strings: compile.release
+	@echo "Running string allocation benchmarks..."
+	$(DOCKER_CHECK)
+	$(DOCKER_PREFIX) ./$(BUILD_DIR)/$(BUILD_SUBDIR)/string_allocation_benchmarks
+
+# ============================================================================
+# Load Testing
+# ============================================================================
+
+.PHONY: load-test load-test.quick
+
+# Run all load test scenarios
+load-test: compile.release
+	@echo "Running load tests (full duration)..."
+	$(DOCKER_CHECK)
+	$(DOCKER_PREFIX) ./tests/load/run_all_scenarios.sh
+
+# Run load tests in quick mode (for CI)
+load-test.quick: compile.release
+	@echo "Running load tests (quick mode)..."
+	$(DOCKER_CHECK)
+	$(DOCKER_PREFIX) ./tests/load/run_all_scenarios.sh --quick
+
+# ============================================================================
+# Coverage
+# ============================================================================
+
+.PHONY: coverage
+
+coverage: compile.coverage
+	@echo "Generating coverage report..."
+	$(DOCKER_CHECK)
+	$(DOCKER_PREFIX) ./scripts/generate_coverage.sh
+
+# ============================================================================
+# CI/CD Helper Recipes
+# ============================================================================
+
+.PHONY: ci ci.quick pre-commit
+
+# Full CI pipeline
+ci: compile.debug.asan test.debug.asan lint format.check
+	@echo "✓ CI pipeline complete"
+
+# Quick CI (for pull requests)
+ci.quick: compile.debug.asan test.basic test.module test.component format.check
+	@echo "✓ Quick CI complete"
+
+# Pre-commit checks
+pre-commit: format.check lint.clang-tidy test.basic
+	@echo "✓ Pre-commit checks passed"
+
+# ============================================================================
 # Linting & Static Analysis
 # ============================================================================
 
@@ -201,31 +351,53 @@ docker.shell: docker-up
 
 help:
 	@echo "ProjectKeystone Makefile"
-	@echo "Simple build system with debug, release, and sanitizer modes"
+	@echo "Unified build system with debug, release, sanitizer modes, and testing"
 	@echo ""
-	@echo "Usage: make <target>"
+	@echo "Usage: make <target>[.modifier][.native]"
 	@echo ""
 	@echo "Build Commands:"
-	@echo "  make                    Build debug mode (build/debug)"
-	@echo "  make release            Build release mode (build/release)"
-	@echo "  make debug.asan         Build debug with ASan (build/debug.asan)"
-	@echo "  make release.asan       Build release with ASan (build/release.asan)"
+	@echo "  make                    Build debug mode (build/x86.debug)"
+	@echo "  make compile.release    Build release mode (build/x86.release)"
+	@echo "  make compile.debug.asan Build debug with ASan (build/x86.debug.asan)"
 	@echo ""
-	@echo "Sanitizer Patterns:"
-	@echo "  make debug.ubsan        Build debug with UBSan (build/debug.ubsan)"
-	@echo "  make release.ubsan      Build release with UBSan (build/release.ubsan)"
-	@echo "  make debug.lsan         Build debug with LSan (build/debug.lsan)"
-	@echo "  make release.lsan       Build release with LSan (build/release.lsan)"
-	@echo "  make debug.tsan         Build debug with TSan (build/debug.tsan)"
-	@echo "  make release.tsan       Build release with TSan (build/release.tsan)"
-	@echo "  make debug.msan         Build debug with MSan (build/debug.msan)"
-	@echo "  make release.msan       Build release with MSan (build/release.msan)"
+	@echo "Sanitizer Modifiers (append to any build/test target):"
+	@echo "  .asan                   AddressSanitizer + UBSan"
+	@echo "  .ubsan                  UndefinedBehaviorSanitizer"
+	@echo "  .tsan                   ThreadSanitizer"
+	@echo "  .lsan                   LeakSanitizer"
+	@echo "  .msan                   MemorySanitizer"
 	@echo ""
-	@echo "Feature Flags:"
-	@echo "  make debug.grpc         Build debug with gRPC (build/debug.grpc)"
-	@echo "  make debug.coverage     Build debug with coverage (build/debug.coverage)"
-	@echo "  make debug.profile      Build debug with profiling (build/debug.profile)"
-	@echo "  make debug.fuzz         Build debug with fuzzing (build/debug.fuzz)"
+	@echo "Feature Modifiers:"
+	@echo "  .grpc                   Enable gRPC support"
+	@echo "  .coverage               Enable coverage instrumentation"
+	@echo "  .profile                Enable profiling"
+	@echo "  .fuzz                   Enable fuzzing"
+	@echo ""
+	@echo "Test Commands:"
+	@echo "  make test               Run all tests (ctest)"
+	@echo "  make test.debug.asan    Run all tests with ASan"
+	@echo "  make test.debug.tsan    Run all tests with TSan"
+	@echo "  make test.unit          Run unit tests"
+	@echo "  make test.basic         Run basic delegation tests"
+	@echo "  make test.module        Run module coordination tests"
+	@echo "  make test.component     Run component coordination tests"
+	@echo "  make test.async         Run async delegation tests"
+	@echo "  make test.distributed   Run distributed hierarchy tests"
+	@echo "  make test.concurrency   Run concurrency unit tests"
+	@echo "  make test.simulation    Run simulation unit tests"
+	@echo "  make test.grpc          Run gRPC tests (requires .grpc build)"
+	@echo "  make test.profiling     Run profiling tests"
+	@echo ""
+	@echo "Benchmarks & Load Testing:"
+	@echo "  make benchmark          Run all benchmarks (release build)"
+	@echo "  make benchmark.message-pool  Run message pool benchmarks"
+	@echo "  make benchmark.distributed   Run distributed benchmarks"
+	@echo "  make benchmark.strings       Run string allocation benchmarks"
+	@echo "  make load-test          Run all load tests (full)"
+	@echo "  make load-test.quick    Run load tests (quick, for CI)"
+	@echo ""
+	@echo "Coverage:"
+	@echo "  make coverage           Generate coverage report"
 	@echo ""
 	@echo "Lint & Format:"
 	@echo "  make lint               Run all linters"
@@ -234,20 +406,32 @@ help:
 	@echo "  make format             Format all C++ files"
 	@echo "  make format.check       Check formatting (CI)"
 	@echo ""
+	@echo "CI/CD:"
+	@echo "  make ci                 Full CI pipeline (build, test, lint, format)"
+	@echo "  make ci.quick           Quick CI for PRs"
+	@echo "  make pre-commit         Pre-commit checks"
+	@echo ""
 	@echo "Docker:"
 	@echo "  make docker.build       Build Docker image"
 	@echo "  make docker.up          Start dev container"
 	@echo "  make docker.down        Stop containers"
 	@echo "  make docker.shell       Enter dev container"
 	@echo ""
-	@echo "Native Mode:"
-	@echo "  Add '.native' suffix to any target to run on host system"
-	@echo "  Examples:"
-	@echo "    make debug.native     Build debug mode on host"
-	@echo "    make test.ubsan.native Run UBSan tests on host"
-	@echo "    make benchmark.tsan.native Run TSan benchmarks on host"
+	@echo "Native Mode (run on host instead of Docker):"
+	@echo "  Append .native to any target:"
+	@echo "    make compile.debug.asan.native   Build with ASan on host"
+	@echo "    make test.debug.asan.native      Run ASan tests on host"
+	@echo "    make benchmark.native            Run benchmarks on host"
+	@echo "    make lint.native                 Run linters on host"
 	@echo ""
 	@echo "Clean:"
-	@echo "  make clean  		 Clean all builds"
-	@echo "  make clean.debug 	 Clean debug build"
-	@echo "  make clean.release.tsan Clean release thread sanitizer build"
+	@echo "  make clean              Clean current build directory"
+	@echo "  make clean.debug        Clean debug build"
+	@echo "  make clean.release.tsan Clean release TSan build"
+	@echo ""
+	@echo "Examples:"
+	@echo "  make compile.debug.asan           # Build debug with ASan in Docker"
+	@echo "  make test.debug.asan              # Run tests with ASan in Docker"
+	@echo "  make compile.debug.asan.native    # Build debug with ASan on host"
+	@echo "  make test.debug.tsan.native       # Run TSan tests on host"
+	@echo "  make benchmark.native             # Run benchmarks on host"

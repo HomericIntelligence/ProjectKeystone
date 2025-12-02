@@ -34,46 +34,43 @@ communication, work-stealing task scheduling, and comprehensive resilience featu
 - **C++20 Compiler**: GCC 13+ or Clang 15+
 - **CMake**: 3.20+
 - **Ninja**: Build system
-- **just**: Command runner ([installation guide](https://github.com/casey/just#installation))
+- **GNU Make**: Standard on Linux/macOS
 - **Docker**: (Optional) For containerized builds
 
 ## Quick Start
 
-### Using Justfile (Recommended)
+### Using Makefile
 
-The project uses `just` for unified build, test, and lint commands:
+The project uses `make` for unified build, test, and lint commands:
 
 ```bash
 # Show all available commands
-just --list
-just help
+make help
 
 # Build with AddressSanitizer (Docker)
-just build-asan
+make compile.debug.asan
 
 # Build release mode
-just build-release
+make compile.release
 
 # Run all tests with ASan
-just test-asan
+make test.debug.asan
 
 # Run specific test suite
-just test-basic
-just test-module
-just test-unit
+make test.basic
+make test.module
+make test.unit
 
 # Run linters
-just lint
-just format
+make lint
+make format
 
 # Native mode (run on host instead of Docker)
-just native-build-asan
-just native-test-asan
-# or use NATIVE=1
-NATIVE=1 just build-asan
+make compile.debug.asan.native
+make test.debug.asan.native
 ```
 
-### Manual Build (without justfile)
+### Manual Build (without Makefile)
 
 ```bash
 # Build with ASan
@@ -86,17 +83,17 @@ cmake --build build/asan
 cd build/asan && ctest --output-on-failure
 ```
 
-### Docker Commands (if not using justfile)
+### Docker Commands
 
 ```bash
 # Build Docker images
-just docker-build
+make docker.build
 
 # Start dev container
-just docker-up
+make docker.up
 
 # Enter dev container shell
-just docker-shell
+make docker.shell
 
 # Or use docker-compose directly
 docker-compose up -d dev
@@ -139,32 +136,34 @@ See [Coverage Baseline](docs/plan/PHASE_9_COVERAGE_BASELINE.md) for detailed met
 
 ```bash
 # Run all tests (with ASan)
-just test-asan
+make test.debug.asan
 
 # Run specific test suites
-just test-basic          # Basic delegation tests
-just test-module         # Module coordination tests
-just test-component      # Component coordination tests
-just test-async          # Async delegation tests
-just test-unit           # Unit tests
-just test-concurrency    # Concurrency unit tests
-
-# Run with GTest filter
-just test-filter basic_delegation_tests "E2E_Phase1.*"
+make test.basic          # Basic delegation tests
+make test.module         # Module coordination tests
+make test.component      # Component coordination tests
+make test.async          # Async delegation tests
+make test.unit           # Unit tests
+make test.concurrency    # Concurrency unit tests
 
 # Run with TSan (thread sanitizer)
-just test-tsan
+make test.debug.tsan
+
+# Run with all sanitizers
+make test.debug.ubsan    # UndefinedBehaviorSanitizer
+make test.debug.lsan     # LeakSanitizer
+make test.debug.msan     # MemorySanitizer
 
 # Native mode (faster iteration)
-just native-test-asan
+make test.debug.asan.native
 ```
 
 ### Code Coverage
 
 ```bash
 # Build with coverage and generate report
-just build-coverage
-just coverage
+make compile.debug.coverage
+make coverage
 
 # Or manually
 ./scripts/generate_coverage.sh
@@ -194,15 +193,15 @@ See [Fuzz Testing README](fuzz/README.md) for details.
 
 ```bash
 # Run all benchmarks
-just benchmark
+make benchmark
 
 # Run specific benchmark
-just benchmark-message-pool
-just benchmark-distributed
-just benchmark-strings
+make benchmark.message-pool
+make benchmark.distributed
+make benchmark.strings
 
 # Manual benchmark execution
-just build-release
+make compile.release
 ./scripts/run_benchmarks.sh
 
 # Save baseline
@@ -216,14 +215,10 @@ just build-release
 
 ```bash
 # Run all load test scenarios (full duration)
-just load-test
+make load-test
 
 # Quick load tests (for CI)
-just load-test-quick
-
-# Run specific scenario
-just load-test-scenario sustained_load
-just load-test-scenario burst
+make load-test.quick
 ```
 
 See [Benchmarks README](benchmarks/README.md) for details.
@@ -232,17 +227,17 @@ See [Benchmarks README](benchmarks/README.md) for details.
 
 ```bash
 # Run all linters (clang-tidy + cppcheck)
-just lint
+make lint
 
 # Run specific linter
-just lint-clang-tidy
-just lint-cppcheck
+make lint.clang-tidy
+make lint.cppcheck
 
 # Format code
-just format
+make format
 
 # Check formatting (CI)
-just format-check
+make format.check
 
 # Manual execution
 ./scripts/run_static_analysis.sh

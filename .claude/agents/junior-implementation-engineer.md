@@ -547,8 +547,8 @@ After creating PR:
 
 Before committing, verify:
 1. ✅ On a feature branch (not main): `git branch --show-current`
-2. ✅ All tests pass: `just test-asan`
-3. ✅ Code formatted: `just format`
+2. ✅ All tests pass: `make test.debug.asan`
+3. ✅ Code formatted: `make format`
 4. ✅ No compilation warnings
 
 ---

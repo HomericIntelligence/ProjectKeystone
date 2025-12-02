@@ -559,7 +559,7 @@ After creating PR:
 
 3. **Verify Performance & Correctness**
    ```bash
-   just test-asan  # All tests must pass
+   make test.debug.asan  # All tests must pass
    # Run benchmarks to verify improvements
    ```
 
@@ -609,9 +609,9 @@ After creating PR:
 
 Before committing, verify:
 1. ✅ On a feature branch (not main): `git branch --show-current`
-2. ✅ All tests pass: `just test-asan`
+2. ✅ All tests pass: `make test.debug.asan`
 3. ✅ Benchmarks show improvement
-4. ✅ Code formatted: `just format`
+4. ✅ Code formatted: `make format`
 5. ✅ Optimized code produces correct results
 
 ---

@@ -505,7 +505,7 @@ After creating PR:
 
 3. **Verify Benchmarks & Tests**
    ```bash
-   just test-asan  # All optimized code must pass tests
+   make test.debug.asan  # All optimized code must pass tests
    # Run benchmarks to verify improvements
    ```
 
@@ -556,9 +556,9 @@ After creating PR:
 
 Before creating PR:
 1. ✅ On feature branch: `git branch --show-current`
-2. ✅ All tests pass: `just test-asan` shows 100%
+2. ✅ All tests pass: `make test.debug.asan` shows 100%
 3. ✅ Benchmarks show improvement
-4. ✅ Code formatted: `just format`
+4. ✅ Code formatted: `make format`
 5. ✅ Performance requirements met
 
 ---

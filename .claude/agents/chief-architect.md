@@ -276,7 +276,7 @@ External stakeholders when:
 
 3. **Verify All Tests Pass**
    ```bash
-   just test-asan  # Must show 100% pass rate
+   make test.debug.asan  # Must show 100% pass rate
    ```
 
 4. **Commit to Feature Branch**
@@ -332,8 +332,8 @@ External stakeholders when:
 
 Before creating PR:
 1. ✅ On feature branch: `git branch --show-current`
-2. ✅ All tests pass: `just test-asan` shows 100%
-3. ✅ Code formatted: `just format`
+2. ✅ All tests pass: `make test.debug.asan` shows 100%
+3. ✅ Code formatted: `make format`
 4. ✅ No ASan/UBSan warnings
 5. ✅ E2E tests for current phase pass
 6. ✅ Architecture decisions documented
