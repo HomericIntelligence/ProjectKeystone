@@ -20,6 +20,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+BUILD_DIR="${BUILD_DIR:-$PROJECT_ROOT/build/x86.debug}"
 ANALYSIS_DIR="${ANALYSIS_OUTPUT_DIR:-$PROJECT_ROOT/build/reports/analysis}"
 mkdir -p "$ANALYSIS_DIR"
 
