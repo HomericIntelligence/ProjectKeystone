@@ -22,7 +22,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install build dependencies
         uses: ./.github/actions/install-build-deps
@@ -61,7 +61,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install build dependencies
         uses: ./.github/actions/install-build-deps
@@ -74,7 +74,7 @@ jobs:
 
       - name: Upload test logs
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: test-logs-${{ matrix.sanitizer }}
           path: build/x86.debug.${{ matrix.sanitizer }}/Testing/
@@ -91,7 +91,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install build dependencies
         uses: ./.github/actions/install-build-deps
@@ -103,7 +103,7 @@ jobs:
         run: make benchmark.native || true  # Don't fail on benchmark results
 
       - name: Upload benchmark results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: benchmark-results
           path: build/reports/benchmarks/
@@ -121,7 +121,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install build dependencies
         uses: ./.github/actions/install-build-deps
@@ -140,7 +140,7 @@ jobs:
           ./scripts/generate_coverage.sh || true
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: coverage-report
           path: build/coverage/html/
@@ -178,7 +178,7 @@ jobs:
 
       - name: Post PR summary
         if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const sanitizerResult = '${{ needs.sanitizers.result }}';
