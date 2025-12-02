@@ -254,7 +254,7 @@ format.check:
 	$(DOCKER_PREFIX) bash -c \
 			"find src include tests benchmarks -type f \( -name '*.cpp' -o -name '*.hpp' \) \
 			-not -path '*/build/*' -not -path '*/_deps/*' \
-			| xargs clang-format --dry-run --Werror"; \
+			| xargs clang-format --dry-run --Werror"
 	@echo "✓ Formatting check passed"
 
 # ============================================================================
