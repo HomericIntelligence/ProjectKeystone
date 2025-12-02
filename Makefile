@@ -22,7 +22,7 @@ ifeq ($(NATIVE),1)
     DOCKER_CHECK :=
     DOCKER_PREFIX :=
 else
-    DOCKER_CHECK := $(MAKE) -C docker ensure-running 2>/dev/null || true;
+    DOCKER_CHECK := docker-compose up -d dev >/dev/null 2>&1 || true;
     DOCKER_PREFIX := docker-compose exec -T dev 
 endif
 
