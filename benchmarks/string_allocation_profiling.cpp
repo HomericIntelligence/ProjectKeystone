@@ -11,14 +11,14 @@
  * This benchmark isolates string allocation overhead in KeystoneMessage creation.
  */
 
-#include <benchmark/benchmark.h>
+#include "core/message.hpp"
 
 #include <memory>
 #include <string>
 #include <unordered_set>
 #include <vector>
 
-#include "core/message.hpp"
+#include <benchmark/benchmark.h>
 
 using namespace keystone::core;
 
@@ -28,13 +28,11 @@ using namespace keystone::core;
  */
 static void BM_MessageCreation_Baseline(benchmark::State& state) {
   for (auto _ : state) {
-    auto msg = KeystoneMessage::create("sender-agent-001", "receiver-agent-002",
-                                       "EXECUTE");
+    auto msg = KeystoneMessage::create("sender-agent-001", "receiver-agent-002", "EXECUTE");
     benchmark::DoNotOptimize(msg);
   }
   state.SetItemsProcessed(state.iterations());
-  state.counters["msgs/sec"] =
-      benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
+  state.counters["msgs/sec"] = benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
 }
 BENCHMARK(BM_MessageCreation_Baseline);
 
@@ -52,14 +50,13 @@ static void BM_MessageCreation_VariableIDLength(benchmark::State& state) {
   }
   state.SetItemsProcessed(state.iterations());
   state.counters["id_length"] = id_length;
-  state.counters["msgs/sec"] =
-      benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
+  state.counters["msgs/sec"] = benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
 }
 BENCHMARK(BM_MessageCreation_VariableIDLength)
-    ->Arg(8)      // Short IDs
-    ->Arg(32)     // Medium IDs (typical UUID length)
-    ->Arg(64)     // Long IDs
-    ->Arg(128);   // Very long IDs
+    ->Arg(8)     // Short IDs
+    ->Arg(32)    // Medium IDs (typical UUID length)
+    ->Arg(64)    // Long IDs
+    ->Arg(128);  // Very long IDs
 
 /**
  * Measure allocation overhead with payload strings
@@ -69,14 +66,12 @@ static void BM_MessageCreation_WithPayload(benchmark::State& state) {
   std::string payload_data(payload_size, 'x');
 
   for (auto _ : state) {
-    auto msg = KeystoneMessage::create("sender", "receiver", "EXECUTE",
-                                       payload_data);
+    auto msg = KeystoneMessage::create("sender", "receiver", "EXECUTE", payload_data);
     benchmark::DoNotOptimize(msg);
   }
   state.SetItemsProcessed(state.iterations());
   state.counters["payload_bytes"] = payload_size;
-  state.counters["msgs/sec"] =
-      benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
+  state.counters["msgs/sec"] = benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
 }
 BENCHMARK(BM_MessageCreation_WithPayload)
     ->Arg(0)      // No payload
@@ -97,8 +92,7 @@ static void BM_HighFrequency_MessageCreation(benchmark::State& state) {
     messages.reserve(burst_size);
 
     for (int i = 0; i < burst_size; ++i) {
-      messages.push_back(
-          KeystoneMessage::create("sender-agent", "receiver-agent", "EXECUTE"));
+      messages.push_back(KeystoneMessage::create("sender-agent", "receiver-agent", "EXECUTE"));
     }
 
     benchmark::DoNotOptimize(messages);
@@ -107,14 +101,13 @@ static void BM_HighFrequency_MessageCreation(benchmark::State& state) {
 
   state.SetItemsProcessed(state.iterations() * burst_size);
   state.counters["burst_size"] = burst_size;
-  state.counters["msgs/sec"] =
-      benchmark::Counter(state.iterations() * burst_size,
-                         benchmark::Counter::kIsRate);
+  state.counters["msgs/sec"] = benchmark::Counter(state.iterations() * burst_size,
+                                                  benchmark::Counter::kIsRate);
 }
 BENCHMARK(BM_HighFrequency_MessageCreation)
-    ->Arg(100)    // 100 msgs/burst
-    ->Arg(1000)   // 1K msgs/burst
-    ->Arg(10000); // 10K msgs/burst
+    ->Arg(100)     // 100 msgs/burst
+    ->Arg(1000)    // 1K msgs/burst
+    ->Arg(10000);  // 10K msgs/burst
 
 /**
  * Measure string copy overhead when passing messages
@@ -130,8 +123,8 @@ static void BM_MessageCopy_Overhead(benchmark::State& state) {
   }
 
   state.SetItemsProcessed(state.iterations());
-  state.counters["copies/sec"] =
-      benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
+  state.counters["copies/sec"] = benchmark::Counter(state.iterations(),
+                                                    benchmark::Counter::kIsRate);
 }
 BENCHMARK(BM_MessageCopy_Overhead);
 
@@ -149,8 +142,7 @@ static void BM_MessageMove_Overhead(benchmark::State& state) {
   }
 
   state.SetItemsProcessed(state.iterations());
-  state.counters["moves/sec"] =
-      benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
+  state.counters["moves/sec"] = benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
 }
 BENCHMARK(BM_MessageMove_Overhead);
 
@@ -186,8 +178,8 @@ static void BM_StringInterning_Simulation(benchmark::State& state) {
   }
 
   state.SetItemsProcessed(state.iterations());
-  state.counters["lookups/sec"] =
-      benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
+  state.counters["lookups/sec"] = benchmark::Counter(state.iterations(),
+                                                     benchmark::Counter::kIsRate);
 }
 BENCHMARK(BM_StringInterning_Simulation);
 
@@ -208,8 +200,7 @@ static void BM_IntegerIDs_Simulation(benchmark::State& state) {
   }
 
   state.SetItemsProcessed(state.iterations());
-  state.counters["ops/sec"] =
-      benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
+  state.counters["ops/sec"] = benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
 }
 BENCHMARK(BM_IntegerIDs_Simulation);
 
@@ -218,21 +209,16 @@ BENCHMARK(BM_IntegerIDs_Simulation);
  */
 static void BM_Concurrent_MessageCreation(benchmark::State& state) {
   for (auto _ : state) {
-    auto msg = KeystoneMessage::create(
-        "sender-" + std::to_string(state.thread_index()),
-        "receiver-" + std::to_string(state.thread_index()), "EXECUTE");
+    auto msg = KeystoneMessage::create("sender-" + std::to_string(state.thread_index()),
+                                       "receiver-" + std::to_string(state.thread_index()),
+                                       "EXECUTE");
     benchmark::DoNotOptimize(msg);
   }
 
   state.SetItemsProcessed(state.iterations());
-  state.counters["msgs/sec"] =
-      benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
+  state.counters["msgs/sec"] = benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
 }
-BENCHMARK(BM_Concurrent_MessageCreation)
-    ->Threads(1)
-    ->Threads(2)
-    ->Threads(4)
-    ->Threads(8);
+BENCHMARK(BM_Concurrent_MessageCreation)->Threads(1)->Threads(2)->Threads(4)->Threads(8);
 
 /**
  * Memory pressure test: Create and hold many messages
@@ -246,9 +232,9 @@ static void BM_Memory_Pressure(benchmark::State& state) {
 
     // Allocate many messages
     for (int i = 0; i < message_count; ++i) {
-      messages.push_back(KeystoneMessage::create(
-          "sender-" + std::to_string(i), "receiver-" + std::to_string(i),
-          "EXECUTE"));
+      messages.push_back(KeystoneMessage::create("sender-" + std::to_string(i),
+                                                 "receiver-" + std::to_string(i),
+                                                 "EXECUTE"));
     }
 
     benchmark::DoNotOptimize(messages);
@@ -258,9 +244,6 @@ static void BM_Memory_Pressure(benchmark::State& state) {
   state.SetItemsProcessed(state.iterations() * message_count);
   state.counters["total_messages"] = message_count;
 }
-BENCHMARK(BM_Memory_Pressure)
-    ->Arg(100)
-    ->Arg(1000)
-    ->Arg(10000);
+BENCHMARK(BM_Memory_Pressure)->Arg(100)->Arg(1000)->Arg(10000);
 
 BENCHMARK_MAIN();

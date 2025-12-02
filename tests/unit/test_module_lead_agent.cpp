@@ -11,12 +11,12 @@
  * Total: 12 tests
  */
 
-#include <gtest/gtest.h>
-
 #include "agents/module_lead_agent.hpp"
 #include "agents/task_agent.hpp"
 #include "core/message_bus.hpp"
 #include "unit/agent_test_fixture.hpp"
+
+#include <gtest/gtest.h>
 
 using namespace keystone;
 using namespace keystone::test;
@@ -52,8 +52,7 @@ TEST_F(ModuleLeadAgentTest, DecomposeModuleIntoTasks) {
   module->setAvailableTaskAgents(task_ids);
 
   // Send module goal
-  auto msg = core::KeystoneMessage::create("chief", "module_1",
-                                            "process dataset");
+  auto msg = core::KeystoneMessage::create("chief", "module_1", "process dataset");
   module->receiveMessage(msg);
 
   auto received = module->getMessage();
@@ -154,10 +153,8 @@ TEST_F(ModuleLeadAgentTest, CoordinateWithPartialFailures) {
   module->setAvailableTaskAgents(task_ids);
 
   // Try to send to all (one will fail)
-  EXPECT_NO_THROW(module->sendMessage(
-      core::KeystoneMessage::create("module_1", "task_1", "cmd1")));
-  EXPECT_NO_THROW(module->sendMessage(
-      core::KeystoneMessage::create("module_1", "task_2", "cmd2")));
+  EXPECT_NO_THROW(module->sendMessage(core::KeystoneMessage::create("module_1", "task_1", "cmd1")));
+  EXPECT_NO_THROW(module->sendMessage(core::KeystoneMessage::create("module_1", "task_2", "cmd2")));
   EXPECT_NO_THROW(module->sendMessage(
       core::KeystoneMessage::create("module_1", "task_3", "cmd3")));  // Will fail routing
 }
@@ -248,8 +245,7 @@ TEST_F(ModuleLeadAgentTest, ConcurrentCoordination) {
 
   // Send many messages concurrently
   for (int i = 0; i < 50; ++i) {
-    auto msg = core::KeystoneMessage::create("sender", "module_1",
-                                              "cmd" + std::to_string(i));
+    auto msg = core::KeystoneMessage::create("sender", "module_1", "cmd" + std::to_string(i));
     EXPECT_NO_THROW(module->receiveMessage(msg));
   }
 

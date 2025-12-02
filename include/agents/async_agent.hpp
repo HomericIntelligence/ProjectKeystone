@@ -1,10 +1,10 @@
 #pragma once
 
-#include <string>
-
 #include "agent_core.hpp"
 #include "concurrency/task.hpp"
 #include "core/message.hpp"
+
+#include <string>
 
 namespace keystone {
 namespace agents {

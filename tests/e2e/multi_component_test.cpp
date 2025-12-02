@@ -9,17 +9,17 @@
 
 #if 0  // Disabled until multi-component features are implemented
 
-#include "agents/chief_architect_agent.hpp"
-#include "agents/component_lead_agent.hpp"
-#include "agents/module_lead_agent.hpp"
-#include "agents/task_agent.hpp"
-#include "concurrency/work_stealing_scheduler.hpp"
-#include "core/message_bus.hpp"
+#  include "agents/chief_architect_agent.hpp"
+#  include "agents/component_lead_agent.hpp"
+#  include "agents/module_lead_agent.hpp"
+#  include "agents/task_agent.hpp"
+#  include "concurrency/work_stealing_scheduler.hpp"
+#  include "core/message_bus.hpp"
 
-#include <memory>
-#include <vector>
+#  include <memory>
+#  include <vector>
 
-#include <gtest/gtest.h>
+#  include <gtest/gtest.h>
 
 using namespace keystone::agents;
 using namespace keystone::core;

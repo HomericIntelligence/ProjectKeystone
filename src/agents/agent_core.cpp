@@ -1,9 +1,9 @@
 #include "agents/agent_core.hpp"
 
+#include "core/config.hpp"  // FIX m3: Centralized configuration
+
 #include <iostream>  // FIX M1: For std::cerr (backpressure logging)
 #include <stdexcept>
-
-#include "core/config.hpp"  // FIX m3: Centralized configuration
 // FIX ISP (Issue #46): Include IMessageRouter instead of MessageBus
 #include "core/i_message_router.hpp"
 #include "core/metrics.hpp"
@@ -18,11 +18,10 @@ AgentCore::AgentCore(const std::string& agent_id) : agent_id_(agent_id) {
   last_low_priority_check_ns_.store(0, std::memory_order_relaxed);
 
   // Issue #23: Initialize per-agent fairness interval to default from Config
-  low_priority_check_interval_ns_.store(
-      std::chrono::duration_cast<std::chrono::nanoseconds>(
-          core::Config::AGENT_LOW_PRIORITY_CHECK_INTERVAL)
-          .count(),
-      std::memory_order_relaxed);
+  low_priority_check_interval_ns_.store(std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                            core::Config::AGENT_LOW_PRIORITY_CHECK_INTERVAL)
+                                            .count(),
+                                        std::memory_order_relaxed);
 
   // Phase C: Priority queues initialized by default constructors
 }
@@ -53,7 +52,8 @@ void AgentCore::receiveMessage(const core::KeystoneMessage& msg) {
     if (!was_backpressure_applied) {
       // Only one thread wins the race to set and log
       bool expected = false;
-      if (backpressure_applied_.compare_exchange_strong(expected, true,
+      if (backpressure_applied_.compare_exchange_strong(expected,
+                                                        true,
                                                         std::memory_order_relaxed)) {
         // Log warning on first occurrence
         std::cerr << "[BACKPRESSURE] Agent " << agent_id_ << " inbox full (" << total_depth
@@ -106,7 +106,8 @@ std::optional<core::KeystoneMessage> AgentCore::getMessage() {
 
   core::KeystoneMessage msg;
   auto now = std::chrono::steady_clock::now();
-  auto now_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();
+  auto now_ns =
+      std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();
 
   // FIX SAFE-002: Use acquire ordering to ensure visibility of writes from other threads
   // Old: memory_order_relaxed (no synchronization guarantee)
@@ -170,15 +171,16 @@ std::optional<core::KeystoneMessage> AgentCore::getMessage() {
 
 void AgentCore::updateQueueDepthMetrics() {
   // FIX: Calculate total queue depth across all priority levels
-  size_t total_depth = high_priority_inbox_.size_approx() +
-                       normal_priority_inbox_.size_approx() +
+  size_t total_depth = high_priority_inbox_.size_approx() + normal_priority_inbox_.size_approx() +
                        low_priority_inbox_.size_approx();
 
   core::Metrics::getInstance().recordQueueDepth(agent_id_, total_depth);
 }
 
 // FIX ISP (Issue #46): Changed from MessageBus* to IMessageRouter*
-void AgentCore::setMessageBus(core::IMessageRouter* router) { message_bus_ = router; }
+void AgentCore::setMessageBus(core::IMessageRouter* router) {
+  message_bus_ = router;
+}
 
 // Phase 1.2 (Issue #52): Task cancellation support
 void AgentCore::requestCancellation(const std::string& task_id) {

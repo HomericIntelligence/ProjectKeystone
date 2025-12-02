@@ -3,14 +3,14 @@
  * @brief Unit tests for WorkStealingQueue
  */
 
-#include <gtest/gtest.h>
+#include "concurrency/task.hpp"
+#include "concurrency/work_stealing_queue.hpp"
 
 #include <atomic>
 #include <thread>
 #include <vector>
 
-#include "concurrency/task.hpp"
-#include "concurrency/work_stealing_queue.hpp"
+#include <gtest/gtest.h>
 
 using namespace keystone::concurrency;
 

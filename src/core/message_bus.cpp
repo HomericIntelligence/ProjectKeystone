@@ -1,10 +1,10 @@
 #include "core/message_bus.hpp"
 
-#include <stdexcept>
-
 #include "agents/agent_core.hpp"
 #include "concurrency/work_stealing_scheduler.hpp"
 #include "core/metrics.hpp"
+
+#include <stdexcept>
 
 namespace keystone {
 namespace core {
@@ -19,7 +19,8 @@ concurrency::WorkStealingScheduler* MessageBus::getScheduler() const {
   return scheduler_.load(std::memory_order_acquire);
 }
 
-void MessageBus::registerAgent(const std::string& agent_id, std::shared_ptr<agents::AgentCore> agent) {
+void MessageBus::registerAgent(const std::string& agent_id,
+                               std::shared_ptr<agents::AgentCore> agent) {
   // FIX C2: Use shared_ptr for safe lifetime management
   if (!agent) {
     throw std::invalid_argument("Cannot register null agent");
@@ -29,8 +30,7 @@ void MessageBus::registerAgent(const std::string& agent_id, std::shared_ptr<agen
 
   // FIX P2-10: Enforce maximum agent limit to prevent DoS
   if (agents_.size() >= Config::MAX_AGENTS) {
-    throw std::runtime_error("Maximum agent count exceeded: " +
-                             std::to_string(Config::MAX_AGENTS));
+    throw std::runtime_error("Maximum agent count exceeded: " + std::to_string(Config::MAX_AGENTS));
   }
 
   // Phase A2: Intern the agent_id string to get integer ID

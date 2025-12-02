@@ -11,14 +11,14 @@
 
 #ifdef ENABLE_GRPC
 
-#include "fixtures/grpc_test_fixture.hpp"
+#  include "fixtures/grpc_test_fixture.hpp"
 
-#include <grpcpp/grpcpp.h>
+#  include "network/grpc_server.hpp"
+#  include "network/hmas_coordinator_service.hpp"
+#  include "network/service_registry.hpp"
+#  include "network/task_router.hpp"
 
-#include "network/grpc_server.hpp"
-#include "network/hmas_coordinator_service.hpp"
-#include "network/service_registry.hpp"
-#include "network/task_router.hpp"
+#  include <grpcpp/grpcpp.h>
 
 namespace test {
 
@@ -27,16 +27,12 @@ void GrpcTestFixture::SetUp() {
   registry_ = std::make_shared<keystone::network::ServiceRegistry>(3000);
 
   // Create TaskRouter instance
-  router_ =
-      std::make_shared<keystone::network::TaskRouter>(registry_);
+  router_ = std::make_shared<keystone::network::TaskRouter>(registry_);
 
   // Create service implementations
-  registry_service_ =
-      std::make_shared<keystone::network::ServiceRegistryServiceImpl>(
-          registry_);
-  coordinator_service_ =
-      std::make_shared<keystone::network::HMASCoordinatorServiceImpl>(
-          registry_, router_);
+  registry_service_ = std::make_shared<keystone::network::ServiceRegistryServiceImpl>(registry_);
+  coordinator_service_ = std::make_shared<keystone::network::HMASCoordinatorServiceImpl>(registry_,
+                                                                                         router_);
 
   // Configure servers with ephemeral ports (port 0 = OS-assigned)
   keystone::network::GrpcServerConfig coordinator_config;
@@ -48,8 +44,7 @@ void GrpcTestFixture::SetUp() {
   registry_config.num_threads = 2;
 
   // Create and start coordinator server
-  coordinator_server_ =
-      std::make_unique<keystone::network::GrpcServer>(coordinator_config);
+  coordinator_server_ = std::make_unique<keystone::network::GrpcServer>(coordinator_config);
   coordinator_server_->registerService(coordinator_service_.get());
 
   if (!coordinator_server_->start()) {
@@ -64,8 +59,7 @@ void GrpcTestFixture::SetUp() {
   }
 
   // Create and start registry server
-  registry_server_ =
-      std::make_unique<keystone::network::GrpcServer>(registry_config);
+  registry_server_ = std::make_unique<keystone::network::GrpcServer>(registry_config);
   registry_server_->registerService(registry_service_.get());
 
   if (!registry_server_->start()) {
@@ -101,16 +95,14 @@ void GrpcTestFixture::TearDown() {
 
 std::string GrpcTestFixture::getCoordinatorAddress() const {
   if (coordinator_port_ == 0) {
-    throw std::runtime_error(
-        "Coordinator port not initialized. Call SetUp() first.");
+    throw std::runtime_error("Coordinator port not initialized. Call SetUp() first.");
   }
   return "localhost:" + std::to_string(coordinator_port_);
 }
 
 std::string GrpcTestFixture::getRegistryAddress() const {
   if (registry_port_ == 0) {
-    throw std::runtime_error(
-        "Registry port not initialized. Call SetUp() first.");
+    throw std::runtime_error("Registry port not initialized. Call SetUp() first.");
   }
   return "localhost:" + std::to_string(registry_port_);
 }

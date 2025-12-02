@@ -1,11 +1,11 @@
 #pragma once
 
-#include <gmock/gmock.h>
-
 #include "agents/agent_core.hpp"
 #include "agents/async_agent.hpp"
 #include "agents/task_agent.hpp"
 #include "concurrency/task.hpp"
+
+#include <gmock/gmock.h>
 
 namespace keystone::test {
 
@@ -19,10 +19,10 @@ class MockAgentCore : public agents::AgentCore {
   explicit MockAgentCore(const std::string& id) : AgentCore(id) {}
 
   // Expose protected methods for testing
-  using AgentCore::setMessageBus;
-  using AgentCore::sendMessage;
-  using AgentCore::receiveMessage;
   using AgentCore::getMessage;
+  using AgentCore::receiveMessage;
+  using AgentCore::sendMessage;
+  using AgentCore::setMessageBus;
 };
 
 /**
@@ -34,14 +34,16 @@ class MockAsyncAgent : public agents::AsyncAgent {
  public:
   explicit MockAsyncAgent(const std::string& id) : AsyncAgent(id) {}
 
-  MOCK_METHOD(concurrency::Task<core::Response>, processMessage,
-              (const core::KeystoneMessage& msg), (override));
+  MOCK_METHOD(concurrency::Task<core::Response>,
+              processMessage,
+              (const core::KeystoneMessage& msg),
+              (override));
 
   // Expose protected methods for testing
-  using AsyncAgent::setMessageBus;
-  using AsyncAgent::sendMessage;
-  using AsyncAgent::receiveMessage;
   using AsyncAgent::getMessage;
+  using AsyncAgent::receiveMessage;
+  using AsyncAgent::sendMessage;
+  using AsyncAgent::setMessageBus;
 };
 
 /**
@@ -53,8 +55,10 @@ class MockTaskAgent : public agents::TaskAgent {
  public:
   explicit MockTaskAgent(const std::string& id) : TaskAgent(id) {}
 
-  MOCK_METHOD(concurrency::Task<core::Response>, processMessage,
-              (const core::KeystoneMessage& msg), (override));
+  MOCK_METHOD(concurrency::Task<core::Response>,
+              processMessage,
+              (const core::KeystoneMessage& msg),
+              (override));
 };
 
 }  // namespace keystone::test

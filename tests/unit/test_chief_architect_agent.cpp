@@ -11,12 +11,12 @@
  * Total: 15 tests
  */
 
-#include <gtest/gtest.h>
-
 #include "agents/chief_architect_agent.hpp"
 #include "agents/task_agent.hpp"
 #include "core/message_bus.hpp"
 #include "unit/agent_test_fixture.hpp"
+
+#include <gtest/gtest.h>
 
 using namespace keystone;
 using namespace keystone::test;
@@ -230,8 +230,7 @@ TEST_F(ChiefArchitectAgentTest, StateTransitionOnDelegation) {
   bus_->registerAgent(task->getAgentId(), task);
 
   // Send delegation command
-  EXPECT_NO_THROW(chief->sendMessage(
-      core::KeystoneMessage::create("chief", "task_1", "test")));
+  EXPECT_NO_THROW(chief->sendMessage(core::KeystoneMessage::create("chief", "task_1", "test")));
 }
 
 TEST_F(ChiefArchitectAgentTest, StateResetAfterCompletion) {
@@ -254,8 +253,7 @@ TEST_F(ChiefArchitectAgentTest, StateResetAfterCompletion) {
   ASSERT_TRUE(response.has_value());
 
   // Chief should be ready for next command
-  EXPECT_NO_THROW(chief->sendMessage(
-      core::KeystoneMessage::create("chief", "task_1", "cmd2")));
+  EXPECT_NO_THROW(chief->sendMessage(core::KeystoneMessage::create("chief", "task_1", "cmd2")));
 }
 
 TEST_F(ChiefArchitectAgentTest, ConcurrentStateAccess) {
@@ -265,8 +263,7 @@ TEST_F(ChiefArchitectAgentTest, ConcurrentStateAccess) {
 
   // Send multiple messages rapidly (test thread safety)
   for (int i = 0; i < 100; ++i) {
-    auto msg = core::KeystoneMessage::create("sender", "chief",
-                                              "cmd" + std::to_string(i));
+    auto msg = core::KeystoneMessage::create("sender", "chief", "cmd" + std::to_string(i));
     EXPECT_NO_THROW(chief->receiveMessage(msg));
   }
 

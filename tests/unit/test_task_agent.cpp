@@ -11,11 +11,11 @@
  * Total: 15 tests
  */
 
-#include <gtest/gtest.h>
-
 #include "agents/task_agent.hpp"
 #include "core/message_bus.hpp"
 #include "unit/agent_test_fixture.hpp"
+
+#include <gtest/gtest.h>
 
 using namespace keystone;
 using namespace keystone::test;

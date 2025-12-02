@@ -1,11 +1,11 @@
 #pragma once
 
-#include <string>
-#include <vector>
-
 #include "agents/async_agent.hpp"
 #include "agents/coordination_state.hpp"
 #include "core/message.hpp"
+
+#include <string>
+#include <vector>
 
 namespace keystone {
 namespace agents {
@@ -36,11 +36,11 @@ class LeadAgentBase : public AsyncAgent {
    * @param error_state Error state value
    */
   explicit LeadAgentBase(const std::string& agent_id,
-                        StateEnum idle_state,
-                        StateEnum planning_state,
-                        StateEnum waiting_state,
-                        StateEnum aggregating_state,
-                        StateEnum error_state);
+                         StateEnum idle_state,
+                         StateEnum planning_state,
+                         StateEnum waiting_state,
+                         StateEnum aggregating_state,
+                         StateEnum error_state);
 
   /**
    * @brief Process incoming message asynchronously (TEMPLATE METHOD - FINAL)
@@ -57,26 +57,21 @@ class LeadAgentBase : public AsyncAgent {
    * @param msg Message to process
    * @return concurrency::Task<core::Response> Async task with response
    */
-  concurrency::Task<core::Response> processMessage(
-      const core::KeystoneMessage& msg) final;
+  concurrency::Task<core::Response> processMessage(const core::KeystoneMessage& msg) final;
 
   /**
    * @brief Get execution trace for testing/debugging
    *
    * @return std::vector<std::string> State transition history
    */
-  std::vector<std::string> getExecutionTrace() const {
-    return coordination_.getExecutionTrace();
-  }
+  std::vector<std::string> getExecutionTrace() const { return coordination_.getExecutionTrace(); }
 
   /**
    * @brief Get current state
    *
    * @return StateEnum Current agent state
    */
-  StateEnum getCurrentState() const {
-    return coordination_.getCurrentState();
-  }
+  StateEnum getCurrentState() const { return coordination_.getCurrentState(); }
 
  protected:
   /**

@@ -9,12 +9,12 @@
  * - MessageBus routing of CANCEL_TASK messages
  */
 
-#include <gtest/gtest.h>
-
 #include "agents/async_agent.hpp"
 #include "agents/task_agent.hpp"
 #include "core/message.hpp"
 #include "core/message_bus.hpp"
+
+#include <gtest/gtest.h>
 
 using namespace keystone::core;
 using namespace keystone::agents;

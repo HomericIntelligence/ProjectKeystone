@@ -10,9 +10,11 @@ ServiceRegistry::ServiceRegistry(int heartbeat_timeout_ms)
 
 ServiceRegistry::~ServiceRegistry() = default;
 
-bool ServiceRegistry::registerAgent(
-    const std::string& agent_id, const std::string& agent_type, int level,
-    const std::string& ip_port, const std::vector<std::string>& capabilities) {
+bool ServiceRegistry::registerAgent(const std::string& agent_id,
+                                    const std::string& agent_type,
+                                    int level,
+                                    const std::string& ip_port,
+                                    const std::vector<std::string>& capabilities) {
   std::lock_guard<std::mutex> lock(mutex_);
 
   // Check if agent already exists
@@ -60,8 +62,7 @@ bool ServiceRegistry::unregisterAgent(const std::string& agent_id) {
   return agents_.erase(agent_id) > 0;
 }
 
-std::optional<AgentRegistrationInfo> ServiceRegistry::getAgent(
-    const std::string& agent_id) const {
+std::optional<AgentRegistrationInfo> ServiceRegistry::getAgent(const std::string& agent_id) const {
   std::lock_guard<std::mutex> lock(mutex_);
 
   auto it = agents_.find(agent_id);
@@ -73,8 +74,10 @@ std::optional<AgentRegistrationInfo> ServiceRegistry::getAgent(
 }
 
 std::vector<AgentRegistrationInfo> ServiceRegistry::queryAgents(
-    const std::string& agent_type, int level,
-    const std::vector<std::string>& required_capabilities, int max_results,
+    const std::string& agent_type,
+    int level,
+    const std::vector<std::string>& required_capabilities,
+    int max_results,
     bool only_alive) const {
   std::lock_guard<std::mutex> lock(mutex_);
 
@@ -97,16 +100,14 @@ std::vector<AgentRegistrationInfo> ServiceRegistry::queryAgents(
     }
 
     // Filter by capabilities
-    if (!required_capabilities.empty() &&
-        !hasRequiredCapabilities(info, required_capabilities)) {
+    if (!required_capabilities.empty() && !hasRequiredCapabilities(info, required_capabilities)) {
       continue;
     }
 
     results.push_back(info);
 
     // Check max results limit
-    if (max_results > 0 &&
-        static_cast<int>(results.size()) >= max_results) {
+    if (max_results > 0 && static_cast<int>(results.size()) >= max_results) {
       break;
     }
   }
@@ -114,8 +115,7 @@ std::vector<AgentRegistrationInfo> ServiceRegistry::queryAgents(
   return results;
 }
 
-std::vector<AgentRegistrationInfo> ServiceRegistry::listAllAgents(
-    bool only_alive) const {
+std::vector<AgentRegistrationInfo> ServiceRegistry::listAllAgents(bool only_alive) const {
   std::lock_guard<std::mutex> lock(mutex_);
 
   std::vector<AgentRegistrationInfo> results;
@@ -138,8 +138,8 @@ bool ServiceRegistry::isAgentAlive(const std::string& agent_id) const {
   }
 
   auto now = std::chrono::system_clock::now();
-  auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-      now - it->second.last_heartbeat);
+  auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now -
+                                                                       it->second.last_heartbeat);
 
   return elapsed < heartbeat_timeout_;
 }
@@ -151,8 +151,8 @@ int ServiceRegistry::cleanupDeadAgents() {
   auto now = std::chrono::system_clock::now();
 
   for (auto it = agents_.begin(); it != agents_.end();) {
-    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-        now - it->second.last_heartbeat);
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now -
+                                                                         it->second.last_heartbeat);
 
     if (elapsed >= heartbeat_timeout_) {
       it = agents_.erase(it);
@@ -194,8 +194,7 @@ bool ServiceRegistry::hasRequiredCapabilities(
 }
 
 // Static conversion methods
-hmas::AgentInfo ServiceRegistry::toProtoAgentInfo(
-    const AgentRegistrationInfo& info) {
+hmas::AgentInfo ServiceRegistry::toProtoAgentInfo(const AgentRegistrationInfo& info) {
   hmas::AgentInfo proto_info;
   proto_info.set_agent_id(info.agent_id);
   proto_info.set_agent_type(info.agent_type);
@@ -216,8 +215,7 @@ hmas::AgentInfo ServiceRegistry::toProtoAgentInfo(
   return proto_info;
 }
 
-AgentRegistrationInfo ServiceRegistry::fromProtoRegistration(
-    const hmas::AgentRegistration& reg) {
+AgentRegistrationInfo ServiceRegistry::fromProtoRegistration(const hmas::AgentRegistration& reg) {
   AgentRegistrationInfo info;
   info.agent_id = reg.agent_id();
   info.agent_type = reg.agent_type();
@@ -243,13 +241,12 @@ AgentRegistrationInfo ServiceRegistry::fromProtoRegistration(
 }
 
 // gRPC Service Implementation
-ServiceRegistryServiceImpl::ServiceRegistryServiceImpl(
-    std::shared_ptr<ServiceRegistry> registry)
+ServiceRegistryServiceImpl::ServiceRegistryServiceImpl(std::shared_ptr<ServiceRegistry> registry)
     : registry_(std::move(registry)) {}
 
-grpc::Status ServiceRegistryServiceImpl::RegisterAgent(
-    grpc::ServerContext* context, const hmas::AgentRegistration* request,
-    hmas::RegistrationResponse* response) {
+grpc::Status ServiceRegistryServiceImpl::RegisterAgent(grpc::ServerContext* context,
+                                                       const hmas::AgentRegistration* request,
+                                                       hmas::RegistrationResponse* response) {
   (void)context;  // Unused
 
   std::vector<std::string> capabilities;
@@ -257,9 +254,11 @@ grpc::Status ServiceRegistryServiceImpl::RegisterAgent(
     capabilities.push_back(request->capabilities(i));
   }
 
-  bool success = registry_->registerAgent(
-      request->agent_id(), request->agent_type(), request->level(),
-      request->ip_port(), capabilities);
+  bool success = registry_->registerAgent(request->agent_id(),
+                                          request->agent_type(),
+                                          request->level(),
+                                          request->ip_port(),
+                                          capabilities);
 
   response->set_success(success);
   if (success) {
@@ -272,27 +271,27 @@ grpc::Status ServiceRegistryServiceImpl::RegisterAgent(
   return grpc::Status::OK;
 }
 
-grpc::Status ServiceRegistryServiceImpl::Heartbeat(
-    grpc::ServerContext* context, const hmas::HeartbeatRequest* request,
-    hmas::HeartbeatResponse* response) {
+grpc::Status ServiceRegistryServiceImpl::Heartbeat(grpc::ServerContext* context,
+                                                   const hmas::HeartbeatRequest* request,
+                                                   hmas::HeartbeatResponse* response) {
   (void)context;  // Unused
 
-  bool success = registry_->updateHeartbeat(
-      request->agent_id(), request->cpu_usage_percent(),
-      request->memory_usage_mb(), request->active_tasks());
+  bool success = registry_->updateHeartbeat(request->agent_id(),
+                                            request->cpu_usage_percent(),
+                                            request->memory_usage_mb(),
+                                            request->active_tasks());
 
   response->set_acknowledged(success);
-  response->set_server_timestamp_unix_ms(
-      std::chrono::duration_cast<std::chrono::milliseconds>(
-          std::chrono::system_clock::now().time_since_epoch())
-          .count());
+  response->set_server_timestamp_unix_ms(std::chrono::duration_cast<std::chrono::milliseconds>(
+                                             std::chrono::system_clock::now().time_since_epoch())
+                                             .count());
 
   return grpc::Status::OK;
 }
 
-grpc::Status ServiceRegistryServiceImpl::UnregisterAgent(
-    grpc::ServerContext* context, const hmas::UnregisterRequest* request,
-    hmas::UnregisterResponse* response) {
+grpc::Status ServiceRegistryServiceImpl::UnregisterAgent(grpc::ServerContext* context,
+                                                         const hmas::UnregisterRequest* request,
+                                                         hmas::UnregisterResponse* response) {
   (void)context;  // Unused
 
   bool success = registry_->unregisterAgent(request->agent_id());
@@ -307,9 +306,9 @@ grpc::Status ServiceRegistryServiceImpl::UnregisterAgent(
   return grpc::Status::OK;
 }
 
-grpc::Status ServiceRegistryServiceImpl::QueryAgents(
-    grpc::ServerContext* context, const hmas::AgentQuery* request,
-    hmas::AgentList* response) {
+grpc::Status ServiceRegistryServiceImpl::QueryAgents(grpc::ServerContext* context,
+                                                     const hmas::AgentQuery* request,
+                                                     hmas::AgentList* response) {
   (void)context;  // Unused
 
   std::vector<std::string> required_capabilities;
@@ -317,9 +316,11 @@ grpc::Status ServiceRegistryServiceImpl::QueryAgents(
     required_capabilities.push_back(request->required_capabilities(i));
   }
 
-  auto agents = registry_->queryAgents(
-      request->agent_type(), request->level(), required_capabilities,
-      request->max_results(), request->only_alive());
+  auto agents = registry_->queryAgents(request->agent_type(),
+                                       request->level(),
+                                       required_capabilities,
+                                       request->max_results(),
+                                       request->only_alive());
 
   response->set_total_count(static_cast<int32_t>(agents.size()));
 
@@ -331,9 +332,9 @@ grpc::Status ServiceRegistryServiceImpl::QueryAgents(
   return grpc::Status::OK;
 }
 
-grpc::Status ServiceRegistryServiceImpl::GetAgent(
-    grpc::ServerContext* context, const hmas::GetAgentRequest* request,
-    hmas::AgentInfo* response) {
+grpc::Status ServiceRegistryServiceImpl::GetAgent(grpc::ServerContext* context,
+                                                  const hmas::GetAgentRequest* request,
+                                                  hmas::AgentInfo* response) {
   (void)context;  // Unused
 
   auto agent = registry_->getAgent(request->agent_id());
@@ -347,9 +348,9 @@ grpc::Status ServiceRegistryServiceImpl::GetAgent(
   return grpc::Status::OK;
 }
 
-grpc::Status ServiceRegistryServiceImpl::ListAllAgents(
-    grpc::ServerContext* context, const hmas::ListAllAgentsRequest* request,
-    hmas::AgentList* response) {
+grpc::Status ServiceRegistryServiceImpl::ListAllAgents(grpc::ServerContext* context,
+                                                       const hmas::ListAllAgentsRequest* request,
+                                                       hmas::AgentList* response) {
   (void)context;  // Unused
 
   auto agents = registry_->listAllAgents(request->only_alive());

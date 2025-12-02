@@ -1,13 +1,13 @@
 #pragma once
 
-#include <concurrentqueue.h>
-
 #include <cassert>
 #include <coroutine>
 #include <functional>
 #include <memory>
 #include <optional>
 #include <variant>
+
+#include <concurrentqueue.h>
 
 namespace keystone {
 namespace concurrency {

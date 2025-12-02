@@ -1,13 +1,13 @@
 #pragma once
 
+#include "concurrency/scheduler_accessor.hpp"
+#include "concurrency/work_stealing_scheduler.hpp"
+
 #include <coroutine>
 #include <exception>
 #include <optional>
 #include <stdexcept>
 #include <utility>
-
-#include "concurrency/scheduler_accessor.hpp"
-#include "concurrency/work_stealing_scheduler.hpp"
 
 namespace keystone {
 namespace concurrency {
@@ -102,8 +102,7 @@ class Task {
   Task(const Task&) = delete;
   Task& operator=(const Task&) = delete;
 
-  Task(Task&& other) noexcept
-      : handle_(std::exchange(other.handle_, nullptr)) {}
+  Task(Task&& other) noexcept : handle_(std::exchange(other.handle_, nullptr)) {}
 
   Task& operator=(Task&& other) noexcept {
     if (this != &other) {
@@ -319,8 +318,7 @@ class Task<void> {
   Task(const Task&) = delete;
   Task& operator=(const Task&) = delete;
 
-  Task(Task&& other) noexcept
-      : handle_(std::exchange(other.handle_, nullptr)) {}
+  Task(Task&& other) noexcept : handle_(std::exchange(other.handle_, nullptr)) {}
 
   Task& operator=(Task&& other) noexcept {
     if (this != &other) {

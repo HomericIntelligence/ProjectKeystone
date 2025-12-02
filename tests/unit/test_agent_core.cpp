@@ -1,11 +1,11 @@
-#include <gtest/gtest.h>
-
-#include <thread>
-
 #include "agents/agent_core.hpp"
 #include "core/config.hpp"
 #include "core/message.hpp"
 #include "core/message_bus.hpp"
+
+#include <thread>
+
+#include <gtest/gtest.h>
 
 using namespace keystone;
 using namespace keystone::agents;
@@ -126,7 +126,8 @@ TEST_F(AgentCoreTest, BackpressureCleared) {
   size_t drained = 0;
   while (drained < max_size - low_watermark + 10) {
     auto msg_opt = agent_->getMessage();
-    if (!msg_opt) break;
+    if (!msg_opt)
+      break;
     drained++;
   }
 
@@ -202,7 +203,8 @@ TEST_F(AgentCoreTest, FairnessMechanismNormalProcessed) {
   bool normal_found = false;
   for (int i = 0; i < 10; ++i) {
     auto msg_opt = agent_->getMessage();
-    if (!msg_opt) break;
+    if (!msg_opt)
+      break;
     if (msg_opt->command == "normal") {
       normal_found = true;
       break;
@@ -238,7 +240,8 @@ TEST_F(AgentCoreTest, FairnessMechanismLowProcessed) {
   bool low_found = false;
   for (int i = 0; i < 10; ++i) {
     auto msg_opt = agent_->getMessage();
-    if (!msg_opt) break;
+    if (!msg_opt)
+      break;
     if (msg_opt->command == "low") {
       low_found = true;
       break;
@@ -275,12 +278,15 @@ TEST_F(AgentCoreTest, EmptyQueueReturnsNullopt) {
 TEST_F(AgentCoreTest, MixedPriorityMessages) {
   // Send mixed priority messages
   for (int i = 0; i < 3; ++i) {
-    auto high = KeystoneMessage::create("sender", agent_->getAgentId(), "high_" + std::to_string(i));
+    auto high = KeystoneMessage::create("sender",
+                                        agent_->getAgentId(),
+                                        "high_" + std::to_string(i));
     high.priority = Priority::HIGH;
     agent_->receiveMessage(high);
 
-    auto normal =
-        KeystoneMessage::create("sender", agent_->getAgentId(), "normal_" + std::to_string(i));
+    auto normal = KeystoneMessage::create("sender",
+                                          agent_->getAgentId(),
+                                          "normal_" + std::to_string(i));
     normal.priority = Priority::NORMAL;
     agent_->receiveMessage(normal);
 
@@ -325,7 +331,8 @@ TEST_F(AgentCoreTest, BackpressureConcurrentTrigger) {
     senders.emplace_back([this, max_size, &messages_sent]() {
       // Each thread sends max_size/5 messages
       for (size_t i = 0; i < max_size / 5; ++i) {
-        auto msg = KeystoneMessage::create("sender", agent_->getAgentId(),
+        auto msg = KeystoneMessage::create("sender",
+                                           agent_->getAgentId(),
                                            "msg_" + std::to_string(messages_sent.fetch_add(1)));
         msg.priority = Priority::NORMAL;
         agent_->receiveMessage(msg);
@@ -368,7 +375,8 @@ TEST_F(AgentCoreTest, BackpressureRecoveryUnderLoad) {
 
   std::thread sender([&]() {
     while (keep_sending.load()) {
-      auto msg = KeystoneMessage::create("sender", agent_->getAgentId(),
+      auto msg = KeystoneMessage::create("sender",
+                                         agent_->getAgentId(),
                                          "new_" + std::to_string(new_messages_sent.fetch_add(1)));
       msg.priority = Priority::NORMAL;
       agent_->receiveMessage(msg);
@@ -377,8 +385,7 @@ TEST_F(AgentCoreTest, BackpressureRecoveryUnderLoad) {
   });
 
   // Drain below low watermark while messages are still arriving
-  size_t low_watermark =
-      static_cast<size_t>(max_size * Config::AGENT_QUEUE_LOW_WATERMARK_PERCENT);
+  size_t low_watermark = static_cast<size_t>(max_size * Config::AGENT_QUEUE_LOW_WATERMARK_PERCENT);
   size_t drained = 0;
 
   while (drained < max_size - low_watermark + 20) {
@@ -467,16 +474,16 @@ TEST_F(AgentCoreTest, FairnessIntervalChangeVisibility) {
 TEST_F(AgentCoreTest, FairnessDoesNotLoseMessages) {
   // Send HIGH messages
   for (int i = 0; i < 10; ++i) {
-    auto msg =
-        KeystoneMessage::create("sender", agent_->getAgentId(), "high_" + std::to_string(i));
+    auto msg = KeystoneMessage::create("sender", agent_->getAgentId(), "high_" + std::to_string(i));
     msg.priority = Priority::HIGH;
     agent_->receiveMessage(msg);
   }
 
   // Send NORMAL messages
   for (int i = 0; i < 5; ++i) {
-    auto msg =
-        KeystoneMessage::create("sender", agent_->getAgentId(), "normal_" + std::to_string(i));
+    auto msg = KeystoneMessage::create("sender",
+                                       agent_->getAgentId(),
+                                       "normal_" + std::to_string(i));
     msg.priority = Priority::NORMAL;
     agent_->receiveMessage(msg);
   }
@@ -511,4 +518,3 @@ TEST_F(AgentCoreTest, FairnessDoesNotLoseMessages) {
   EXPECT_EQ(normal_count, 5) << "All 5 NORMAL messages should be received";
   EXPECT_EQ(commands.size(), 15) << "Total of 15 messages should be received";
 }
-

@@ -12,17 +12,17 @@
  * - MEDIUM: Modulo by zero
  */
 
-#include <gtest/gtest.h>
+#include "core/agent_id_interning.hpp"
+#include "core/config.hpp"
+#include "core/metrics.hpp"
+#include "core/profiling.hpp"
 
 #include <atomic>
 #include <limits>
 #include <thread>
 #include <vector>
 
-#include "core/agent_id_interning.hpp"
-#include "core/config.hpp"
-#include "core/metrics.hpp"
-#include "core/profiling.hpp"
+#include <gtest/gtest.h>
 
 namespace keystone {
 namespace {
@@ -239,8 +239,7 @@ TEST(SecurityRegressionTest, NumericLimitsConstants) {
 
   EXPECT_EQ(std::numeric_limits<uint32_t>::max(), 4294967295u);
 
-  EXPECT_GT(std::numeric_limits<int64_t>::max(),
-            std::numeric_limits<int32_t>::max());
+  EXPECT_GT(std::numeric_limits<int64_t>::max(), std::numeric_limits<int32_t>::max());
 }
 
 TEST(SecurityRegressionTest, StaticAssertCompileTime) {

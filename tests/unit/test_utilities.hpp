@@ -9,15 +9,15 @@
 
 #pragma once
 
-#include <memory>
-#include <string>
-#include <vector>
-
 #include "agents/agent_core.hpp"
 #include "core/i_agent_registry.hpp"
 #include "core/i_message_router.hpp"
 #include "core/i_scheduler_integration.hpp"
 #include "core/message_bus.hpp"
+
+#include <memory>
+#include <string>
+#include <vector>
 
 namespace keystone {
 namespace test {
@@ -31,8 +31,7 @@ namespace test {
  * @param agent Agent to register
  */
 template <typename AgentType>
-inline void registerAgent(core::IAgentRegistry& registry,
-                          std::shared_ptr<AgentType> agent) {
+inline void registerAgent(core::IAgentRegistry& registry, std::shared_ptr<AgentType> agent) {
   registry.registerAgent(agent->getAgentId(), agent);
 }
 
@@ -44,8 +43,7 @@ inline void registerAgent(core::IAgentRegistry& registry,
  * @param agent Agent to configure
  * @param router Router interface (can be MessageBus or custom implementation)
  */
-inline void setupAgentRouter(agents::AgentCore& agent,
-                             core::IMessageRouter* router) {
+inline void setupAgentRouter(agents::AgentCore& agent, core::IMessageRouter* router) {
   agent.setMessageBus(router);
 }
 

@@ -1,5 +1,8 @@
 #pragma once
 
+#include "core/config.hpp"  // FIX m3: Centralized configuration
+#include "core/message.hpp"
+
 #include <atomic>
 #include <chrono>  // FIX M2: For time-based priority fairness
 #include <mutex>
@@ -8,22 +11,24 @@
 #include <unordered_set>
 
 #include "concurrentqueue.h"
-#include "core/config.hpp"  // FIX m3: Centralized configuration
-#include "core/message.hpp"
 
 namespace keystone {
 
 // Forward declarations from core and concurrency namespaces
 // CRITICAL: These declarations must be INSIDE keystone namespace but OUTSIDE agents namespace
 // to prevent C++ namespace collision. If placed before "namespace keystone {}", the compiler
-// creates "keystone::core::MessageBus" but the actual class is defined as "keystone::core::MessageBus",
-// causing a doubling bug where both "keystone::core::MessageBus" and "keystone::keystone::core::MessageBus"
-// exist in the symbol table. By placing them here, we correctly forward-declare the classes in the
-// keystone::core and keystone::concurrency namespaces while allowing agent_base.hpp to use them
-// without including their headers.
-// FIX ISP (Issue #46): Forward declare IMessageRouter instead of MessageBus
-namespace core { class IMessageRouter; }
-namespace concurrency { class WorkStealingScheduler; }
+// creates "keystone::core::MessageBus" but the actual class is defined as
+// "keystone::core::MessageBus", causing a doubling bug where both "keystone::core::MessageBus" and
+// "keystone::keystone::core::MessageBus" exist in the symbol table. By placing them here, we
+// correctly forward-declare the classes in the keystone::core and keystone::concurrency namespaces
+// while allowing agent_base.hpp to use them without including their headers. FIX ISP (Issue #46):
+// Forward declare IMessageRouter instead of MessageBus
+namespace core {
+class IMessageRouter;
+}
+namespace concurrency {
+class WorkStealingScheduler;
+}
 namespace agents {
 
 /**
@@ -212,8 +217,7 @@ class AgentCore {
   std::atomic<int64_t> low_priority_check_interval_ns_;
 
   // FIX M1: Backpressure - Queue size limits to prevent memory exhaustion
-  std::atomic<bool> backpressure_applied_{
-      false};  ///< Flag when backpressure is active
+  std::atomic<bool> backpressure_applied_{false};  ///< Flag when backpressure is active
 
   // Phase 1.2 (Issue #52): Cancellation tracking
   // Thread-safe: Using mutex to protect set operations

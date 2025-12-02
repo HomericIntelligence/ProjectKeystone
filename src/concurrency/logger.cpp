@@ -5,9 +5,9 @@
 
 #include "concurrency/logger.hpp"
 
-#include <spdlog/sinks/stdout_color_sinks.h>
-
 #include <sstream>
+
+#include <spdlog/sinks/stdout_color_sinks.h>
 
 namespace keystone {
 namespace concurrency {
@@ -15,8 +15,7 @@ namespace concurrency {
 // LogContext thread-local storage
 thread_local LogContext::Context LogContext::context_;
 
-void LogContext::set(const std::string& agent_id, int worker_id,
-                     const std::string& session_id) {
+void LogContext::set(const std::string& agent_id, int worker_id, const std::string& session_id) {
   context_.agent_id = agent_id;
   context_.worker_id = worker_id;
   context_.session_id = session_id;
@@ -28,11 +27,17 @@ void LogContext::clear() {
   context_.session_id.clear();
 }
 
-std::string LogContext::getAgentId() { return context_.agent_id; }
+std::string LogContext::getAgentId() {
+  return context_.agent_id;
+}
 
-int LogContext::getWorkerId() { return context_.worker_id; }
+int LogContext::getWorkerId() {
+  return context_.worker_id;
+}
 
-std::string LogContext::getSessionId() { return context_.session_id; }
+std::string LogContext::getSessionId() {
+  return context_.session_id;
+}
 
 std::string LogContext::getContextString() {
   if (context_.agent_id.empty()) {
@@ -40,8 +45,7 @@ std::string LogContext::getContextString() {
   }
 
   std::ostringstream oss;
-  oss << "[" << context_.agent_id << ":" << context_.worker_id << ":"
-      << context_.session_id << "]";
+  oss << "[" << context_.agent_id << ":" << context_.worker_id << ":" << context_.session_id << "]";
   return oss.str();
 }
 

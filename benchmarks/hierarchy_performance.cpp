@@ -11,7 +11,12 @@
  * - Work-stealing scheduler efficiency
  */
 
-#include <benchmark/benchmark.h>
+#include "agents/chief_architect_agent.hpp"
+#include "agents/component_lead_agent.hpp"
+#include "agents/module_lead_agent.hpp"
+#include "agents/task_agent.hpp"
+#include "concurrency/work_stealing_scheduler.hpp"
+#include "core/message_bus.hpp"
 
 #include <atomic>
 #include <chrono>
@@ -19,12 +24,7 @@
 #include <thread>
 #include <vector>
 
-#include "agents/chief_architect_agent.hpp"
-#include "agents/component_lead_agent.hpp"
-#include "agents/module_lead_agent.hpp"
-#include "agents/task_agent.hpp"
-#include "concurrency/work_stealing_scheduler.hpp"
-#include "core/message_bus.hpp"
+#include <benchmark/benchmark.h>
 
 using namespace keystone;
 using namespace keystone::agents;
@@ -57,8 +57,8 @@ static void BM_MessageRouting_Throughput(benchmark::State& state) {
   }
 
   state.SetItemsProcessed(state.iterations());
-  state.counters["messages/sec"] =
-      benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
+  state.counters["messages/sec"] = benchmark::Counter(state.iterations(),
+                                                      benchmark::Counter::kIsRate);
 }
 BENCHMARK(BM_MessageRouting_Throughput);
 
@@ -93,9 +93,9 @@ static void BM_4LayerHierarchy_MessageFlow(benchmark::State& state) {
 
   // Benchmark: Route a message through the hierarchy
   for (auto _ : state) {
-    auto msg = KeystoneMessage::create(
-        "chief", "comp_lead",
-        "Component: ProcessData(100) and Analyze(200)");
+    auto msg = KeystoneMessage::create("chief",
+                                       "comp_lead",
+                                       "Component: ProcessData(100) and Analyze(200)");
     bus.routeMessage(msg);
   }
 
@@ -164,8 +164,7 @@ static void BM_Scheduler_SubmissionRate(benchmark::State& state) {
   scheduler.shutdown();
   state.SetItemsProcessed(state.iterations());
   state.counters["workers"] = num_workers;
-  state.counters["tasks/sec"] =
-      benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
+  state.counters["tasks/sec"] = benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
 }
 BENCHMARK(BM_Scheduler_SubmissionRate)->Arg(1)->Arg(2)->Arg(4)->Arg(8);
 
@@ -183,8 +182,8 @@ static void BM_Agent_MessageProcessing(benchmark::State& state) {
   }
 
   state.SetItemsProcessed(state.iterations());
-  state.counters["messages/sec"] =
-      benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
+  state.counters["messages/sec"] = benchmark::Counter(state.iterations(),
+                                                      benchmark::Counter::kIsRate);
 }
 BENCHMARK(BM_Agent_MessageProcessing);
 
@@ -207,9 +206,9 @@ static void BM_ComponentLead_MultiModule(benchmark::State& state) {
 
   // Benchmark: Route messages through component to modules
   for (auto _ : state) {
-    auto msg = KeystoneMessage::create(
-        "chief", "comp_lead",
-        "Component: Process(100) Analyze(200) Report(300)");
+    auto msg = KeystoneMessage::create("chief",
+                                       "comp_lead",
+                                       "Component: Process(100) Analyze(200) Report(300)");
     bus.routeMessage(msg);
   }
 
@@ -237,9 +236,9 @@ static void BM_ModuleLead_MultiTask(benchmark::State& state) {
 
   // Benchmark: Route messages through module to tasks
   for (auto _ : state) {
-    auto msg = KeystoneMessage::create(
-        "comp_lead", "module",
-        "Module: Task1(10) Task2(20) Task3(30)");
+    auto msg = KeystoneMessage::create("comp_lead",
+                                       "module",
+                                       "Module: Task1(10) Task2(20) Task3(30)");
     bus.routeMessage(msg);
   }
 

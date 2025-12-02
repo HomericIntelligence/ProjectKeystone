@@ -23,27 +23,20 @@
 #include <gtest/gtest.h>
 
 #ifdef ENABLE_GRPC
-#include "fixtures/grpc_test_fixture.hpp"
+#  include "fixtures/grpc_test_fixture.hpp"
 #endif
 
 using namespace keystone::agents;
 
 // Test state enum matching ComponentLead/ModuleLead patterns
-enum class TestState {
-  IDLE,
-  PLANNING,
-  WAITING,
-  SYNTHESIZING,
-  AGGREGATING,
-  ERROR
-};
+enum class TestState { IDLE, PLANNING, WAITING, SYNTHESIZING, AGGREGATING, ERROR };
 
 // ============================================================================
 // Test Fixture
 // ============================================================================
 
 class CoordinationStateTest : public ::testing::Test {
-protected:
+ protected:
   CoordinationState<TestState, std::string> state_;
 };
 
@@ -259,9 +252,7 @@ TEST_F(CoordinationStateTest, RecordResultThreadSafety) {
 
   std::vector<std::thread> threads;
   for (int i = 0; i < NUM_THREADS; ++i) {
-    threads.emplace_back([this, i]() {
-      state_.recordResult("result_" + std::to_string(i));
-    });
+    threads.emplace_back([this, i]() { state_.recordResult("result_" + std::to_string(i)); });
   }
 
   for (auto& t : threads) {
@@ -538,7 +529,7 @@ TEST_F(CoordinationStateTest, ConcurrentWorkflows) {
  * @brief Test 29: Initialize gRPC with valid config (uses in-process test servers)
  */
 class GrpcCoordinationStateTest : public test::GrpcTestFixture {
-protected:
+ protected:
   CoordinationState<TestState, std::string> state_;
 };
 
@@ -547,17 +538,8 @@ TEST_F(GrpcCoordinationStateTest, InitializeGrpcWithValidConfig) {
   auto coord_addr = getCoordinatorAddress();
   auto registry_addr = getRegistryAddress();
 
-  EXPECT_NO_THROW(
-    state_.initializeGrpc(
-      "test_agent",
-      coord_addr,
-      registry_addr,
-      "TestAgent",
-      2,
-      {"capability1", "capability2"},
-      10
-    )
-  );
+  EXPECT_NO_THROW(state_.initializeGrpc(
+      "test_agent", coord_addr, registry_addr, "TestAgent", 2, {"capability1", "capability2"}, 10));
 }
 
 /**
@@ -566,17 +548,13 @@ TEST_F(GrpcCoordinationStateTest, InitializeGrpcWithValidConfig) {
 TEST_F(CoordinationStateTest, InitializeGrpcWithInvalidConfig) {
   // Empty addresses should eventually cause connection failure
   // We test that initialization doesn't crash immediately
-  EXPECT_NO_THROW(
-    state_.initializeGrpc(
-      "test_agent",
-      "",  // Empty coordinator address
-      "",  // Empty registry address
-      "TestAgent",
-      2,
-      {},
-      10
-    )
-  );
+  EXPECT_NO_THROW(state_.initializeGrpc("test_agent",
+                                        "",  // Empty coordinator address
+                                        "",  // Empty registry address
+                                        "TestAgent",
+                                        2,
+                                        {},
+                                        10));
 }
 
 /**
@@ -597,19 +575,14 @@ TEST_F(GrpcCoordinationStateTest, QueryAvailableChildrenByType) {
 
   // Initialize gRPC with in-process servers
   state_.initializeGrpc(
-    "test_component",
-    coord_addr,
-    registry_addr,
-    "ComponentLead",
-    1,
-    {"coordination"},
-    5
-  );
+      "test_component", coord_addr, registry_addr, "ComponentLead", 1, {"coordination"}, 5);
 
   // Register some test agents in the ServiceRegistry
   auto registry = getRegistry();
-  registry->registerAgent("module_lead_1", "ModuleLead", 2, "localhost:60001", {"task_coordination"});
-  registry->registerAgent("module_lead_2", "ModuleLead", 2, "localhost:60002", {"task_coordination"});
+  registry->registerAgent(
+      "module_lead_1", "ModuleLead", 2, "localhost:60001", {"task_coordination"});
+  registry->registerAgent(
+      "module_lead_2", "ModuleLead", 2, "localhost:60002", {"task_coordination"});
 
   auto children = state_.queryAvailableChildren("ModuleLead");
   // Should find the 2 registered ModuleLead agents

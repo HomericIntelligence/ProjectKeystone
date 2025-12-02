@@ -1,9 +1,9 @@
 #pragma once
 
-#include <grpcpp/grpcpp.h>
-
 #include <memory>
 #include <string>
+
+#include <grpcpp/grpcpp.h>
 
 #include "hmas_coordinator.grpc.pb.h"
 #include "service_registry.grpc.pb.h"
@@ -14,7 +14,7 @@ namespace network {
 /// gRPC Client configuration
 struct GrpcClientConfig {
   std::string server_address;
-  int timeout_ms{30000};              // Default 30s timeout
+  int timeout_ms{30000};                    // Default 30s timeout
   int max_message_size{100 * 1024 * 1024};  // 100MB
   bool enable_tls{false};
   std::string tls_ca_path;
@@ -38,11 +38,10 @@ class HMASCoordinatorClient {
   /// @param parent_task_id Parent task ID (optional)
   /// @return Task response with task_id and assigned node
   hmas::TaskResponse submitTask(const std::string& yaml_spec,
-                                 const std::string& session_id,
-                                 int64_t deadline_unix_ms,
-                                 hmas::TaskPriority priority =
-                                     hmas::TASK_PRIORITY_NORMAL,
-                                 const std::string& parent_task_id = "");
+                                const std::string& session_id,
+                                int64_t deadline_unix_ms,
+                                hmas::TaskPriority priority = hmas::TASK_PRIORITY_NORMAL,
+                                const std::string& parent_task_id = "");
 
   /// Submit task result back to parent
   /// @param result Task result to submit
@@ -53,22 +52,19 @@ class HMASCoordinatorClient {
   /// @param task_id Task identifier
   /// @param timeout_ms Timeout in milliseconds (0 = return immediately)
   /// @return Task result
-  hmas::TaskResult getTaskResult(const std::string& task_id,
-                                  int64_t timeout_ms = 0);
+  hmas::TaskResult getTaskResult(const std::string& task_id, int64_t timeout_ms = 0);
 
   /// Get task progress
   /// @param task_id Task identifier
   /// @param include_subtasks Include subtask status
   /// @return Task progress
-  hmas::TaskProgress getTaskProgress(const std::string& task_id,
-                                      bool include_subtasks = false);
+  hmas::TaskProgress getTaskProgress(const std::string& task_id, bool include_subtasks = false);
 
   /// Cancel a running task
   /// @param task_id Task identifier
   /// @param reason Cancellation reason
   /// @return Cancel response
-  hmas::CancelResponse cancelTask(const std::string& task_id,
-                                   const std::string& reason = "");
+  hmas::CancelResponse cancelTask(const std::string& task_id, const std::string& reason = "");
 
   /// Check if connected
   bool isConnected() const { return stub_ != nullptr; }
@@ -98,8 +94,7 @@ class ServiceRegistryClient {
   /// Register agent with the registry
   /// @param registration Agent registration info
   /// @return Registration response
-  hmas::RegistrationResponse registerAgent(
-      const hmas::AgentRegistration& registration);
+  hmas::RegistrationResponse registerAgent(const hmas::AgentRegistration& registration);
 
   /// Send heartbeat to registry
   /// @param agent_id Agent identifier
@@ -108,16 +103,16 @@ class ServiceRegistryClient {
   /// @param active_tasks Number of active tasks
   /// @return Heartbeat response
   hmas::HeartbeatResponse heartbeat(const std::string& agent_id,
-                                     float cpu_usage_percent = 0.0f,
-                                     float memory_usage_mb = 0.0f,
-                                     int active_tasks = 0);
+                                    float cpu_usage_percent = 0.0f,
+                                    float memory_usage_mb = 0.0f,
+                                    int active_tasks = 0);
 
   /// Unregister agent from registry
   /// @param agent_id Agent identifier
   /// @param reason Unregistration reason
   /// @return Unregister response
   hmas::UnregisterResponse unregisterAgent(const std::string& agent_id,
-                                            const std::string& reason = "");
+                                           const std::string& reason = "");
 
   /// Query agents by criteria
   /// @param query Agent query criteria

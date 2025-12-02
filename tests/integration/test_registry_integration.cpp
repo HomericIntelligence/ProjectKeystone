@@ -14,6 +14,10 @@
  * - Edge cases (optional, 3-5 more tests)
  */
 
+#include "agents/chief_architect_agent.hpp"
+#include "agents/task_agent.hpp"
+#include "core/message_bus.hpp"
+
 #include <atomic>
 #include <chrono>
 #include <memory>
@@ -21,10 +25,6 @@
 #include <vector>
 
 #include <gtest/gtest.h>
-
-#include "agents/chief_architect_agent.hpp"
-#include "agents/task_agent.hpp"
-#include "core/message_bus.hpp"
 
 using namespace keystone::core;
 using namespace keystone::agents;
@@ -36,9 +36,7 @@ using namespace keystone::agents;
  */
 class RegistryIntegrationTest : public ::testing::Test {
  protected:
-  void SetUp() override {
-    bus_ = std::make_unique<MessageBus>();
-  }
+  void SetUp() override { bus_ = std::make_unique<MessageBus>(); }
 
   void TearDown() override {
     // Clean up before destruction
@@ -170,8 +168,8 @@ TEST_F(RegistryIntegrationTest, HasAgentUsesInternedId) {
 
   // 10000 lookups should take < 100ms (i.e., < 10μs per lookup)
   // O(1) integer hash lookup should be very fast
-  EXPECT_LT(duration.count(), 100) << "Lookups took " << duration.count()
-                                   << "ms, expected < 100ms for 10000 lookups";
+  EXPECT_LT(duration.count(), 100)
+      << "Lookups took " << duration.count() << "ms, expected < 100ms for 10000 lookups";
 }
 
 /**
@@ -199,8 +197,9 @@ TEST_F(RegistryIntegrationTest, ListAgentsReturnsStringIds) {
     EXPECT_FALSE(id.empty());
     EXPECT_TRUE(id.find("agent_") != std::string::npos);
     // Should NOT be numeric-only
-    bool all_digits = !id.empty() && std::all_of(
-        id.begin(), id.end(), [](unsigned char c) { return std::isdigit(c); });
+    bool all_digits = !id.empty() && std::all_of(id.begin(), id.end(), [](unsigned char c) {
+      return std::isdigit(c);
+    });
     EXPECT_FALSE(all_digits) << "ID should be string, not integer: " << id;
   }
 }
@@ -260,17 +259,16 @@ TEST_F(RegistryIntegrationTest, RouteMessageToMultipleAgents) {
 
   // Send message to each agent
   for (int i = 0; i < 3; ++i) {
-    auto msg = KeystoneMessage::create(
-        "sender", "agent_" + std::to_string(i),
-        "message_to_agent_" + std::to_string(i));
+    auto msg = KeystoneMessage::create("sender",
+                                       "agent_" + std::to_string(i),
+                                       "message_to_agent_" + std::to_string(i));
     EXPECT_TRUE(bus_->routeMessage(msg));
   }
 
   // Verify each agent received 1 message
   for (int i = 0; i < 3; ++i) {
     auto received = agents[i]->getMessage();
-    ASSERT_TRUE(received.has_value())
-        << "Agent " << i << " did not receive message";
+    ASSERT_TRUE(received.has_value()) << "Agent " << i << " did not receive message";
     EXPECT_EQ(received->receiver_id, "agent_" + std::to_string(i));
   }
 }
@@ -296,9 +294,9 @@ TEST_F(RegistryIntegrationTest, ConcurrentRoutingWithInterning) {
   for (int t = 0; t < 10; ++t) {
     threads.emplace_back([this, t]() {
       for (int i = 0; i < 100; ++i) {
-        auto msg = KeystoneMessage::create(
-            "sender", "agent_" + std::to_string(t),
-            "message_" + std::to_string(i));
+        auto msg = KeystoneMessage::create("sender",
+                                           "agent_" + std::to_string(t),
+                                           "message_" + std::to_string(i));
         bool routed = bus_->routeMessage(msg);
         EXPECT_TRUE(routed);
       }
@@ -315,8 +313,7 @@ TEST_F(RegistryIntegrationTest, ConcurrentRoutingWithInterning) {
     while (agents[i]->getMessage().has_value()) {
       ++count;
     }
-    EXPECT_EQ(count, 100)
-        << "Agent " << i << " expected 100 messages, got " << count;
+    EXPECT_EQ(count, 100) << "Agent " << i << " expected 100 messages, got " << count;
   }
 }
 
@@ -340,19 +337,17 @@ TEST_F(RegistryIntegrationTest, PerformanceOfIntegerRouting) {
   auto start = std::chrono::steady_clock::now();
   for (int i = 0; i < 10000; ++i) {
     int target = i % 100;
-    auto msg = KeystoneMessage::create(
-        "sender", "agent_" + std::to_string(target),
-        "message_" + std::to_string(i));
+    auto msg = KeystoneMessage::create("sender",
+                                       "agent_" + std::to_string(target),
+                                       "message_" + std::to_string(i));
     bus_->routeMessage(msg);
   }
   auto end = std::chrono::steady_clock::now();
-  auto duration =
-      std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+  auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 
   // With debug + ASan, 10000 routing operations take ~15s due to instrumentation.
   // Without ASan, should be < 100ms. This test just verifies routing completes.
-  auto duration_ms =
-      std::chrono::duration_cast<std::chrono::milliseconds>(duration);
+  auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(duration);
   EXPECT_GT(duration_ms.count(), 0) << "Routing should take measurable time";
 
   // Verify at least some agents received messages
@@ -363,8 +358,7 @@ TEST_F(RegistryIntegrationTest, PerformanceOfIntegerRouting) {
       ++received_count;
     }
   }
-  EXPECT_GT(received_count, 0)
-      << "At least some agents should have received messages";
+  EXPECT_GT(received_count, 0) << "At least some agents should have received messages";
 }
 
 /**
@@ -413,8 +407,7 @@ TEST_F(RegistryIntegrationTest, DuplicateRegistrationThrows) {
   EXPECT_NO_THROW(bus_->registerAgent(agent1->getAgentId(), agent1));
 
   // Second registration with same ID should throw
-  EXPECT_THROW(bus_->registerAgent(agent2->getAgentId(), agent2),
-               std::runtime_error);
+  EXPECT_THROW(bus_->registerAgent(agent2->getAgentId(), agent2), std::runtime_error);
 
   // Original agent should still be registered
   EXPECT_TRUE(bus_->hasAgent("dup"));
@@ -465,8 +458,7 @@ TEST_F(RegistryIntegrationTest, ThreadSafeRegistryOperations) {
   for (int t = 10; t < 15; ++t) {
     threads.emplace_back([this, &routed]() {
       for (int i = 0; i < 100; ++i) {
-        auto msg = KeystoneMessage::create(
-            "sender", "agent_" + std::to_string(i % 100), "message");
+        auto msg = KeystoneMessage::create("sender", "agent_" + std::to_string(i % 100), "message");
         if (bus_->routeMessage(msg)) {
           ++routed;
         }
@@ -522,8 +514,10 @@ TEST_F(RegistryIntegrationTest, IntegerIdStability) {
   bool has_stable = false;
   bool has_new = false;
   for (const auto& id : agent_list) {
-    if (id == "stable") has_stable = true;
-    if (id == "new_agent") has_new = true;
+    if (id == "stable")
+      has_stable = true;
+    if (id == "new_agent")
+      has_new = true;
   }
   EXPECT_TRUE(has_stable);
   EXPECT_TRUE(has_new);
@@ -562,8 +556,7 @@ TEST_F(RegistryIntegrationTest, EmptyStringAgentId) {
  * Attempt to register nullptr agent throws.
  */
 TEST_F(RegistryIntegrationTest, NullAgentRegistration) {
-  EXPECT_THROW(bus_->registerAgent("null_agent", nullptr),
-               std::invalid_argument);
+  EXPECT_THROW(bus_->registerAgent("null_agent", nullptr), std::invalid_argument);
 }
 
 /**
@@ -601,8 +594,7 @@ TEST_F(RegistryIntegrationTest, RegisterManyAgents) {
 
   // Register 1000 agents
   for (int i = 0; i < num_agents; ++i) {
-    auto agent =
-        std::make_shared<TaskAgent>("agent_" + std::to_string(i));
+    auto agent = std::make_shared<TaskAgent>("agent_" + std::to_string(i));
     bus_->registerAgent(agent->getAgentId(), agent);
     agents.push_back(agent);
   }
