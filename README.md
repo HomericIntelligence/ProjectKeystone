@@ -6,7 +6,7 @@
 
 [![Quality Gates](https://github.com/mvillmow/ProjectKeystone/actions/workflows/quality.yml/badge.svg)](https://github.com/mvillmow/ProjectKeystone/actions/workflows/quality.yml)
 [![Code Coverage](https://img.shields.io/badge/coverage-86.2%25-yellow)](https://github.com/mvillmow/ProjectKeystone/actions/workflows/quality.yml)
-[![Tests](https://img.shields.io/badge/tests-329%20passing-success)](.github/workflows/quality.yml)
+[![Tests](https://img.shields.io/badge/tests-481%20passing-success)](.github/workflows/ci.yml)
 [![C++ Standard](https://img.shields.io/badge/C++-20-blue.svg)](https://en.cppreference.com/w/cpp/20)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -24,18 +24,66 @@ communication, work-stealing task scheduling, and comprehensive resilience featu
 - **Resilience Components**: Retry policies, circuit breakers, heartbeat monitoring
 - **Zero-Copy Serialization**: Efficient message passing with Cista
 - **Distributed Simulation**: NUMA-aware distributed work-stealing
-- **Comprehensive Testing**: 329+ unit and E2E tests (98.8% passing)
+- **Comprehensive Testing**: 481 unit and E2E tests
 - **Performance Benchmarks**: 45+ benchmark tests across 5 suites
 - **Fuzz Testing**: 4 libFuzzer targets for robustness
 - **Static Analysis**: clang-tidy and cppcheck integration
 
 ## Build Requirements
 
-- **C++20 Compiler**: GCC 13+ or Clang 15+
-- **CMake**: 3.20+
-- **Ninja**: Build system
-- **GNU Make**: Standard on Linux/macOS
-- **Docker**: (Optional) For containerized builds
+### System Dependencies
+
+| Requirement | Minimum | Recommended | Notes |
+|-------------|---------|-------------|-------|
+| **C++20 Compiler** | GCC 13 / Clang 15 | GCC 14 / Clang 18 | C++20 coroutines required |
+| **CMake** | 3.20 | 3.28+ | FetchContent support |
+| **Ninja** | 1.10 | 1.11+ | Fast parallel builds |
+| **GNU Make** | - | - | Standard on Linux/macOS |
+| **Docker** | 20.10 | 24.0+ | Optional, for containerized builds |
+
+### Auto-Fetched Dependencies
+
+All libraries are **automatically downloaded** via CMake FetchContent - no manual installation required:
+
+| Library | Version | Purpose |
+|---------|---------|---------|
+| [Google Test](https://github.com/google/googletest) | 1.12.1 | Unit testing framework |
+| [Google Benchmark](https://github.com/google/benchmark) | 1.8.3 | Performance benchmarking |
+| [spdlog](https://github.com/gabime/spdlog) | 1.12.0 | Fast logging library |
+| [Cista](https://github.com/felixguendling/cista) | 0.14 | Zero-copy serialization |
+| [concurrentqueue](https://github.com/cameron314/concurrentqueue) | 1.0.4 | Lock-free MPMC queue |
+
+### Optional Dependencies (Phase 8)
+
+For distributed features (`-DENABLE_GRPC=ON`):
+- **yaml-cpp** 0.7.0 - YAML task specification
+- **gRPC** - Distributed communication
+- **Protobuf** - Message serialization
+
+## First-Time Setup
+
+### Docker Setup (Recommended)
+
+```bash
+# Clone the repository
+git clone https://github.com/mvillmow/ProjectKeystone.git
+cd ProjectKeystone
+
+# Setup environment variables (required for Docker)
+./scripts/setup-env.sh
+
+# Build and test
+make docker.build
+make test.debug.asan
+```
+
+### Native Setup
+
+```bash
+# Ensure you have GCC 13+/Clang 15+ and CMake 3.20+
+make compile.debug.asan.native
+make test.debug.asan.native
+```
 
 ## Quick Start
 
@@ -100,6 +148,38 @@ docker-compose up -d dev
 docker-compose exec dev bash
 ```
 
+### Build Configuration
+
+#### Build Directory Structure
+
+Builds output to `build/x86.<mode>.<sanitizer>/` for parallel builds:
+
+```
+build/
+├── x86.debug/           # Debug build
+├── x86.release/         # Release build
+├── x86.debug.asan/      # Debug + AddressSanitizer
+├── x86.debug.tsan/      # Debug + ThreadSanitizer
+├── x86.debug.ubsan/     # Debug + UBSan
+├── x86.debug.coverage/  # Debug + Coverage
+```
+
+#### CMake Feature Flags
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `ENABLE_FUZZING` | Build fuzz test targets (requires Clang) | OFF |
+| `ENABLE_GRPC` | Enable Phase 8 distributed features | OFF |
+| `ENABLE_COVERAGE` | Enable code coverage instrumentation | OFF |
+| `ENABLE_CLANG_TIDY` | Run clang-tidy during build | OFF |
+
+Example:
+```bash
+cmake -S . -B build/fuzz -G Ninja \
+    -DENABLE_FUZZING=ON \
+    -DCMAKE_CXX_COMPILER=clang++
+```
+
 ## Project Structure
 
 ```
@@ -123,7 +203,7 @@ ProjectKeystone/
 |--------|--------|--------|
 | **Line Coverage** | 86.2% | ≥95% |
 | **Function Coverage** | 88.5% | ≥90% |
-| **Tests Passing** | 325/329 (98.8%) | 100% |
+| **Tests Passing** | 481/481 (100%) | 100% |
 | **Benchmark Suites** | 5 suites, 45+ tests | - |
 | **Fuzz Targets** | 4 targets | - |
 | **Static Analysis** | clang-tidy + cppcheck | 0 errors |
@@ -176,7 +256,7 @@ open build/coverage/html/index.html
 
 ```bash
 # Note: Fuzzing requires Clang and ENABLE_FUZZING=ON
-# Manual build (fuzzing not yet integrated into justfile)
+# Build with fuzzing support:
 cmake -S . -B build/fuzz -G Ninja \
     -DENABLE_FUZZING=ON \
     -DCMAKE_CXX_COMPILER=clang++
@@ -347,5 +427,5 @@ Built with:
 
 ---
 
-**Status**: Phase 9 (Enhanced Testing & Quality) - 86.2% coverage, 329 tests
-**Last Updated**: 2025-11-19
+**Status**: Phase 9 (Enhanced Testing & Quality) - 86.2% coverage, 481 tests
+**Last Updated**: 2025-12-02
