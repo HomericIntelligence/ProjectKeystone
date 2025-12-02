@@ -52,17 +52,13 @@ mkdir -p "$ANALYSIS_DIR"
 if [[ ! -d "$BUILD_DIR" ]]; then
     echo -e "${YELLOW}Build directory not found. Creating and configuring...${NC}"
     mkdir -p "$BUILD_DIR"
-    cd "$BUILD_DIR"
-    cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -G Ninja ..
-    cd "$PROJECT_ROOT"
+    cmake -S "$PROJECT_ROOT" -B "$BUILD_DIR" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -G Ninja
 fi
 
 # Generate compile_commands.json if not exists
 if [[ ! -f "$BUILD_DIR/compile_commands.json" ]]; then
     echo -e "${YELLOW}Generating compile_commands.json...${NC}"
-    cd "$BUILD_DIR"
-    cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -G Ninja ..
-    cd "$PROJECT_ROOT"
+    cmake -S "$PROJECT_ROOT" -B "$BUILD_DIR" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -G Ninja
 fi
 
 # Run clang-tidy
