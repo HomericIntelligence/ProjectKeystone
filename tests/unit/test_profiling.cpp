@@ -47,7 +47,7 @@ TEST_F(ProfilingTest, MultipleSamples) {
   }
 
   // Record multiple samples
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     auto session = ProfilingSession::start("multi_sample");
     std::this_thread::sleep_for(std::chrono::microseconds(10 * (i + 1)));
     session.end();
@@ -121,7 +121,7 @@ TEST_F(ProfilingTest, ThreadSafety) {
 
   // Multiple threads profiling same section
   auto worker = []() {
-    for (int i = 0; i < 100; ++i) {
+    for (int32_t i = 0; i < 100; ++i) {
       auto session = ProfilingSession::start("thread_safe");
       std::this_thread::sleep_for(std::chrono::microseconds(10));
     }

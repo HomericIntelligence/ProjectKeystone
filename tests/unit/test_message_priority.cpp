@@ -254,9 +254,9 @@ TEST(MessagePriorityTest, FairnessMechanismUsesConfiguredInterval) {
   agent->receiveMessage(low_msg);
 
   // Send many HIGH priority messages after
-  for (int i = 0; i < 5; ++i) {
-    auto high_msg =
-        KeystoneMessage::create("sender", "test_agent", "cmd", "HIGH" + std::to_string(i));
+  for (int32_t i = 0; i < 5; ++i) {
+    auto high_msg = KeystoneMessage::create("sender", "test_agent", "cmd",
+                                            "HIGH" + std::to_string(i));
     high_msg.priority = Priority::HIGH;
     agent->receiveMessage(high_msg);
   }
@@ -294,7 +294,7 @@ TEST(MessagePriorityTest, ConcurrentIntervalSettingThreadSafe) {
 
   // Launch multiple threads setting different intervals
   std::vector<std::thread> threads;
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     threads.emplace_back([&agent, i]() {
       agent->setLowPriorityCheckInterval(std::chrono::milliseconds{10 + i * 10});
     });

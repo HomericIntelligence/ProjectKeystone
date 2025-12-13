@@ -181,7 +181,7 @@ TEST(AgentConcepts, ConceptBasedRegisterMultipleTypes) {
 
   // Verify all registered
   auto agents = bus.listAgents();
-  EXPECT_EQ(agents.size(), 4);
+  EXPECT_EQ(agents.size(), 4u);
   EXPECT_TRUE(bus.hasAgent("chief"));
   EXPECT_TRUE(bus.hasAgent("component"));
   EXPECT_TRUE(bus.hasAgent("module"));

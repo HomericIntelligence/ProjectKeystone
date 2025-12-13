@@ -190,7 +190,7 @@ TEST(TaskCancellation, ThreadSafeCancellation) {
 
   // Launch multiple threads requesting cancellation
   std::vector<std::thread> threads;
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     threads.emplace_back([&agent, i]() {
       std::string task_id = "task_" + std::to_string(i);
       agent->requestCancellation(task_id);
@@ -203,7 +203,7 @@ TEST(TaskCancellation, ThreadSafeCancellation) {
   }
 
   // All tasks should be cancelled
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     std::string task_id = "task_" + std::to_string(i);
     EXPECT_TRUE(agent->isCancelled(task_id));
   }

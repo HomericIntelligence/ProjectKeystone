@@ -41,7 +41,7 @@ TEST(InterfaceSegregation, RegistryInterfaceOnly) {
   EXPECT_TRUE(registry.hasAgent("agent_2"));
 
   auto agents = registry.listAgents();
-  EXPECT_EQ(agents.size(), 2);
+  EXPECT_EQ(agents.size(), 2u);
 
   registry.unregisterAgent("agent_1");
   EXPECT_FALSE(registry.hasAgent("agent_1"));
@@ -85,7 +85,7 @@ TEST(InterfaceSegregation, BatchRegistrationUtility) {
   MessageBus bus;
 
   std::vector<std::shared_ptr<TaskAgent>> agents;
-  for (int i = 0; i < 5; ++i) {
+  for (int32_t i = 0; i < 5; ++i) {
     agents.push_back(std::make_shared<TaskAgent>("agent_" + std::to_string(i)));
   }
 

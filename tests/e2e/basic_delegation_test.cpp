@@ -49,8 +49,8 @@ TEST(E2E_Phase1, ChiefArchitectDelegatesToTaskAgent) {
   std::mt19937 gen(rd());
   std::uniform_int_distribution<> dis(1, 100);
 
-  int num1 = dis(gen);
-  int num2 = dis(gen);
+  int32_t num1 = dis(gen);
+  int32_t num2 = dis(gen);
   int expected_result = num1 + num2;
 
   std::cout << "\nTest: Adding " << num1 << " + " << num2 << " = " << expected_result << std::endl;
@@ -145,7 +145,7 @@ TEST(E2E_Phase1, ChiefArchitectSendsMultipleCommands) {
 
   // Verify all commands in history
   auto history = task_agent->getCommandHistory();
-  EXPECT_EQ(history.size(), 3) << "Should have executed 3 commands";
+  EXPECT_EQ(history.size(), 3u) << "Should have executed 3 commands";
 }
 
 /**

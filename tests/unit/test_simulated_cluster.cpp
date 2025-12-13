@@ -114,7 +114,7 @@ TEST_F(SimulatedClusterTest, SubmitToUnregisteredAgent) {
   std::atomic<int> total_counter{0};
 
   // Submit to unregistered agents - should round-robin
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     cluster.submit("unregistered_agent", [&]() { total_counter++; });
   }
 
@@ -196,7 +196,7 @@ TEST_F(SimulatedClusterTest, GetStats) {
   cluster.start();
 
   // Submit some work
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     cluster.submitToNode(0, []() {});
   }
 
@@ -205,7 +205,7 @@ TEST_F(SimulatedClusterTest, GetStats) {
   auto stats = cluster.getStats();
 
   EXPECT_EQ(stats.total_tasks_submitted, 10);
-  EXPECT_EQ(stats.queue_depths_per_node.size(), 2);
+  EXPECT_EQ(stats.queue_depths_per_node.size(), 2u);
 
   cluster.shutdown();
 }
@@ -216,7 +216,7 @@ TEST_F(SimulatedClusterTest, QueueDepthTracking) {
   cluster.start();
 
   // Submit blocking work to node 0
-  for (int i = 0; i < 20; ++i) {
+  for (int32_t i = 0; i < 20; ++i) {
     cluster.submitToNode(0, []() { std::this_thread::sleep_for(50ms); });
   }
 
@@ -241,7 +241,7 @@ TEST_F(SimulatedClusterTest, LoadImbalanceCalculation) {
   cluster.start();
 
   // Create imbalanced load: lots on node 0, none on others
-  for (int i = 0; i < 30; ++i) {
+  for (int32_t i = 0; i < 30; ++i) {
     cluster.submitToNode(0, []() { std::this_thread::sleep_for(50ms); });
   }
 
@@ -261,7 +261,7 @@ TEST_F(SimulatedClusterTest, ResetStats) {
   cluster.start();
 
   // Generate some activity
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     cluster.submitToNode(0, []() {});
   }
 
@@ -288,7 +288,7 @@ TEST_F(SimulatedClusterTest, NetworkStatistics) {
   cluster.start();
 
   // Send messages via network
-  for (int i = 0; i < 5; ++i) {
+  for (int32_t i = 0; i < 5; ++i) {
     cluster.getNetwork()->send(0, 1, []() {});
   }
 
@@ -314,8 +314,8 @@ TEST_F(SimulatedClusterTest, MultiNodeWorkDistribution) {
   std::atomic<int> counters[4] = {0, 0, 0, 0};
 
   // Submit 10 tasks to each node
-  for (int node = 0; node < 4; ++node) {
-    for (int i = 0; i < 10; ++i) {
+  for (int32_t node = 0; node < 4; ++node) {
+    for (int32_t i = 0; i < 10; ++i) {
       cluster.submitToNode(node, [&counters, node]() { counters[node]++; });
     }
   }
@@ -323,7 +323,7 @@ TEST_F(SimulatedClusterTest, MultiNodeWorkDistribution) {
   std::this_thread::sleep_for(200ms);
 
   // Each node should have executed its tasks
-  for (int node = 0; node < 4; ++node) {
+  for (int32_t node = 0; node < 4; ++node) {
     EXPECT_EQ(counters[node].load(), 10);
   }
 

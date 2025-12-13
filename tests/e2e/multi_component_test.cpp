@@ -79,7 +79,7 @@ TEST_F(Phase4MultiComponentTest, RegisterFourComponents) {
   EXPECT_EQ(chief->getComponentCount(), 4);
 
   auto names = chief->getComponentNames();
-  EXPECT_EQ(names.size(), 4);
+  EXPECT_EQ(names.size(), 4u);
 
   // Check all component names present
   EXPECT_NE(std::find(names.begin(), names.end(), "Core"), names.end());
@@ -213,7 +213,7 @@ TEST_F(Phase4MultiComponentTest, ParallelComponentExecution) {
   EXPECT_EQ(chief->getComponentCount(), 2);
 
   auto names = chief->getComponentNames();
-  EXPECT_EQ(names.size(), 2);
+  EXPECT_EQ(names.size(), 2u);
   EXPECT_NE(std::find(names.begin(), names.end(), "Core"), names.end());
   EXPECT_NE(std::find(names.begin(), names.end(), "Protocol"), names.end());
 
@@ -307,14 +307,14 @@ TEST_F(Phase4MultiComponentTest, StressTest100Agents) {
   std::vector<std::shared_ptr<ModuleLeadAgent>> module_leads;
   std::vector<std::shared_ptr<TaskAgent>> task_agents;
 
-  int module_count = 0;
-  int task_count = 0;
+  int32_t module_count = 0;
+  int32_t task_count = 0;
 
   for (size_t comp_idx = 0; comp_idx < component_leads.size(); ++comp_idx) {
     auto& component = component_leads[comp_idx];
     std::vector<std::string> module_ids_for_component;
 
-    for (int mod_idx = 0; mod_idx < 3; ++mod_idx) {
+    for (int32_t mod_idx = 0; mod_idx < 3; ++mod_idx) {
       // Create ModuleLead
       std::string module_id = component_names[comp_idx] + "_module_" + std::to_string(mod_idx);
       auto module = std::make_shared<ModuleLeadAgent>(module_id);
@@ -326,7 +326,7 @@ TEST_F(Phase4MultiComponentTest, StressTest100Agents) {
 
       // For each module, create 7 TaskAgents
       std::vector<std::string> task_ids_for_module;
-      for (int task_idx = 0; task_idx < 7; ++task_idx) {
+      for (int32_t task_idx = 0; task_idx < 7; ++task_idx) {
         std::string task_id = module_id + "_task_" + std::to_string(task_idx);
         auto task = std::make_shared<TaskAgent>(task_id);
         task->setMessageBus(message_bus_.get());
@@ -347,7 +347,7 @@ TEST_F(Phase4MultiComponentTest, StressTest100Agents) {
   }
 
   // Verify agent counts
-  EXPECT_EQ(component_leads.size(), 4);
+  EXPECT_EQ(component_leads.size(), 4u);
   EXPECT_EQ(module_count, 12);
   EXPECT_EQ(task_count, 84);
 
@@ -359,7 +359,7 @@ TEST_F(Phase4MultiComponentTest, StressTest100Agents) {
 
   // Verify components are registered
   auto component_list = chief->getComponentNames();
-  EXPECT_EQ(component_list.size(), 4);
+  EXPECT_EQ(component_list.size(), 4u);
 
   // The system is now set up with 101 agents
   // Actual stress testing would involve sending commands through the hierarchy
@@ -401,14 +401,14 @@ TEST_F(Phase4MultiComponentTest, StressTest150Agents) {
   std::vector<std::shared_ptr<ModuleLeadAgent>> module_leads;
   std::vector<std::shared_ptr<TaskAgent>> task_agents;
 
-  int module_count = 0;
-  int task_count = 0;
+  int32_t module_count = 0;
+  int32_t task_count = 0;
 
   for (size_t comp_idx = 0; comp_idx < component_leads.size(); ++comp_idx) {
     auto& component = component_leads[comp_idx];
     std::vector<std::string> module_ids_for_component;
 
-    for (int mod_idx = 0; mod_idx < 5; ++mod_idx) {  // 5 modules per component
+    for (int32_t mod_idx = 0; mod_idx < 5; ++mod_idx) {  // 5 modules per component
       // Create ModuleLead
       std::string module_id = component_names[comp_idx] + "_module_" + std::to_string(mod_idx);
       auto module = std::make_shared<ModuleLeadAgent>(module_id);
@@ -420,7 +420,7 @@ TEST_F(Phase4MultiComponentTest, StressTest150Agents) {
 
       // For each module, create 6 TaskAgents
       std::vector<std::string> task_ids_for_module;
-      for (int task_idx = 0; task_idx < 6; ++task_idx) {  // 6 tasks per module
+      for (int32_t task_idx = 0; task_idx < 6; ++task_idx) {  // 6 tasks per module
         std::string task_id = module_id + "_task_" + std::to_string(task_idx);
         auto task = std::make_shared<TaskAgent>(task_id);
         task->setMessageBus(message_bus_.get());
@@ -441,7 +441,7 @@ TEST_F(Phase4MultiComponentTest, StressTest150Agents) {
   }
 
   // Verify agent counts
-  EXPECT_EQ(component_leads.size(), 4);
+  EXPECT_EQ(component_leads.size(), 4u);
   EXPECT_EQ(module_count, 20);
   EXPECT_EQ(task_count, 120);
 
@@ -453,7 +453,7 @@ TEST_F(Phase4MultiComponentTest, StressTest150Agents) {
 
   // Verify components are registered
   auto component_list = chief->getComponentNames();
-  EXPECT_EQ(component_list.size(), 4);
+  EXPECT_EQ(component_list.size(), 4u);
 
   // The system is now set up with 145 agents
   // This tests the scheduler's ability to handle a large number of concurrent agents

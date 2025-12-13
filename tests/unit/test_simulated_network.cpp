@@ -76,7 +76,7 @@ TEST_F(SimulatedNetworkTest, MultipleMessages) {
   std::atomic<int> counter{0};
 
   // Send 10 messages
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     network.send(0, 1, [&]() { counter++; });
   }
 
@@ -141,7 +141,7 @@ TEST_F(SimulatedNetworkTest, PacketLoss) {
   SimulatedNetwork network(config);
 
   // Send messages - all should be dropped
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     network.send(0, 1, []() {});
   }
 
@@ -165,7 +165,7 @@ TEST_F(SimulatedNetworkTest, NoPacketLoss) {
   SimulatedNetwork network(config);
 
   // Send messages
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     network.send(0, 1, []() {});
   }
 
@@ -211,7 +211,7 @@ TEST_F(SimulatedNetworkTest, AverageLatencyMultipleMessages) {
   SimulatedNetwork network(config);
 
   // Send multiple messages
-  for (int i = 0; i < 20; ++i) {
+  for (int32_t i = 0; i < 20; ++i) {
     network.send(0, 1, []() {});
   }
 
@@ -233,7 +233,7 @@ TEST_F(SimulatedNetworkTest, ResetStats) {
   SimulatedNetwork network(config);
 
   // Send and receive some messages
-  for (int i = 0; i < 5; ++i) {
+  for (int32_t i = 0; i < 5; ++i) {
     network.send(0, 1, []() {});
   }
 
@@ -262,8 +262,9 @@ TEST_F(SimulatedNetworkTest, QueueOrdering) {
   std::vector<int> execution_order;
 
   // Send messages with identifiable work
-  for (int i = 0; i < 5; ++i) {
-    network.send(0, 1, [&execution_order, i]() { execution_order.push_back(i); });
+  for (int32_t i = 0; i < 5; ++i) {
+    network.send(0, 1,
+                 [&execution_order, i]() { execution_order.push_back(i); });
   }
 
   std::this_thread::sleep_for(50us);
@@ -274,8 +275,8 @@ TEST_F(SimulatedNetworkTest, QueueOrdering) {
   }
 
   // Should be FIFO order
-  EXPECT_EQ(execution_order.size(), 5);
-  for (int i = 0; i < 5; ++i) {
+  EXPECT_EQ(execution_order.size(), 5u);
+  for (int32_t i = 0; i < 5; ++i) {
     EXPECT_EQ(execution_order[i], i);
   }
 }
@@ -287,7 +288,7 @@ TEST_F(SimulatedNetworkTest, PendingMessageCount) {
   EXPECT_EQ(network.getPendingMessages(), 0);
 
   // Send 10 messages
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     network.send(0, 1, []() {});
   }
 
@@ -296,7 +297,7 @@ TEST_F(SimulatedNetworkTest, PendingMessageCount) {
   std::this_thread::sleep_for(50us);
 
   // Receive 5 messages
-  for (int i = 0; i < 5; ++i) {
+  for (int32_t i = 0; i < 5; ++i) {
     auto work = network.receive(1);
     EXPECT_TRUE(work.has_value());
   }
@@ -304,7 +305,7 @@ TEST_F(SimulatedNetworkTest, PendingMessageCount) {
   EXPECT_EQ(network.getPendingMessages(), 5);
 
   // Receive remaining 5
-  for (int i = 0; i < 5; ++i) {
+  for (int32_t i = 0; i < 5; ++i) {
     auto work = network.receive(1);
     EXPECT_TRUE(work.has_value());
   }

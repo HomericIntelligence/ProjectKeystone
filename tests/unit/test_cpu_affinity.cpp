@@ -16,7 +16,7 @@ TEST(CPUAffinityTest, EnableCPUAffinity) {
 
   // Submit some work to ensure workers are running
   std::atomic<int> counter{0};
-  for (int i = 0; i < 100; ++i) {
+  for (int32_t i = 0; i < 100; ++i) {
     scheduler.submit([&counter]() {
       counter.fetch_add(1, std::memory_order_relaxed);
       std::this_thread::sleep_for(std::chrono::microseconds(10));
@@ -39,8 +39,9 @@ TEST(CPUAffinityTest, DisabledByDefault) {
   scheduler.start();
 
   std::atomic<int> counter{0};
-  for (int i = 0; i < 50; ++i) {
-    scheduler.submit([&counter]() { counter.fetch_add(1, std::memory_order_relaxed); });
+  for (int32_t i = 0; i < 50; ++i) {
+    scheduler.submit(
+        [&counter]() { counter.fetch_add(1, std::memory_order_relaxed); });
   }
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));

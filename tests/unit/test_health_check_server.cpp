@@ -48,7 +48,7 @@ class HealthCheckServerTest : public ::testing::Test {
    */
   std::string sendRequest(const std::string& path) {
     // Create socket
-    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    int32_t sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) {
       return "";
     }
@@ -391,7 +391,7 @@ TEST_F(HealthCheckServerTest, ConcurrentRequests) {
   std::vector<std::thread> threads;
   std::atomic<int> success_count{0};
 
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     threads.emplace_back([this, &success_count]() {
       std::string response = sendRequest("/healthz");
       if (getStatusCode(response) == 200) {

@@ -40,7 +40,7 @@ TEST_F(FailureInjectorTest, InjectAgentCrash) {
 
   // Appears in failed agents list
   auto failed_agents = injector->getFailedAgents();
-  EXPECT_EQ(failed_agents.size(), 1);
+  EXPECT_EQ(failed_agents.size(), 1u);
   EXPECT_EQ(failed_agents[0], agent_id);
 
   // Total failures increased
@@ -60,7 +60,7 @@ TEST_F(FailureInjectorTest, RecoverAgent) {
 
   // No longer in failed agents list
   auto failed_agents = injector->getFailedAgents();
-  EXPECT_EQ(failed_agents.size(), 0);
+  EXPECT_EQ(failed_agents.size(), 0u);
 }
 
 TEST_F(FailureInjectorTest, MultipleAgentCrashes) {
@@ -74,7 +74,7 @@ TEST_F(FailureInjectorTest, MultipleAgentCrashes) {
   EXPECT_FALSE(injector->isAgentCrashed("agent4"));
 
   auto failed_agents = injector->getFailedAgents();
-  EXPECT_EQ(failed_agents.size(), 3);
+  EXPECT_EQ(failed_agents.size(), 3u);
 
   EXPECT_EQ(injector->getTotalFailures(), 3);
 }
@@ -98,7 +98,7 @@ TEST_F(FailureInjectorTest, InjectAgentTimeout) {
 
   // Appears in timeout agents list
   auto timeout_agents = injector->getTimeoutAgents();
-  EXPECT_EQ(timeout_agents.size(), 1);
+  EXPECT_EQ(timeout_agents.size(), 1u);
   EXPECT_EQ(timeout_agents[0], agent_id);
 
   // Total failures increased
@@ -115,7 +115,7 @@ TEST_F(FailureInjectorTest, ClearAgentTimeout) {
   EXPECT_EQ(injector->getAgentTimeout(agent_id), 0ms);
 
   auto timeout_agents = injector->getTimeoutAgents();
-  EXPECT_EQ(timeout_agents.size(), 0);
+  EXPECT_EQ(timeout_agents.size(), 0u);
 }
 
 TEST_F(FailureInjectorTest, MultipleAgentTimeouts) {
@@ -129,7 +129,7 @@ TEST_F(FailureInjectorTest, MultipleAgentTimeouts) {
   EXPECT_EQ(injector->getAgentTimeout("agent4"), 0ms);
 
   auto timeout_agents = injector->getTimeoutAgents();
-  EXPECT_EQ(timeout_agents.size(), 3);
+  EXPECT_EQ(timeout_agents.size(), 3u);
 }
 
 // ============================================================================
@@ -156,7 +156,7 @@ TEST_F(FailureInjectorTest, ShouldFailZeroRate) {
   injector->setFailureRate(0.0);
 
   // With 0% rate, should never fail
-  for (int i = 0; i < 100; ++i) {
+  for (int32_t i = 0; i < 100; ++i) {
     EXPECT_FALSE(injector->shouldFail());
   }
 }
@@ -165,7 +165,7 @@ TEST_F(FailureInjectorTest, ShouldFailOneRate) {
   injector->setFailureRate(1.0);
 
   // With 100% rate, should always fail
-  for (int i = 0; i < 100; ++i) {
+  for (int32_t i = 0; i < 100; ++i) {
     EXPECT_TRUE(injector->shouldFail());
   }
 }
@@ -174,10 +174,10 @@ TEST_F(FailureInjectorTest, ShouldFailProbabilistic) {
   injector->setFailureRate(0.5);
 
   // With 50% rate, approximately half should fail
-  int fail_count = 0;
+  int32_t fail_count = 0;
   const int trials = 1000;
 
-  for (int i = 0; i < trials; ++i) {
+  for (int32_t i = 0; i < trials; ++i) {
     if (injector->shouldFail()) {
       fail_count++;
     }
@@ -234,15 +234,15 @@ TEST_F(FailureInjectorTest, Reset) {
   injector->setFailureRate(0.5);
 
   EXPECT_EQ(injector->getTotalFailures(), 2);
-  EXPECT_EQ(injector->getFailedAgents().size(), 1);
-  EXPECT_EQ(injector->getTimeoutAgents().size(), 1);
+  EXPECT_EQ(injector->getFailedAgents().size(), 1u);
+  EXPECT_EQ(injector->getTimeoutAgents().size(), 1u);
 
   // Reset clears all failures and timeouts
   injector->reset();
 
   EXPECT_EQ(injector->getTotalFailures(), 0);
-  EXPECT_EQ(injector->getFailedAgents().size(), 0);
-  EXPECT_EQ(injector->getTimeoutAgents().size(), 0);
+  EXPECT_EQ(injector->getFailedAgents().size(), 0u);
+  EXPECT_EQ(injector->getTimeoutAgents().size(), 0u);
 
   // Failure rate preserved
   EXPECT_EQ(injector->getFailureRate(), 0.5);
@@ -274,10 +274,11 @@ TEST_F(FailureInjectorTest, ConcurrentCrashInjection) {
   const int CRASHES_PER_THREAD = 10;
 
   std::vector<std::thread> threads;
-  for (int t = 0; t < THREADS; ++t) {
+  for (int32_t t = 0; t < THREADS; ++t) {
     threads.emplace_back([&, t]() {
-      for (int i = 0; i < CRASHES_PER_THREAD; ++i) {
-        std::string agent_id = "agent_" + std::to_string(t) + "_" + std::to_string(i);
+      for (int32_t i = 0; i < CRASHES_PER_THREAD; ++i) {
+        std::string agent_id =
+            "agent_" + std::to_string(t) + "_" + std::to_string(i);
         injector->injectAgentCrash(agent_id);
       }
     });
@@ -300,9 +301,9 @@ TEST_F(FailureInjectorTest, ConcurrentRandomFailures) {
   std::atomic<int> total_failures{0};
 
   std::vector<std::thread> threads;
-  for (int t = 0; t < THREADS; ++t) {
+  for (int32_t t = 0; t < THREADS; ++t) {
     threads.emplace_back([&]() {
-      for (int i = 0; i < CHECKS_PER_THREAD; ++i) {
+      for (int32_t i = 0; i < CHECKS_PER_THREAD; ++i) {
         if (injector->shouldFail()) {
           total_failures++;
         }

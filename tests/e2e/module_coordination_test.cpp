@@ -119,7 +119,7 @@ TEST(E2E_Phase2, ModuleLeadSynthesizesTaskResults) {
   std::cout << "4. ModuleLead receives results from TaskAgents..." << std::endl;
 
   int results_received = 0;
-  for (int i = 0; i < 3; ++i) {
+  for (int32_t i = 0; i < 3; ++i) {
     auto result_msg = module_lead->getMessage();
     if (result_msg.has_value()) {
       std::cout << "   - Received result: " << result_msg->payload.value_or("") << std::endl;
@@ -160,7 +160,7 @@ TEST(E2E_Phase2, ModuleLeadSynthesizesTaskResults) {
   // Verify all TaskAgents participated
   for (const auto& agent : task_agents) {
     auto history = agent->getCommandHistory();
-    EXPECT_EQ(history.size(), 1) << agent->getAgentId() << " should execute exactly 1 task";
+    EXPECT_EQ(history.size(), 1u) << agent->getAgentId() << " should execute exactly 1 task";
   }
 
   // Verify ModuleLead state transitions
@@ -236,7 +236,7 @@ TEST(E2E_Phase2, ModuleLeadHandlesVariableTaskCount) {
   EXPECT_EQ(tasks_processed, 2) << "Should decompose into 2 tasks";
 
   // Collect results
-  for (int i = 0; i < tasks_processed; ++i) {
+  for (int32_t i = 0; i < tasks_processed; ++i) {
     auto result_msg = module_lead->getMessage();
     if (result_msg.has_value()) {
       module_lead->processMessage(*result_msg).get();

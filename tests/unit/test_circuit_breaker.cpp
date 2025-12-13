@@ -36,7 +36,7 @@ TEST_F(CircuitBreakerTest, OpenCircuitAfterFailures) {
   CircuitBreaker breaker(default_config_);
 
   // Record failures
-  for (int i = 0; i < 3; ++i) {
+  for (int32_t i = 0; i < 3; ++i) {
     breaker.recordFailure("target1");
   }
 
@@ -49,7 +49,7 @@ TEST_F(CircuitBreakerTest, HalfOpenAfterTimeout) {
   CircuitBreaker breaker(default_config_);
 
   // Open circuit
-  for (int i = 0; i < 3; ++i) {
+  for (int32_t i = 0; i < 3; ++i) {
     breaker.recordFailure("target1");
   }
 
@@ -67,7 +67,7 @@ TEST_F(CircuitBreakerTest, CloseCircuitAfterSuccesses) {
   CircuitBreaker breaker(default_config_);
 
   // Open circuit
-  for (int i = 0; i < 3; ++i) {
+  for (int32_t i = 0; i < 3; ++i) {
     breaker.recordFailure("target1");
   }
 
@@ -76,7 +76,7 @@ TEST_F(CircuitBreakerTest, CloseCircuitAfterSuccesses) {
   breaker.allowRequest("target1");
 
   // Record successes
-  for (int i = 0; i < 2; ++i) {
+  for (int32_t i = 0; i < 2; ++i) {
     breaker.recordSuccess("target1");
   }
 
@@ -87,7 +87,7 @@ TEST_F(CircuitBreakerTest, ReopenOnHalfOpenFailure) {
   CircuitBreaker breaker(default_config_);
 
   // Open circuit
-  for (int i = 0; i < 3; ++i) {
+  for (int32_t i = 0; i < 3; ++i) {
     breaker.recordFailure("target1");
   }
 
@@ -105,7 +105,7 @@ TEST_F(CircuitBreakerTest, MultipleTargets) {
   CircuitBreaker breaker(default_config_);
 
   // Fail target1
-  for (int i = 0; i < 3; ++i) {
+  for (int32_t i = 0; i < 3; ++i) {
     breaker.recordFailure("target1");
   }
 
@@ -121,7 +121,7 @@ TEST_F(CircuitBreakerTest, ManualReset) {
   CircuitBreaker breaker(default_config_);
 
   // Open circuit
-  for (int i = 0; i < 3; ++i) {
+  for (int32_t i = 0; i < 3; ++i) {
     breaker.recordFailure("target1");
   }
 

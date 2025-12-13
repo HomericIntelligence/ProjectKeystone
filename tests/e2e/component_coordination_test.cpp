@@ -146,7 +146,7 @@ TEST(E2E_Phase3, ComponentLeadCoordinatesMultipleModules) {
   std::cout << "5. TaskAgents → ModuleLeads (results)..." << std::endl;
 
   // ModuleLead 1 collects results from its 3 tasks
-  for (int i = 0; i < 3; ++i) {
+  for (int32_t i = 0; i < 3; ++i) {
     auto result_msg = module_lead_1->getMessage();
     if (result_msg.has_value()) {
       module_lead_1->processMessage(*result_msg).get();
@@ -154,7 +154,7 @@ TEST(E2E_Phase3, ComponentLeadCoordinatesMultipleModules) {
   }
 
   // ModuleLead 2 collects results from its 3 tasks
-  for (int i = 0; i < 3; ++i) {
+  for (int32_t i = 0; i < 3; ++i) {
     auto result_msg = module_lead_2->getMessage();
     if (result_msg.has_value()) {
       module_lead_2->processMessage(*result_msg).get();
@@ -233,7 +233,7 @@ TEST(E2E_Phase3, ComponentLeadCoordinatesMultipleModules) {
   // Verify all TaskAgents participated
   for (const auto& agent : task_agents) {
     auto history = agent->getCommandHistory();
-    EXPECT_EQ(history.size(), 1) << agent->getAgentId() << " should execute 1 task";
+    EXPECT_EQ(history.size(), 1u) << agent->getAgentId() << " should execute 1 task";
   }
 
   std::cout << "\n=== Phase 3 Complete: 4 Layers Working ===\n" << std::endl;

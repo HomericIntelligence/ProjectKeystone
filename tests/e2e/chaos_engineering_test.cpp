@@ -254,10 +254,10 @@ TEST_F(Phase5ProbabilisticFailureTest, ProbabilisticFailureRate) {
 
   EXPECT_DOUBLE_EQ(injector.getFailureRate(), 0.5);
 
-  int failed_count = 0;
-  int total_trials = 100;
+  int32_t failed_count = 0;
+  int32_t total_trials = 100;
 
-  for (int i = 0; i < total_trials; ++i) {
+  for (int32_t i = 0; i < total_trials; ++i) {
     if (injector.shouldFail()) {
       failed_count++;
     }
@@ -277,7 +277,7 @@ TEST_F(Phase5ProbabilisticFailureTest, ProbabilisticFailureRate) {
 TEST_F(Phase5ProbabilisticFailureTest, AgentsFailBasedOnInjectorRate) {
   // Create 10 task agents
   std::vector<std::shared_ptr<TaskAgent>> agents;
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     auto agent = std::make_shared<TaskAgent>("task" + std::to_string(i));
     agent->setMessageBus(message_bus_.get());
     agent->setScheduler(scheduler_.get());
@@ -347,18 +347,18 @@ TEST_F(Phase5FailureInjectorStatsTest, TracksFailureStatistics) {
   injector.injectAgentCrash("agent3");
 
   EXPECT_EQ(injector.getTotalFailures(), 3);
-  EXPECT_EQ(injector.getFailedAgents().size(), 3);
+  EXPECT_EQ(injector.getFailedAgents().size(), 3u);
 
   // Inject some timeouts
   injector.injectAgentTimeout("agent4", std::chrono::milliseconds(100));
   injector.injectAgentTimeout("agent5", std::chrono::milliseconds(500));
 
   EXPECT_EQ(injector.getTotalFailures(), 5);
-  EXPECT_EQ(injector.getTimeoutAgents().size(), 2);
+  EXPECT_EQ(injector.getTimeoutAgents().size(), 2u);
 
   // Recover agent1
   injector.recoverAgent("agent1");
-  EXPECT_EQ(injector.getFailedAgents().size(), 2);
+  EXPECT_EQ(injector.getFailedAgents().size(), 2u);
 
   // Check statistics string
   std::string stats = injector.getStatistics();
@@ -385,18 +385,18 @@ TEST_F(Phase5FailureInjectorStatsTest, TracksAgentTimeouts) {
   injector.injectAgentTimeout("agent1", std::chrono::milliseconds(100));
 
   EXPECT_EQ(injector.getAgentTimeout("agent1"), std::chrono::milliseconds(100));
-  EXPECT_EQ(injector.getTimeoutAgents().size(), 1);
+  EXPECT_EQ(injector.getTimeoutAgents().size(), 1u);
 
   // Inject timeout for agent2 with different delay
   injector.injectAgentTimeout("agent2", std::chrono::milliseconds(500));
 
   EXPECT_EQ(injector.getAgentTimeout("agent2"), std::chrono::milliseconds(500));
-  EXPECT_EQ(injector.getTimeoutAgents().size(), 2);
+  EXPECT_EQ(injector.getTimeoutAgents().size(), 2u);
 
   // Clear timeout for agent1
   injector.clearAgentTimeout("agent1");
   EXPECT_EQ(injector.getAgentTimeout("agent1"), std::chrono::milliseconds(0));
-  EXPECT_EQ(injector.getTimeoutAgents().size(), 1);
+  EXPECT_EQ(injector.getTimeoutAgents().size(), 1u);
 
   // agent2 should still have timeout
   EXPECT_EQ(injector.getAgentTimeout("agent2"), std::chrono::milliseconds(500));
@@ -525,7 +525,7 @@ TEST_F(Phase5NetworkPartitionTest, PartitionStatisticsTracking) {
   EXPECT_EQ(network.getTotalMessages(), 0);
 
   // Send 10 messages across partition
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     network.send(0, 2, []() {});
   }
 
@@ -533,7 +533,7 @@ TEST_F(Phase5NetworkPartitionTest, PartitionStatisticsTracking) {
   EXPECT_EQ(network.getTotalMessages(), 10);
 
   // Send 5 messages within partition
-  for (int i = 0; i < 5; ++i) {
+  for (int32_t i = 0; i < 5; ++i) {
     network.send(0, 1, []() {});
   }
 
@@ -543,7 +543,7 @@ TEST_F(Phase5NetworkPartitionTest, PartitionStatisticsTracking) {
   // Heal partition and send more messages
   network.healPartition();
 
-  for (int i = 0; i < 3; ++i) {
+  for (int32_t i = 0; i < 3; ++i) {
     network.send(0, 2, []() {});
   }
 
@@ -579,17 +579,17 @@ TEST_F(Phase5NetworkPartitionTest, SplitBrainWorkDistribution) {
   network.createPartition({0, 1}, {2, 3});
 
   // Send work within partition A (0→1)
-  for (int i = 0; i < 5; ++i) {
+  for (int32_t i = 0; i < 5; ++i) {
     network.send(0, 1, [&node1_work]() { node1_work++; });
   }
 
   // Send work within partition B (2→3)
-  for (int i = 0; i < 3; ++i) {
+  for (int32_t i = 0; i < 3; ++i) {
     network.send(2, 3, [&node3_work]() { node3_work++; });
   }
 
   // Send work across partition (should be dropped)
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     network.send(0, 2, [&node2_work]() { node2_work++; });
     network.send(1, 3, [&node3_work]() { node3_work++; });
   }
@@ -618,7 +618,7 @@ TEST_F(Phase5NetworkPartitionTest, SplitBrainWorkDistribution) {
   // Heal partition and send more work
   network.healPartition();
 
-  for (int i = 0; i < 2; ++i) {
+  for (int32_t i = 0; i < 2; ++i) {
     network.send(0, 2, [&node2_work]() { node2_work++; });
   }
 
@@ -721,7 +721,7 @@ TEST_F(Phase5MessageLossTest, MessageLossWithSimulatedNetwork) {
 
   // Send 100 messages
   std::atomic<int> delivered{0};
-  for (int i = 0; i < 100; ++i) {
+  for (int32_t i = 0; i < 100; ++i) {
     network.send(0, 1, [&delivered]() { delivered++; });
   }
 
@@ -829,7 +829,7 @@ TEST_F(Phase5MessageLossTest, MessageLossWithManualRetries) {
   std::atomic<int> delivered{0};
   std::atomic<int> total_attempts{0};
 
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     std::string msg_id = "msg" + std::to_string(i);
     bool sent = false;
 
@@ -893,12 +893,12 @@ TEST_F(Phase5MessageLossTest, CombinedPartitionAndLoss) {
 
   // Within partition: should work (with some loss)
   // Increased to 50 messages for statistical reliability
-  for (int i = 0; i < 50; ++i) {
+  for (int32_t i = 0; i < 50; ++i) {
     network.send(0, 1, [&delivered]() { delivered++; });
   }
 
   // Across partition: should be dropped
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     network.send(0, 2, [&delivered]() { delivered++; });
   }
 

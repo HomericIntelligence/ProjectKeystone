@@ -167,8 +167,10 @@ TEST_F(SchedulerBackoffTest, WakeUpNotification) {
 
   // Submit multiple work items rapidly
   // All workers should wake up immediately via notify_all()
-  for (int i = 0; i < 10; ++i) {
-    scheduler.submit([work_executed]() { work_executed->fetch_add(1); });
+  for (int32_t i = 0; i < 10; ++i) {
+    scheduler.submit([work_executed]() {
+      work_executed->fetch_add(1);
+    });
   }
 
   // All work should complete quickly (< 100ms)
@@ -204,7 +206,7 @@ TEST_F(SchedulerBackoffTest, BackoffDoesNotLoseWork) {
   auto counter = std::make_shared<std::atomic<int>>(0);
 
   // Submit 1000 tasks rapidly
-  for (int i = 0; i < 1000; ++i) {
+  for (int32_t i = 0; i < 1000; ++i) {
     scheduler.submit([counter]() {
       counter->fetch_add(1);
       // Tiny delay to allow backoff phases to trigger
@@ -229,7 +231,7 @@ TEST_F(SchedulerBackoffTest, LatencyUnderLoad) {
   auto task_count = std::make_shared<std::atomic<int>>(0);
 
   // Submit continuous work to keep workers in SPIN phase
-  for (int i = 0; i < 100; ++i) {
+  for (int32_t i = 0; i < 100; ++i) {
     auto submit_time = std::chrono::steady_clock::now();
     scheduler.submit([submit_time, total_latency_us, task_count]() {
       auto execute_time = std::chrono::steady_clock::now();

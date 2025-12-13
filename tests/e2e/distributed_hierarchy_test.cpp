@@ -81,7 +81,7 @@ TEST_F(DistributedHierarchyTest, FourLayerHierarchyAcrossNodes) {
   });
 
   // Process network messages periodically
-  for (int i = 0; i < 20; ++i) {
+  for (int32_t i = 0; i < 20; ++i) {
     cluster.processNetworkMessages();
     std::this_thread::sleep_for(5ms);
   }
@@ -123,7 +123,7 @@ TEST_F(DistributedHierarchyTest, MultipleCommandsDistributed) {
   std::atomic<int> total_task_executions{0};
 
   // Send 10 commands through the hierarchy using network
-  for (int cmd = 0; cmd < 10; ++cmd) {
+  for (int32_t cmd = 0; cmd < 10; ++cmd) {
     cluster.getNetwork()->send(0, 1, [&]() {
       // ComponentLead receives and delegates to ModuleLead
       size_t module_node = 2;
@@ -135,7 +135,7 @@ TEST_F(DistributedHierarchyTest, MultipleCommandsDistributed) {
   }
 
   // Process network messages
-  for (int i = 0; i < 50; ++i) {
+  for (int32_t i = 0; i < 50; ++i) {
     cluster.processNetworkMessages();
     std::this_thread::sleep_for(5ms);
   }
@@ -163,18 +163,18 @@ TEST_F(DistributedHierarchyTest, LoadBalancingAcrossNodes) {
   cluster.start();
 
   // Register many task agents on node 3
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     cluster.registerAgent("task_" + std::to_string(i), 3);
   }
 
   std::atomic<int> completed_tasks{0};
 
   // Submit concentrated workload to node 3
-  for (int i = 0; i < 100; ++i) {
+  for (int32_t i = 0; i < 100; ++i) {
     cluster.submit("task_" + std::to_string(i % 10), [&]() {
       // Simulate work
-      int sum = 0;
-      for (int j = 0; j < 1000; ++j) {
+      int32_t sum = 0;
+      for (int32_t j = 0; j < 1000; ++j) {
         sum += j;
       }
       [[maybe_unused]] volatile int result = sum;  // Prevent optimization
@@ -183,7 +183,7 @@ TEST_F(DistributedHierarchyTest, LoadBalancingAcrossNodes) {
   }
 
   // Process and wait
-  for (int i = 0; i < 50; ++i) {
+  for (int32_t i = 0; i < 50; ++i) {
     cluster.processNetworkMessages();
     std::this_thread::sleep_for(10ms);
   }
@@ -223,13 +223,13 @@ TEST_F(DistributedHierarchyTest, NetworkLatencyImpact) {
 
   auto start_low = std::chrono::steady_clock::now();
 
-  for (int i = 0; i < 50; ++i) {
+  for (int32_t i = 0; i < 50; ++i) {
     low_latency_cluster.submit("sender", [&]() {
       low_latency_cluster.submit("receiver", [&]() { low_latency_count++; });
     });
   }
 
-  for (int i = 0; i < 50; ++i) {
+  for (int32_t i = 0; i < 50; ++i) {
     low_latency_cluster.processNetworkMessages();
     std::this_thread::sleep_for(5ms);
   }
@@ -256,13 +256,13 @@ TEST_F(DistributedHierarchyTest, NetworkLatencyImpact) {
 
   auto start_high = std::chrono::steady_clock::now();
 
-  for (int i = 0; i < 50; ++i) {
+  for (int32_t i = 0; i < 50; ++i) {
     high_latency_cluster.submit("sender", [&]() {
       high_latency_cluster.submit("receiver", [&]() { high_latency_count++; });
     });
   }
 
-  for (int i = 0; i < 50; ++i) {
+  for (int32_t i = 0; i < 50; ++i) {
     high_latency_cluster.processNetworkMessages();
     std::this_thread::sleep_for(5ms);
   }
@@ -302,7 +302,7 @@ TEST_F(DistributedHierarchyTest, AgentMigrationBetweenNodes) {
   std::atomic<int> executions_node2{0};
 
   // Execute on node 0
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     cluster.submit("mobile_agent", [&]() { executions_node0++; });
   }
 
@@ -313,7 +313,7 @@ TEST_F(DistributedHierarchyTest, AgentMigrationBetweenNodes) {
   cluster.registerAgent("mobile_agent", 1);
 
   // Execute on node 1
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     cluster.submit("mobile_agent", [&]() { executions_node1++; });
   }
 
@@ -324,7 +324,7 @@ TEST_F(DistributedHierarchyTest, AgentMigrationBetweenNodes) {
   cluster.registerAgent("mobile_agent", 2);
 
   // Execute on node 2
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     cluster.submit("mobile_agent", [&]() { executions_node2++; });
   }
 
@@ -354,12 +354,12 @@ TEST_F(DistributedHierarchyTest, DistributedStatisticsCollection) {
   cluster.registerAgent("worker_2", 2);
 
   // Generate cross-node traffic using network
-  for (int i = 0; i < 20; ++i) {
+  for (int32_t i = 0; i < 20; ++i) {
     size_t target_node = (i % 2 == 0) ? 1 : 2;
     cluster.getNetwork()->send(0, target_node, [&]() {
       // Work
-      int sum = 0;
-      for (int j = 0; j < 100; ++j) {
+      int32_t sum = 0;
+      for (int32_t j = 0; j < 100; ++j) {
         sum += j;
       }
       [[maybe_unused]] volatile int result = sum;  // Prevent optimization
@@ -367,7 +367,7 @@ TEST_F(DistributedHierarchyTest, DistributedStatisticsCollection) {
   }
 
   // Process network messages
-  for (int i = 0; i < 50; ++i) {
+  for (int32_t i = 0; i < 50; ++i) {
     cluster.processNetworkMessages();
     std::this_thread::sleep_for(5ms);
   }
@@ -379,7 +379,7 @@ TEST_F(DistributedHierarchyTest, DistributedStatisticsCollection) {
   EXPECT_GT(stats.avg_network_latency_us, 100.0);  // At least min latency
   EXPECT_LE(stats.avg_network_latency_us,
             10000.0);  // Relaxed for scheduler variance
-  EXPECT_EQ(stats.queue_depths_per_node.size(), 3);
+  EXPECT_EQ(stats.queue_depths_per_node.size(), 3u);
 
   // Reset and verify
   cluster.resetStats();

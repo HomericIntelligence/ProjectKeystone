@@ -17,7 +17,7 @@ TEST(LogContextTest, SetAndGet) {
   LogContext::set("agent_1", 5, "session_abc");
 
   EXPECT_EQ(LogContext::getAgentId(), "agent_1");
-  EXPECT_EQ(LogContext::getWorkerId(), 5);
+  EXPECT_EQ(LogContext::getWorkerId(), int32_t{5});
   EXPECT_EQ(LogContext::getSessionId(), "session_abc");
 }
 
@@ -27,7 +27,7 @@ TEST(LogContextTest, Clear) {
   LogContext::clear();
 
   EXPECT_EQ(LogContext::getAgentId(), "");
-  EXPECT_EQ(LogContext::getWorkerId(), -1);
+  EXPECT_EQ(LogContext::getWorkerId(), int32_t{-1});
   EXPECT_EQ(LogContext::getSessionId(), "");
 }
 
@@ -134,11 +134,11 @@ TEST(LoggerTest, ThreadSafety) {
   Logger::init(spdlog::level::info);
 
   std::vector<std::thread> threads;
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     threads.emplace_back([i]() {
       LogContext::set("worker_" + std::to_string(i), i, "session_1");
 
-      for (int j = 0; j < 100; ++j) {
+      for (int32_t j = 0; j < 100; ++j) {
         Logger::info("Thread {} message {}", i, j);
       }
     });
@@ -171,6 +171,6 @@ TEST(LogContextTest, EmptyStrings) {
 // Test: LogContext with negative worker ID
 TEST(LogContextTest, NegativeWorkerId) {
   LogContext::set("agent", -5, "session");
-  EXPECT_EQ(LogContext::getWorkerId(), -5);
+  EXPECT_EQ(LogContext::getWorkerId(), int32_t{-5});
   EXPECT_EQ(LogContext::getContextString(), "[agent:-5:session]");
 }

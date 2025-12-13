@@ -120,7 +120,7 @@ TEST(MessageBus, ListAgents) {
   bus.registerAgent(agent3->getAgentId(), agent3);
 
   auto agents = bus.listAgents();
-  EXPECT_EQ(agents.size(), 3);
+  EXPECT_EQ(agents.size(), 3u);
   EXPECT_TRUE(std::find(agents.begin(), agents.end(), "agent_1") != agents.end());
   EXPECT_TRUE(std::find(agents.begin(), agents.end(), "agent_2") != agents.end());
   EXPECT_TRUE(std::find(agents.begin(), agents.end(), "agent_3") != agents.end());
@@ -134,13 +134,13 @@ TEST(MessageBus, ThreadSafetyConcurrentRegistration) {
   std::vector<std::shared_ptr<TaskAgent>> agents;
 
   // Create agents
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     agents.push_back(std::make_shared<TaskAgent>("agent_" + std::to_string(i)));
   }
 
   // Concurrent registration
   std::vector<std::thread> threads;
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     threads.emplace_back(
         [&bus, &agents, i]() { bus.registerAgent(agents[i]->getAgentId(), agents[i]); });
   }
@@ -150,8 +150,8 @@ TEST(MessageBus, ThreadSafetyConcurrentRegistration) {
   }
 
   // All agents should be registered
-  EXPECT_EQ(bus.listAgents().size(), 10);
-  for (int i = 0; i < 10; ++i) {
+  EXPECT_EQ(bus.listAgents().size(), 10u);
+  for (int32_t i = 0; i < 10; ++i) {
     EXPECT_TRUE(bus.hasAgent("agent_" + std::to_string(i)));
   }
 }
@@ -164,7 +164,7 @@ TEST(MessageBus, ThreadSafetyConcurrentRouting) {
   std::vector<std::shared_ptr<TaskAgent>> agents;
 
   // Create and register 10 agents
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     auto agent = std::make_shared<TaskAgent>("agent_" + std::to_string(i));
     agent->setMessageBus(&bus);
     bus.registerAgent(agent->getAgentId(), agent);
@@ -173,9 +173,9 @@ TEST(MessageBus, ThreadSafetyConcurrentRouting) {
 
   // Concurrent message routing
   std::vector<std::thread> threads;
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     threads.emplace_back([&bus, i]() {
-      for (int j = 0; j < 100; ++j) {
+      for (int32_t j = 0; j < 100; ++j) {
         auto msg = KeystoneMessage::create("sender", "agent_" + std::to_string(i), "test");
         bus.routeMessage(msg);
       }
@@ -188,7 +188,7 @@ TEST(MessageBus, ThreadSafetyConcurrentRouting) {
 
   // All agents should have received 100 messages
   for (const auto& agent : agents) {
-    int count = 0;
+    int32_t count = 0;
     while (agent->getMessage().has_value()) {
       ++count;
     }
