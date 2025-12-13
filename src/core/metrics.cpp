@@ -119,7 +119,7 @@ void Metrics::recordQueueDepth(const std::string& agent_id, size_t depth) {
   }
 }
 
-void Metrics::recordWorkerActivity(int worker_id, bool is_busy) {
+void Metrics::recordWorkerActivity(int32_t worker_id, bool is_busy) {
   {
     std::lock_guard<std::mutex> lock(worker_mutex_);
     worker_busy_states_[worker_id] = is_busy;

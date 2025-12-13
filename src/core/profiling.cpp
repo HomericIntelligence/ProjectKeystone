@@ -160,7 +160,7 @@ std::optional<ProfilingSession::SectionStats> ProfilingSession::getStatsUnlocked
 
   // Percentiles
   auto percentile = [&](double p) -> double {
-    size_t index = static_cast<size_t>(p * (durations.size() - 1));
+    auto index = static_cast<size_t>(p * static_cast<double>(durations.size() - 1));
     return durations[index];
   };
 

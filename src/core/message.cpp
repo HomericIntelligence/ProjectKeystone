@@ -17,7 +17,7 @@ std::string generate_uuid() {
   static const char* hex = "0123456789abcdef";
 
   std::stringstream ss;
-  for (int i = 0; i < 32; ++i) {
+  for (int32_t i = 0; i < 32; ++i) {
     if (i == 8 || i == 12 || i == 16 || i == 20) {
       ss << '-';
     }
