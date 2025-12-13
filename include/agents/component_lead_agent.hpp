@@ -84,7 +84,7 @@ class ComponentLeadAgent : public LeadAgentBase<ComponentLeadState> {
   void initializeGrpc(const std::string& coordinator_address,
                       const std::string& registry_address,
                       const std::string& agent_type = "ComponentLeadAgent",
-                      int level = 1);
+                      uint8_t level = 1);
 
   /**
    * @brief Process incoming YAML task specification

@@ -93,7 +93,7 @@ class CoordinationState {
   /**
    * @brief Initialize coordination for N expected results
    */
-  void initializeCoordination(int expected_count) {
+  void initializeCoordination(size_t expected_count) {
     std::lock_guard<std::mutex> lock(results_mutex_);
     expected_results_ = expected_count;
     received_results_ = 0;
@@ -125,7 +125,7 @@ class CoordinationState {
   /**
    * @brief Get count of expected results
    */
-  int getExpectedCount() const {
+  size_t getExpectedCount() const {
     std::lock_guard<std::mutex> lock(results_mutex_);
     return expected_results_;
   }
@@ -133,7 +133,7 @@ class CoordinationState {
   /**
    * @brief Get count of received results
    */
-  int getReceivedCount() const {
+  size_t getReceivedCount() const {
     std::lock_guard<std::mutex> lock(results_mutex_);
     return received_results_;
   }
@@ -192,10 +192,9 @@ class CoordinationState {
   void initializeGrpc(const std::string& agent_id,
                       const std::string& coordinator_address,
                       const std::string& registry_address,
-                      const std::string& agent_type,
-                      int level,
+                      const std::string& agent_type, uint8_t level,
                       const std::vector<std::string>& capabilities,
-                      int max_concurrent_tasks) {
+                      uint32_t max_concurrent_tasks) {
     agent_type_ = agent_type;
     agent_level_ = level;
 
@@ -342,7 +341,7 @@ class CoordinationState {
 
   // gRPC state
   std::string agent_type_;
-  int agent_level_{0};
+  uint8_t agent_level_{0};
   std::string current_task_id_;
   std::unique_ptr<network::HMASCoordinatorClient> coordinator_client_;
   std::unique_ptr<network::ServiceRegistryClient> registry_client_;
@@ -357,8 +356,8 @@ class CoordinationState {
   mutable std::mutex state_mutex_;
 
   // Result aggregation
-  int expected_results_{0};
-  int received_results_{0};
+  size_t expected_results_{0};
+  size_t received_results_{0};
   std::vector<ResultType> results_;
   std::unordered_map<std::string, std::string> pending_subordinates_;
   mutable std::mutex results_mutex_;

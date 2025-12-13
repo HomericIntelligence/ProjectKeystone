@@ -64,7 +64,7 @@ class ChiefArchitectAgent : public AsyncAgent {
   void initializeGrpc(const std::string& coordinator_address,
                       const std::string& registry_address,
                       const std::string& agent_type = "ChiefArchitectAgent",
-                      int level = 0);
+                      uint8_t level = 0);
 
   /**
    * @brief Submit a user goal and get component result
@@ -115,7 +115,7 @@ class ChiefArchitectAgent : public AsyncAgent {
 
   // Agent metadata
   std::string agent_type_{"ChiefArchitectAgent"};
-  int agent_level_{0};
+  uint8_t agent_level_{0};
 #endif
 };
 
