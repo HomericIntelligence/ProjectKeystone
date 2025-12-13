@@ -183,7 +183,7 @@ TEST(E2E_TaskCancellation, AgentChecksForCancellationDuringWork) {
 
   std::thread worker([&]() {
     // Simulate work in chunks, checking for cancellation
-    for (int i = 0; i < 100; ++i) {
+    for (int32_t i = 0; i < 100; ++i) {
       // Check if task was cancelled
       if (task_agent->isCancelled(task_id)) {
         task_cancelled = true;

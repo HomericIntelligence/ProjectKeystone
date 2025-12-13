@@ -41,7 +41,7 @@ TEST_F(SimulatedNUMANodeTest, SubmitWork) {
   std::atomic<int> counter{0};
 
   // Submit multiple work items
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     node.submit([&]() { counter++; });
   }
 
@@ -59,12 +59,12 @@ TEST_F(SimulatedNUMANodeTest, SubmitToSpecificWorker) {
   std::atomic<int> counter{0};
 
   // Submit to worker 0
-  for (int i = 0; i < 5; ++i) {
+  for (int32_t i = 0; i < 5; ++i) {
     node.submitToWorker(0, [&]() { counter++; });
   }
 
   // Submit to worker 1
-  for (int i = 0; i < 5; ++i) {
+  for (int32_t i = 0; i < 5; ++i) {
     node.submitToWorker(1, [&]() { counter++; });
   }
 
@@ -86,7 +86,7 @@ TEST_F(SimulatedNUMANodeTest, AgentRegistration) {
   EXPECT_TRUE(node.hasAgent("agent_B"));
 
   auto agents = node.getLocalAgents();
-  EXPECT_EQ(agents.size(), 2);
+  EXPECT_EQ(agents.size(), 2u);
   EXPECT_TRUE(agents.count("agent_A") > 0);
   EXPECT_TRUE(agents.count("agent_B") > 0);
 }
@@ -96,15 +96,15 @@ TEST_F(SimulatedNUMANodeTest, AgentUnregistration) {
 
   node.registerAgent("agent_A");
   node.registerAgent("agent_B");
-  EXPECT_EQ(node.getLocalAgents().size(), 2);
+  EXPECT_EQ(node.getLocalAgents().size(), 2u);
 
   node.unregisterAgent("agent_A");
   EXPECT_FALSE(node.hasAgent("agent_A"));
   EXPECT_TRUE(node.hasAgent("agent_B"));
-  EXPECT_EQ(node.getLocalAgents().size(), 1);
+  EXPECT_EQ(node.getLocalAgents().size(), 1u);
 
   node.unregisterAgent("agent_B");
-  EXPECT_EQ(node.getLocalAgents().size(), 0);
+  EXPECT_EQ(node.getLocalAgents().size(), 0u);
 }
 
 TEST_F(SimulatedNUMANodeTest, LocalStealTracking) {
@@ -142,8 +142,9 @@ TEST_F(SimulatedNUMANodeTest, QueueDepthTracking) {
   EXPECT_EQ(node.getQueueDepth(), 0);
 
   // Submit work that blocks briefly
-  for (int i = 0; i < 20; ++i) {
-    node.submit([&]() { std::this_thread::sleep_for(std::chrono::milliseconds(50)); });
+  for (int32_t i = 0; i < 20; ++i) {
+    node.submit(
+        [&]() { std::this_thread::sleep_for(std::chrono::milliseconds(50)); });
   }
 
   // Should have pending work
@@ -210,7 +211,7 @@ TEST_F(SimulatedNUMANodeTest, SuccessfulWorkStealing) {
 
   // Submit work that will remain in queue
   std::atomic<int> counter{0};
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     node.submitToWorker(0, [&]() { counter++; });
   }
 
@@ -250,7 +251,7 @@ TEST_F(SimulatedNUMANodeTest, RemoteStealCounterIncrementsOnAttempt) {
   EXPECT_EQ(node.getRemoteSteals(), 0);
 
   // Try stealing multiple times (all will fail on empty queue)
-  for (int i = 0; i < 5; ++i) {
+  for (int32_t i = 0; i < 5; ++i) {
     node.stealWork();
   }
 
@@ -268,7 +269,7 @@ TEST_F(SimulatedNUMANodeTest, CrossNodeWorkStealing) {
 
   // Submit work to node1
   std::atomic<int> counter{0};
-  for (int i = 0; i < 5; ++i) {
+  for (int32_t i = 0; i < 5; ++i) {
     node1.submitToWorker(0, [&]() { counter++; });
   }
 
@@ -300,7 +301,7 @@ TEST_F(SimulatedNUMANodeTest, MultipleSuccessfulSteals) {
 
   // Submit many work items that are slow to execute
   std::atomic<int> counter{0};
-  for (int i = 0; i < 20; ++i) {
+  for (int32_t i = 0; i < 20; ++i) {
     node.submit([&]() {
       counter++;
       std::this_thread::sleep_for(std::chrono::milliseconds(5));
@@ -308,8 +309,8 @@ TEST_F(SimulatedNUMANodeTest, MultipleSuccessfulSteals) {
   }
 
   // Steal multiple work items
-  int stolen_count = 0;
-  for (int i = 0; i < 10; ++i) {
+  int32_t stolen_count = 0;
+  for (int32_t i = 0; i < 10; ++i) {
     auto work = node.stealWork();
     if (work.has_value()) {
       work.value()();

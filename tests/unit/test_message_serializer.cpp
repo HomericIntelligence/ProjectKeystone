@@ -46,7 +46,7 @@ TEST(MessageSerializerTest, SerializeWithMetadata) {
   auto deserialized = MessageSerializer::deserialize(buffer);
 
   // Verify metadata
-  EXPECT_EQ(deserialized.metadata.size(), 3);
+  EXPECT_EQ(deserialized.metadata.size(), 3u);
   EXPECT_EQ(deserialized.metadata["key1"], "value1");
   EXPECT_EQ(deserialized.metadata["key2"], "value2");
   EXPECT_EQ(deserialized.metadata["priority"], "high");

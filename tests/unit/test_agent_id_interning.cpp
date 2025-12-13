@@ -14,7 +14,7 @@ TEST(AgentIdInterningTest, InternNewString) {
 
   uint32_t id = interning.intern("agent_1");
   EXPECT_EQ(id, 0);  // First ID should be 0
-  EXPECT_EQ(interning.size(), 1);
+  EXPECT_EQ(interning.size(), 1u);
 }
 
 // Test 2: InternExistingString - Second call returns same ID
@@ -24,8 +24,8 @@ TEST(AgentIdInterningTest, InternExistingString) {
   uint32_t id1 = interning.intern("agent_1");
   uint32_t id2 = interning.intern("agent_1");
 
-  EXPECT_EQ(id1, id2);             // Should return same ID
-  EXPECT_EQ(interning.size(), 1);  // Only one unique string
+  EXPECT_EQ(id1, id2);  // Should return same ID
+  EXPECT_EQ(interning.size(), 1u);  // Only one unique string
 }
 
 // Test 3: InternMultipleStrings - IDs increment sequentially
@@ -39,7 +39,7 @@ TEST(AgentIdInterningTest, InternMultipleStrings) {
   EXPECT_EQ(id0, 0);
   EXPECT_EQ(id1, 1);
   EXPECT_EQ(id2, 2);
-  EXPECT_EQ(interning.size(), 3);
+  EXPECT_EQ(interning.size(), 3u);
 }
 
 // Test 4: TryGetIdExisting - Lookup existing string
@@ -86,10 +86,10 @@ TEST(AgentIdInterningTest, Clear) {
 
   interning.intern("agent_1");
   interning.intern("agent_2");
-  EXPECT_EQ(interning.size(), 2);
+  EXPECT_EQ(interning.size(), 2u);
 
   interning.clear();
-  EXPECT_EQ(interning.size(), 0);
+  EXPECT_EQ(interning.size(), 0u);
 
   // After clear, next intern should start at ID 0 again
   uint32_t id = interning.intern("agent_3");
@@ -99,17 +99,17 @@ TEST(AgentIdInterningTest, Clear) {
 // Test 9: ThreadSafety - Concurrent intern/lookup from 10 threads
 TEST(AgentIdInterningTest, ThreadSafety) {
   AgentIdInterning interning;
-  constexpr int num_threads = 10;
-  constexpr int iterations_per_thread = 100;
+  constexpr int32_t num_threads = 10;
+  constexpr int32_t iterations_per_thread = 100;
   std::atomic<int> successes{0};
 
   std::vector<std::thread> threads;
   threads.reserve(num_threads);
 
   // Launch threads that intern and lookup concurrently
-  for (int t = 0; t < num_threads; ++t) {
+  for (int32_t t = 0; t < num_threads; ++t) {
     threads.emplace_back([&interning, &successes, t]() {
-      for (int i = 0; i < iterations_per_thread; ++i) {
+      for (int32_t i = 0; i < iterations_per_thread; ++i) {
         std::string agent_id = "agent_" + std::to_string(t * iterations_per_thread + i);
 
         // Intern the ID
@@ -145,10 +145,10 @@ TEST(AgentIdInterningTest, ThreadSafety) {
 // Test 10: LargeScaleInterning - Intern 10,000 agent IDs
 TEST(AgentIdInterningTest, LargeScaleInterning) {
   AgentIdInterning interning;
-  constexpr int num_agents = 10000;
+  constexpr int32_t num_agents = 10000;
 
   // Intern 10,000 agents
-  for (int i = 0; i < num_agents; ++i) {
+  for (int32_t i = 0; i < num_agents; ++i) {
     std::string agent_id = "agent_" + std::to_string(i);
     uint32_t int_id = interning.intern(agent_id);
     EXPECT_EQ(int_id, static_cast<uint32_t>(i));
@@ -157,7 +157,7 @@ TEST(AgentIdInterningTest, LargeScaleInterning) {
   EXPECT_EQ(interning.size(), num_agents);
 
   // Verify all lookups still work
-  for (int i = 0; i < num_agents; i += 100) {  // Sample every 100th agent
+  for (int32_t i = 0; i < num_agents; i += 100) {  // Sample every 100th agent
     std::string agent_id = "agent_" + std::to_string(i);
     auto result = interning.tryGetId(agent_id);
     ASSERT_TRUE(result.has_value());
@@ -209,21 +209,21 @@ TEST(AgentIdInterningTest, ConcurrentReads) {
   AgentIdInterning interning;
 
   // Pre-populate with some agents
-  for (int i = 0; i < 100; ++i) {
+  for (int32_t i = 0; i < 100; ++i) {
     interning.intern("agent_" + std::to_string(i));
   }
 
-  constexpr int num_readers = 20;
-  constexpr int reads_per_thread = 1000;
+  constexpr int32_t num_readers = 20;
+  constexpr int32_t reads_per_thread = 1000;
   std::atomic<int> successes{0};
 
   std::vector<std::thread> readers;
   readers.reserve(num_readers);
 
   // Launch reader threads
-  for (int t = 0; t < num_readers; ++t) {
+  for (int32_t t = 0; t < num_readers; ++t) {
     readers.emplace_back([&interning, &successes]() {
-      for (int i = 0; i < reads_per_thread; ++i) {
+      for (int32_t i = 0; i < reads_per_thread; ++i) {
         std::string agent_id = "agent_" + std::to_string(i % 100);
         auto result = interning.tryGetId(agent_id);
         if (result.has_value()) {

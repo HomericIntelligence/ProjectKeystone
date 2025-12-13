@@ -36,7 +36,7 @@ TEST(WorkStealingSchedulerTest, SubmitFunction) {
   auto counter = std::make_shared<std::atomic<int>>(0);
 
   // Submit 10 work items
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     scheduler.submit([counter]() { counter->fetch_add(1); });
   }
 
@@ -83,7 +83,7 @@ TEST(WorkStealingSchedulerTest, RoundRobinDistribution) {
   auto counter = std::make_shared<std::atomic<int>>(0);
 
   // Submit many work items (should be distributed round-robin)
-  for (int i = 0; i < 100; ++i) {
+  for (int32_t i = 0; i < 100; ++i) {
     scheduler.submit([counter]() { counter->fetch_add(1); });
   }
 
@@ -103,7 +103,7 @@ TEST(WorkStealingSchedulerTest, SubmitToSpecificWorker) {
   auto counter = std::make_shared<std::atomic<int>>(0);
 
   // Submit all work to worker 2
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     scheduler.submitTo(2, [counter]() { counter->fetch_add(1); });
   }
 
@@ -123,7 +123,7 @@ TEST(WorkStealingSchedulerTest, WorkStealing) {
   auto counter = std::make_shared<std::atomic<int>>(0);
 
   // Submit all work to worker 0 (other workers will steal)
-  for (int i = 0; i < 100; ++i) {
+  for (int32_t i = 0; i < 100; ++i) {
     scheduler.submitTo(0, [counter]() {
       counter->fetch_add(1);
       std::this_thread::sleep_for(std::chrono::microseconds(100));
@@ -146,7 +146,7 @@ TEST(WorkStealingSchedulerTest, ShutdownWithPendingWork) {
   auto counter = std::make_shared<std::atomic<int>>(0);
 
   // Submit work items
-  for (int i = 0; i < 20; ++i) {
+  for (int32_t i = 0; i < 20; ++i) {
     scheduler.submit([counter]() { counter->fetch_add(1); });
   }
 
@@ -211,8 +211,9 @@ TEST(WorkStealingSchedulerTest, ApproximateWorkCount) {
   scheduler.start();
 
   // Submit work with delays
-  for (int i = 0; i < 50; ++i) {
-    scheduler.submit([]() { std::this_thread::sleep_for(std::chrono::milliseconds(10)); });
+  for (int32_t i = 0; i < 50; ++i) {
+    scheduler.submit(
+        []() { std::this_thread::sleep_for(std::chrono::milliseconds(10)); });
   }
 
   // Check approximate work count (should be > 0 while work is pending)
@@ -237,13 +238,14 @@ TEST(WorkStealingSchedulerTest, ParallelExecution) {
   auto current_executing = std::make_shared<std::atomic<int>>(0);
 
   // Submit work that tracks concurrency
-  for (int i = 0; i < 20; ++i) {
+  for (int32_t i = 0; i < 20; ++i) {
     scheduler.submit([counter, max_concurrent, current_executing]() {
-      int current = current_executing->fetch_add(1) + 1;
+      int32_t current = current_executing->fetch_add(1) + 1;
 
       // Update max concurrent
-      int max = max_concurrent->load();
-      while (current > max && !max_concurrent->compare_exchange_weak(max, current)) {
+      int32_t max = max_concurrent->load();
+      while (current > max &&
+             !max_concurrent->compare_exchange_weak(max, current)) {
         max = max_concurrent->load();
       }
 
@@ -290,7 +292,7 @@ TEST(WorkStealingSchedulerTest, HeavyLoad) {
   auto counter = std::make_shared<std::atomic<int>>(0);
 
   // Submit 1000 work items
-  for (int i = 0; i < 1000; ++i) {
+  for (int32_t i = 0; i < 1000; ++i) {
     scheduler.submit([counter]() { counter->fetch_add(1); });
   }
 

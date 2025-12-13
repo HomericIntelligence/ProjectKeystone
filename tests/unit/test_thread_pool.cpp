@@ -17,7 +17,7 @@ using namespace keystone::concurrency;
 // Test: Create and destroy ThreadPool
 TEST(ThreadPoolTest, CreateAndDestroy) {
   ThreadPool pool(4);
-  EXPECT_EQ(pool.size(), 4);
+  EXPECT_EQ(pool.size(), 4u);
 }
 
 // Test: Submit and execute function
@@ -38,7 +38,7 @@ TEST(ThreadPoolTest, SubmitMultipleFunctions) {
   ThreadPool pool(4);
   std::atomic<int> counter{0};
 
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     pool.submit([&]() { counter.fetch_add(1); });
   }
 
@@ -79,10 +79,10 @@ TEST(ThreadPoolTest, ParallelExecution) {
   std::atomic<int> current_concurrent{0};
 
   auto work = [&]() {
-    int concurrent = current_concurrent.fetch_add(1) + 1;
+    int32_t concurrent = current_concurrent.fetch_add(1) + 1;
 
     // Update max if this is higher
-    int expected_max = max_concurrent.load();
+    int32_t expected_max = max_concurrent.load();
     while (concurrent > expected_max) {
       if (max_concurrent.compare_exchange_weak(expected_max, concurrent)) {
         break;
@@ -97,7 +97,7 @@ TEST(ThreadPoolTest, ParallelExecution) {
   };
 
   // Submit 8 tasks
-  for (int i = 0; i < 8; ++i) {
+  for (int32_t i = 0; i < 8; ++i) {
     pool.submit(work);
   }
 
@@ -115,7 +115,7 @@ TEST(ThreadPoolTest, GracefulShutdown) {
   std::atomic<int> counter{0};
 
   // Submit some work
-  for (int i = 0; i < 5; ++i) {
+  for (int32_t i = 0; i < 5; ++i) {
     pool.submit([&]() {
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
       counter.fetch_add(1);
@@ -177,9 +177,9 @@ TEST(ThreadPoolTest, ConcurrentSubmissions) {
 
   // Launch multiple threads that submit work
   std::vector<std::thread> submitters;
-  for (int i = 0; i < 4; ++i) {
+  for (int32_t i = 0; i < 4; ++i) {
     submitters.emplace_back([&]() {
-      for (int j = 0; j < 25; ++j) {
+      for (int32_t j = 0; j < 25; ++j) {
         pool.submit([&]() { counter.fetch_add(1); });
       }
     });
@@ -203,7 +203,7 @@ TEST(ThreadPoolTest, DestructorShutdown) {
   {
     ThreadPool pool(2);
 
-    for (int i = 0; i < 5; ++i) {
+    for (int32_t i = 0; i < 5; ++i) {
       pool.submit([&]() {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
         counter.fetch_add(1);

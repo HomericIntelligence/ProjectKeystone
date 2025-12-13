@@ -31,7 +31,7 @@ TEST_F(HeartbeatMonitorTest, RecordHeartbeat) {
   monitor.recordHeartbeat("agent1");
 
   EXPECT_TRUE(monitor.isAlive("agent1"));
-  EXPECT_EQ(monitor.getRegisteredAgents().size(), 1);
+  EXPECT_EQ(monitor.getRegisteredAgents().size(), 1u);
 }
 
 TEST_F(HeartbeatMonitorTest, DetectFailure) {
@@ -85,7 +85,7 @@ TEST_F(HeartbeatMonitorTest, MultipleAgents) {
   monitor.recordHeartbeat("agent2");
   monitor.recordHeartbeat("agent3");
 
-  EXPECT_EQ(monitor.getAliveAgents().size(), 3);
+  EXPECT_EQ(monitor.getAliveAgents().size(), 3u);
 
   // Let agent2 timeout
   std::this_thread::sleep_for(std::chrono::milliseconds(150));
@@ -95,6 +95,6 @@ TEST_F(HeartbeatMonitorTest, MultipleAgents) {
   std::this_thread::sleep_for(std::chrono::milliseconds(200));
   monitor.checkAgents();
 
-  EXPECT_EQ(monitor.getAliveAgents().size(), 2);
-  EXPECT_EQ(monitor.getDeadAgents().size(), 1);
+  EXPECT_EQ(monitor.getAliveAgents().size(), 2u);
+  EXPECT_EQ(monitor.getDeadAgents().size(), 1u);
 }

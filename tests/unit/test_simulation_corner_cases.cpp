@@ -51,7 +51,7 @@ TEST_F(SimulationCornerCaseTest, SingleWorkerPerNode) {
   cluster.start();
 
   std::atomic<int> counter{0};
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     cluster.submitToNode(i % 2, [&]() { counter++; });
   }
 
@@ -149,7 +149,7 @@ TEST_F(SimulationCornerCaseTest, UnregisteredAgentSubmit) {
   std::atomic<int> counter{0};
 
   // Submit to unregistered agent should use round-robin
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     cluster.submit("nonexistent_agent", [&]() { counter++; });
   }
 
@@ -197,7 +197,7 @@ TEST_F(SimulationCornerCaseTest, MessageFlood) {
   const int MESSAGE_COUNT = 10000;
 
   // Flood with messages
-  for (int i = 0; i < MESSAGE_COUNT; ++i) {
+  for (int32_t i = 0; i < MESSAGE_COUNT; ++i) {
     cluster.submitToNode(i % 2, [&]() { counter++; });
   }
 
@@ -216,7 +216,7 @@ TEST_F(SimulationCornerCaseTest, NetworkMessageFlood) {
 
   const int FLOOD_SIZE = 1000;
 
-  for (int i = 0; i < FLOOD_SIZE; ++i) {
+  for (int32_t i = 0; i < FLOOD_SIZE; ++i) {
     network.send(0, 1, []() {});
   }
 
@@ -241,7 +241,7 @@ TEST_F(SimulationCornerCaseTest, HighQueueDepth) {
 
   // Submit many blocking tasks
   std::atomic<int> completed{0};
-  for (int i = 0; i < 1000; ++i) {
+  for (int32_t i = 0; i < 1000; ++i) {
     cluster.submitToNode(0, [&]() {
       std::this_thread::sleep_for(1ms);
       completed++;
@@ -273,9 +273,9 @@ TEST_F(SimulationCornerCaseTest, ParallelSubmitFromMultipleThreads) {
   const int SUBMITS_PER_THREAD = 100;
 
   std::vector<std::thread> threads;
-  for (int t = 0; t < THREADS; ++t) {
+  for (int32_t t = 0; t < THREADS; ++t) {
     threads.emplace_back([&]() {
-      for (int i = 0; i < SUBMITS_PER_THREAD; ++i) {
+      for (int32_t i = 0; i < SUBMITS_PER_THREAD; ++i) {
         cluster.submitToNode(i % 2, [&]() { counter++; });
       }
     });
@@ -301,7 +301,7 @@ TEST_F(SimulationCornerCaseTest, ShutdownDuringActiveWork) {
   std::atomic<int> completed{0};
 
   // Submit long-running tasks
-  for (int i = 0; i < 100; ++i) {
+  for (int32_t i = 0; i < 100; ++i) {
     cluster.submitToNode(i % 2, [&]() {
       started++;
       std::this_thread::sleep_for(10ms);
@@ -327,10 +327,11 @@ TEST_F(SimulationCornerCaseTest, ConcurrentAgentRegistration) {
   const int AGENTS_PER_THREAD = 20;
 
   std::vector<std::thread> threads;
-  for (int t = 0; t < THREADS; ++t) {
+  for (int32_t t = 0; t < THREADS; ++t) {
     threads.emplace_back([&, t]() {
-      for (int i = 0; i < AGENTS_PER_THREAD; ++i) {
-        std::string agent_name = "agent_" + std::to_string(t) + "_" + std::to_string(i);
+      for (int32_t i = 0; i < AGENTS_PER_THREAD; ++i) {
+        std::string agent_name =
+            "agent_" + std::to_string(t) + "_" + std::to_string(i);
         cluster.registerAgent(agent_name, i % 4);
       }
     });
@@ -341,10 +342,11 @@ TEST_F(SimulationCornerCaseTest, ConcurrentAgentRegistration) {
   }
 
   // All agents should be registered (allow small timing variance)
-  int registered_count = 0;
-  for (int t = 0; t < THREADS; ++t) {
-    for (int i = 0; i < AGENTS_PER_THREAD; ++i) {
-      std::string agent_name = "agent_" + std::to_string(t) + "_" + std::to_string(i);
+  int32_t registered_count = 0;
+  for (int32_t t = 0; t < THREADS; ++t) {
+    for (int32_t i = 0; i < AGENTS_PER_THREAD; ++i) {
+      std::string agent_name =
+          "agent_" + std::to_string(t) + "_" + std::to_string(i);
       if (cluster.getAgentNode(agent_name).has_value()) {
         registered_count++;
       }
@@ -367,7 +369,7 @@ TEST_F(SimulationCornerCaseTest, FullPacketLoss) {
   };
   SimulatedNetwork network(config);
 
-  for (int i = 0; i < 100; ++i) {
+  for (int32_t i = 0; i < 100; ++i) {
     network.send(0, 1, []() {});
   }
 
@@ -392,7 +394,7 @@ TEST_F(SimulationCornerCaseTest, PartialPacketLoss) {
 
   const int MESSAGE_COUNT = 1000;
 
-  for (int i = 0; i < MESSAGE_COUNT; ++i) {
+  for (int32_t i = 0; i < MESSAGE_COUNT; ++i) {
     network.send(0, 1, []() {});
   }
 
@@ -412,7 +414,7 @@ TEST_F(SimulationCornerCaseTest, MessageTimeoutScenario) {
   network.send(0, 1, [&]() { executed = true; });
 
   // Try to receive before latency elapses
-  for (int attempt = 0; attempt < 10; ++attempt) {
+  for (int32_t attempt = 0; attempt < 10; ++attempt) {
     auto work = network.receive(1);
     EXPECT_FALSE(work.has_value());
     EXPECT_FALSE(executed);
@@ -440,7 +442,7 @@ TEST_F(SimulationCornerCaseTest, StatisticsWithNoActivity) {
   EXPECT_EQ(stats.total_tasks_submitted, 0);
   EXPECT_EQ(stats.total_network_messages, 0);
   EXPECT_EQ(stats.avg_network_latency_us, 0.0);
-  EXPECT_EQ(stats.queue_depths_per_node.size(), 2);
+  EXPECT_EQ(stats.queue_depths_per_node.size(), 2u);
 
   cluster.shutdown();
 }
@@ -451,7 +453,7 @@ TEST_F(SimulationCornerCaseTest, ResetStatsDuringOperation) {
   cluster.start();
 
   // Submit work
-  for (int i = 0; i < 50; ++i) {
+  for (int32_t i = 0; i < 50; ++i) {
     cluster.submitToNode(i % 2, []() { std::this_thread::sleep_for(1ms); });
   }
 
@@ -471,7 +473,7 @@ TEST_F(SimulationCornerCaseTest, NetworkStatisticsOverflow) {
   SimulatedNetwork network;
 
   // Send many messages
-  for (int i = 0; i < 10000; ++i) {
+  for (int32_t i = 0; i < 10000; ++i) {
     network.send(0, 1, []() {});
   }
 
@@ -486,7 +488,7 @@ TEST_F(SimulationCornerCaseTest, LoadImbalanceCalculationExtremes) {
   cluster.start();
 
   // Create extreme imbalance: all work on node 0
-  for (int i = 0; i < 100; ++i) {
+  for (int32_t i = 0; i < 100; ++i) {
     cluster.submitToNode(0, []() { std::this_thread::sleep_for(10ms); });
   }
 
@@ -592,5 +594,5 @@ TEST_F(SimulationCornerCaseTest, NUMANodeRegisterSameAgentTwice) {
   EXPECT_TRUE(node.hasAgent("agent"));
 
   auto agents = node.getLocalAgents();
-  EXPECT_EQ(agents.size(), 1);
+  EXPECT_EQ(agents.size(), 1u);
 }

@@ -109,7 +109,7 @@ TEST(E2E_PhaseB, AsyncAgentsConcurrentProcessing) {
   bus.registerAgent(agent->getAgentId(), agent);
 
   // Send 10 slow commands (sleep 0.05 seconds each)
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     auto cmd = "sleep 0.05 && echo " + std::to_string(i);
     auto msg = KeystoneMessage::create("test", agent->getAgentId(), cmd);
     bus.routeMessage(msg);
@@ -138,7 +138,7 @@ TEST(E2E_PhaseB, AsyncAgentsConcurrentProcessing) {
     results.insert(result);
   }
 
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     EXPECT_TRUE(results.count(std::to_string(i)) > 0);
   }
 

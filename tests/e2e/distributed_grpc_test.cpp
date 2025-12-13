@@ -331,15 +331,15 @@ TEST_F(DistributedGrpcTest, ServiceRegistryLevelFiltering) {
 
   // Query for level 3 agents only
   auto level3_agents = registry_->queryAgents("", 3, {}, 0, true);
-  EXPECT_EQ(level3_agents.size(), 2);  // task1 and task2
+  EXPECT_EQ(level3_agents.size(), 2u);  // task1 and task2
 
   // Query for level 0 agents only
   auto level0_agents = registry_->queryAgents("", 0, {}, 0, true);
-  EXPECT_EQ(level0_agents.size(), 1);  // chief
+  EXPECT_EQ(level0_agents.size(), 1u);  // chief
 
   // Query for all levels
   auto all_agents = registry_->queryAgents("", -1, {}, 0, true);
-  EXPECT_EQ(all_agents.size(), 5);
+  EXPECT_EQ(all_agents.size(), 5u);
 }
 
 // ============================================================================
@@ -373,7 +373,7 @@ TEST_F(DistributedGrpcTest, HeartbeatMonitoring) {
 
   // Query should exclude dead agents
   auto alive_agents = registry_->queryAgents("", -1, {}, 0, true);
-  EXPECT_EQ(alive_agents.size(), 1);
+  EXPECT_EQ(alive_agents.size(), 1u);
   EXPECT_EQ(alive_agents[0].agent_id, "agent-alive");
 
   // Cleanup dead agents
@@ -453,7 +453,7 @@ TEST_F(DistributedGrpcTest, LoadBalancingRoundRobin) {
   std::set<std::string> agent_ids = {result1.target_agent_id,
                                      result2.target_agent_id,
                                      result3.target_agent_id};
-  EXPECT_EQ(agent_ids.size(), 3);  // All 3 agents used
+  EXPECT_EQ(agent_ids.size(), 3u);  // All 3 agents used
 }
 
 TEST_F(DistributedGrpcTest, LoadBalancingNoAvailableAgents) {

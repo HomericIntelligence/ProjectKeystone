@@ -126,7 +126,7 @@ TEST_F(CoordinationStateTest, ThreadSafeStateTransitions) {
   std::vector<std::thread> threads;
 
   // 10 threads concurrently transition states
-  for (int i = 0; i < NUM_THREADS; ++i) {
+  for (int32_t i = 0; i < NUM_THREADS; ++i) {
     threads.emplace_back([this, i]() {
       TestState target = (i % 2 == 0) ? TestState::PLANNING : TestState::WAITING;
       std::string name = (i % 2 == 0) ? "PLANNING" : "WAITING";
@@ -232,7 +232,7 @@ TEST_F(CoordinationStateTest, RecordMoreThanExpected) {
   EXPECT_TRUE(state_.isComplete());
 
   auto results = state_.getResults();
-  EXPECT_EQ(results.size(), 3);
+  EXPECT_EQ(results.size(), 3u);
 }
 
 /**
@@ -251,8 +251,10 @@ TEST_F(CoordinationStateTest, RecordResultThreadSafety) {
   state_.initializeCoordination(NUM_THREADS);
 
   std::vector<std::thread> threads;
-  for (int i = 0; i < NUM_THREADS; ++i) {
-    threads.emplace_back([this, i]() { state_.recordResult("result_" + std::to_string(i)); });
+  for (int32_t i = 0; i < NUM_THREADS; ++i) {
+    threads.emplace_back([this, i]() {
+      state_.recordResult("result_" + std::to_string(i));
+    });
   }
 
   for (auto& t : threads) {
@@ -291,11 +293,11 @@ TEST_F(CoordinationStateTest, InitializeClearsPreviousResults) {
   state_.recordResult("old_1");
   state_.recordResult("old_2");
 
-  EXPECT_EQ(state_.getResults().size(), 2);
+  EXPECT_EQ(state_.getResults().size(), 2u);
 
   // Re-initialize
   state_.initializeCoordination(1);
-  EXPECT_EQ(state_.getResults().size(), 0);
+  EXPECT_EQ(state_.getResults().size(), 0u);
   EXPECT_EQ(state_.getReceivedCount(), 0);
 
   state_.recordResult("new_1");
@@ -388,7 +390,7 @@ TEST_F(CoordinationStateTest, TrackPendingSubordinates) {
   state_.trackPendingSubordinate("msg_3", "subordinate_3");
 
   const auto& pending = state_.getPendingSubordinates();
-  EXPECT_EQ(pending.size(), 3);
+  EXPECT_EQ(pending.size(), 3u);
   EXPECT_EQ(pending.at("msg_1"), "subordinate_1");
   EXPECT_EQ(pending.at("msg_2"), "subordinate_2");
   EXPECT_EQ(pending.at("msg_3"), "subordinate_3");
@@ -431,7 +433,7 @@ TEST_F(CoordinationStateTest, CompleteComponentLeadWorkflow) {
 
   // Verify execution trace
   const auto& trace = state_.getExecutionTrace();
-  EXPECT_EQ(trace.size(), 4);
+  EXPECT_EQ(trace.size(), 4u);
 }
 
 /**
@@ -501,7 +503,7 @@ TEST_F(CoordinationStateTest, ConcurrentWorkflows) {
   constexpr int NUM_THREADS = 5;
   std::vector<std::thread> threads;
 
-  for (int i = 0; i < NUM_THREADS; ++i) {
+  for (int32_t i = 0; i < NUM_THREADS; ++i) {
     threads.emplace_back([this, i]() {
       // Each thread runs a mini-workflow
       state_.transitionTo(TestState::PLANNING, "PLANNING_" + std::to_string(i));
@@ -586,7 +588,7 @@ TEST_F(GrpcCoordinationStateTest, QueryAvailableChildrenByType) {
 
   auto children = state_.queryAvailableChildren("ModuleLead");
   // Should find the 2 registered ModuleLead agents
-  EXPECT_EQ(children.size(), 2);
+  EXPECT_EQ(children.size(), 2u);
   EXPECT_EQ(children[0], "module_lead_1");
   EXPECT_EQ(children[1], "module_lead_2");
 }

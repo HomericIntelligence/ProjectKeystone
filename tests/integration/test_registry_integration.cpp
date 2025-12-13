@@ -68,7 +68,7 @@ TEST_F(RegistryIntegrationTest, RegisterAgentInternsId) {
 
   // Verify appears in list
   auto agents = bus_->listAgents();
-  EXPECT_EQ(agents.size(), 1);
+  EXPECT_EQ(agents.size(), 1u);
   EXPECT_EQ(agents[0], "agent_1");
 }
 
@@ -81,20 +81,20 @@ TEST_F(RegistryIntegrationTest, MultipleRegistrationsIncrementIds) {
   std::vector<std::shared_ptr<TaskAgent>> agents;
 
   // Register 5 agents
-  for (int i = 0; i < 5; ++i) {
+  for (int32_t i = 0; i < 5; ++i) {
     auto agent = std::make_shared<TaskAgent>("agent_" + std::to_string(i));
     EXPECT_NO_THROW(bus_->registerAgent(agent->getAgentId(), agent));
     agents.push_back(agent);
   }
 
   // Verify all registered with correct string IDs
-  for (int i = 0; i < 5; ++i) {
+  for (int32_t i = 0; i < 5; ++i) {
     EXPECT_TRUE(bus_->hasAgent("agent_" + std::to_string(i)));
   }
 
   // Verify count
   auto agent_list = bus_->listAgents();
-  EXPECT_EQ(agent_list.size(), 5);
+  EXPECT_EQ(agent_list.size(), 5u);
 
   // Verify all IDs are present (order may vary in list)
   std::vector<bool> found(5, false);
@@ -102,13 +102,13 @@ TEST_F(RegistryIntegrationTest, MultipleRegistrationsIncrementIds) {
     // Extract number from "agent_X"
     size_t pos = id.find("agent_");
     if (pos != std::string::npos) {
-      int num = std::stoi(id.substr(pos + 6));
+      int32_t num = std::stoi(id.substr(pos + 6));
       if (num >= 0 && num < 5) {
         found[num] = true;
       }
     }
   }
-  for (int i = 0; i < 5; ++i) {
+  for (int32_t i = 0; i < 5; ++i) {
     EXPECT_TRUE(found[i]) << "agent_" << i << " not found in list";
   }
 }
@@ -160,7 +160,7 @@ TEST_F(RegistryIntegrationTest, HasAgentUsesInternedId) {
 
   // hasAgent should be fast (O(1) lookup via integer ID)
   auto start = std::chrono::steady_clock::now();
-  for (int i = 0; i < 10000; ++i) {
+  for (int32_t i = 0; i < 10000; ++i) {
     bus_->hasAgent("agent_1");
   }
   auto end = std::chrono::steady_clock::now();
@@ -180,7 +180,7 @@ TEST_F(RegistryIntegrationTest, HasAgentUsesInternedId) {
 TEST_F(RegistryIntegrationTest, ListAgentsReturnsStringIds) {
   // Register 3 agents
   std::vector<std::shared_ptr<TaskAgent>> agents;
-  for (int i = 0; i < 3; ++i) {
+  for (int32_t i = 0; i < 3; ++i) {
     auto agent = std::make_shared<TaskAgent>("agent_" + std::to_string(i));
     bus_->registerAgent(agent->getAgentId(), agent);
     agents.push_back(agent);
@@ -190,7 +190,7 @@ TEST_F(RegistryIntegrationTest, ListAgentsReturnsStringIds) {
   auto agent_ids = bus_->listAgents();
 
   // Verify count
-  EXPECT_EQ(agent_ids.size(), 3);
+  EXPECT_EQ(agent_ids.size(), 3u);
 
   // Verify all are strings, not integers
   for (const auto& id : agent_ids) {
@@ -250,7 +250,7 @@ TEST_F(RegistryIntegrationTest, RouteMessageToNonexistentAgentFails) {
 TEST_F(RegistryIntegrationTest, RouteMessageToMultipleAgents) {
   // Register 3 agents
   std::vector<std::shared_ptr<TaskAgent>> agents;
-  for (int i = 0; i < 3; ++i) {
+  for (int32_t i = 0; i < 3; ++i) {
     auto agent = std::make_shared<TaskAgent>("agent_" + std::to_string(i));
     agent->setMessageBus(bus_.get());
     bus_->registerAgent(agent->getAgentId(), agent);
@@ -258,15 +258,15 @@ TEST_F(RegistryIntegrationTest, RouteMessageToMultipleAgents) {
   }
 
   // Send message to each agent
-  for (int i = 0; i < 3; ++i) {
-    auto msg = KeystoneMessage::create("sender",
-                                       "agent_" + std::to_string(i),
-                                       "message_to_agent_" + std::to_string(i));
+  for (int32_t i = 0; i < 3; ++i) {
+    auto msg = KeystoneMessage::create(
+        "sender", "agent_" + std::to_string(i),
+        "message_to_agent_" + std::to_string(i));
     EXPECT_TRUE(bus_->routeMessage(msg));
   }
 
   // Verify each agent received 1 message
-  for (int i = 0; i < 3; ++i) {
+  for (int32_t i = 0; i < 3; ++i) {
     auto received = agents[i]->getMessage();
     ASSERT_TRUE(received.has_value()) << "Agent " << i << " did not receive message";
     EXPECT_EQ(received->receiver_id, "agent_" + std::to_string(i));
@@ -282,7 +282,7 @@ TEST_F(RegistryIntegrationTest, RouteMessageToMultipleAgents) {
 TEST_F(RegistryIntegrationTest, ConcurrentRoutingWithInterning) {
   // Register 10 agents
   std::vector<std::shared_ptr<TaskAgent>> agents;
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     auto agent = std::make_shared<TaskAgent>("agent_" + std::to_string(i));
     agent->setMessageBus(bus_.get());
     bus_->registerAgent(agent->getAgentId(), agent);
@@ -291,12 +291,12 @@ TEST_F(RegistryIntegrationTest, ConcurrentRoutingWithInterning) {
 
   // 10 threads, 100 messages each
   std::vector<std::thread> threads;
-  for (int t = 0; t < 10; ++t) {
+  for (int32_t t = 0; t < 10; ++t) {
     threads.emplace_back([this, t]() {
-      for (int i = 0; i < 100; ++i) {
-        auto msg = KeystoneMessage::create("sender",
-                                           "agent_" + std::to_string(t),
-                                           "message_" + std::to_string(i));
+      for (int32_t i = 0; i < 100; ++i) {
+        auto msg = KeystoneMessage::create(
+            "sender", "agent_" + std::to_string(t),
+            "message_" + std::to_string(i));
         bool routed = bus_->routeMessage(msg);
         EXPECT_TRUE(routed);
       }
@@ -308,8 +308,8 @@ TEST_F(RegistryIntegrationTest, ConcurrentRoutingWithInterning) {
   }
 
   // Verify each agent received 100 messages
-  for (int i = 0; i < 10; ++i) {
-    int count = 0;
+  for (int32_t i = 0; i < 10; ++i) {
+    int32_t count = 0;
     while (agents[i]->getMessage().has_value()) {
       ++count;
     }
@@ -326,7 +326,7 @@ TEST_F(RegistryIntegrationTest, ConcurrentRoutingWithInterning) {
 TEST_F(RegistryIntegrationTest, PerformanceOfIntegerRouting) {
   // Register 100 agents
   std::vector<std::shared_ptr<TaskAgent>> agents;
-  for (int i = 0; i < 100; ++i) {
+  for (int32_t i = 0; i < 100; ++i) {
     auto agent = std::make_shared<TaskAgent>("agent_" + std::to_string(i));
     agent->setMessageBus(bus_.get());
     bus_->registerAgent(agent->getAgentId(), agent);
@@ -335,11 +335,11 @@ TEST_F(RegistryIntegrationTest, PerformanceOfIntegerRouting) {
 
   // Route 10000 messages to random agents
   auto start = std::chrono::steady_clock::now();
-  for (int i = 0; i < 10000; ++i) {
-    int target = i % 100;
-    auto msg = KeystoneMessage::create("sender",
-                                       "agent_" + std::to_string(target),
-                                       "message_" + std::to_string(i));
+  for (int32_t i = 0; i < 10000; ++i) {
+    int32_t target = i % 100;
+    auto msg = KeystoneMessage::create(
+        "sender", "agent_" + std::to_string(target),
+        "message_" + std::to_string(i));
     bus_->routeMessage(msg);
   }
   auto end = std::chrono::steady_clock::now();
@@ -352,7 +352,7 @@ TEST_F(RegistryIntegrationTest, PerformanceOfIntegerRouting) {
 
   // Verify at least some agents received messages
   // (Some may not receive if we're in debug mode with lots of overhead)
-  int received_count = 0;
+  int32_t received_count = 0;
   for (const auto& agent : agents) {
     while (agent->getMessage().has_value()) {
       ++received_count;
@@ -422,7 +422,7 @@ TEST_F(RegistryIntegrationTest, DuplicateRegistrationThrows) {
 TEST_F(RegistryIntegrationTest, ThreadSafeRegistryOperations) {
   // Setup: Create all agents upfront
   std::vector<std::shared_ptr<TaskAgent>> all_agents;
-  for (int i = 0; i < 100; ++i) {
+  for (int32_t i = 0; i < 100; ++i) {
     auto agent = std::make_shared<TaskAgent>("agent_" + std::to_string(i));
     agent->setMessageBus(bus_.get());
     all_agents.push_back(agent);
@@ -432,10 +432,10 @@ TEST_F(RegistryIntegrationTest, ThreadSafeRegistryOperations) {
 
   // 5 threads: register 20 agents each (100 total)
   std::atomic<int> registered{0};
-  for (int t = 0; t < 5; ++t) {
+  for (int32_t t = 0; t < 5; ++t) {
     threads.emplace_back([this, t, &all_agents, &registered]() {
-      for (int i = 0; i < 20; ++i) {
-        int idx = t * 20 + i;
+      for (int32_t i = 0; i < 20; ++i) {
+        int32_t idx = t * 20 + i;
         bus_->registerAgent(all_agents[idx]->getAgentId(), all_agents[idx]);
         ++registered;
       }
@@ -446,7 +446,7 @@ TEST_F(RegistryIntegrationTest, ThreadSafeRegistryOperations) {
   std::atomic<int> queries{0};
   for (int t = 5; t < 10; ++t) {
     threads.emplace_back([this, &queries]() {
-      for (int i = 0; i < 1000; ++i) {
+      for (int32_t i = 0; i < 1000; ++i) {
         bus_->hasAgent("agent_" + std::to_string(i % 100));
         ++queries;
       }
@@ -457,8 +457,9 @@ TEST_F(RegistryIntegrationTest, ThreadSafeRegistryOperations) {
   std::atomic<int> routed{0};
   for (int t = 10; t < 15; ++t) {
     threads.emplace_back([this, &routed]() {
-      for (int i = 0; i < 100; ++i) {
-        auto msg = KeystoneMessage::create("sender", "agent_" + std::to_string(i % 100), "message");
+      for (int32_t i = 0; i < 100; ++i) {
+        auto msg = KeystoneMessage::create(
+            "sender", "agent_" + std::to_string(i % 100), "message");
         if (bus_->routeMessage(msg)) {
           ++routed;
         }
@@ -480,7 +481,7 @@ TEST_F(RegistryIntegrationTest, ThreadSafeRegistryOperations) {
 
   // Verify 100 agents registered
   auto agent_list = bus_->listAgents();
-  EXPECT_EQ(agent_list.size(), 100);
+  EXPECT_EQ(agent_list.size(), 100u);
 }
 
 /**
@@ -510,7 +511,7 @@ TEST_F(RegistryIntegrationTest, IntegerIdStability) {
 
   // Verify both are registered
   auto agent_list = bus_->listAgents();
-  EXPECT_EQ(agent_list.size(), 2);
+  EXPECT_EQ(agent_list.size(), 2u);
   bool has_stable = false;
   bool has_new = false;
   for (const auto& id : agent_list) {
@@ -589,12 +590,13 @@ TEST_F(RegistryIntegrationTest, VeryLongAgentId) {
  * Register 1000 agents to test scalability.
  */
 TEST_F(RegistryIntegrationTest, RegisterManyAgents) {
-  constexpr int num_agents = 1000;
+  constexpr int32_t num_agents = 1000;
   std::vector<std::shared_ptr<TaskAgent>> agents;
 
   // Register 1000 agents
-  for (int i = 0; i < num_agents; ++i) {
-    auto agent = std::make_shared<TaskAgent>("agent_" + std::to_string(i));
+  for (int32_t i = 0; i < num_agents; ++i) {
+    auto agent =
+        std::make_shared<TaskAgent>("agent_" + std::to_string(i));
     bus_->registerAgent(agent->getAgentId(), agent);
     agents.push_back(agent);
   }
@@ -604,7 +606,7 @@ TEST_F(RegistryIntegrationTest, RegisterManyAgents) {
   EXPECT_EQ(agent_list.size(), num_agents);
 
   // Verify random samples can be found
-  for (int i = 0; i < num_agents; i += 100) {
+  for (int32_t i = 0; i < num_agents; i += 100) {
     EXPECT_TRUE(bus_->hasAgent("agent_" + std::to_string(i)));
   }
 }
@@ -617,25 +619,25 @@ TEST_F(RegistryIntegrationTest, RegisterManyAgents) {
 TEST_F(RegistryIntegrationTest, ClearRegistryClearsAll) {
   // Register 10 agents
   std::vector<std::shared_ptr<TaskAgent>> agents;
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     auto agent = std::make_shared<TaskAgent>("agent_" + std::to_string(i));
     bus_->registerAgent(agent->getAgentId(), agent);
     agents.push_back(agent);
   }
 
   // Verify 10 registered
-  EXPECT_EQ(bus_->listAgents().size(), 10);
+  EXPECT_EQ(bus_->listAgents().size(), 10u);
 
   // Unregister all
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     bus_->unregisterAgent("agent_" + std::to_string(i));
   }
 
   // Verify empty
-  EXPECT_EQ(bus_->listAgents().size(), 0);
+  EXPECT_EQ(bus_->listAgents().size(), 0u);
 
   // Verify all are gone
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     EXPECT_FALSE(bus_->hasAgent("agent_" + std::to_string(i)));
   }
 }

@@ -70,7 +70,7 @@ TEST_F(MessagePoolTest, ReleaseAndAcquire) {
 TEST_F(MessagePoolTest, MultipleReleaseAndAcquire) {
   // Acquire 10 messages and hold them
   std::vector<KeystoneMessage> messages;
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     auto msg = MessagePool::acquire();
     msg.msg_id = "msg-" + std::to_string(i);
     messages.push_back(std::move(msg));
@@ -88,7 +88,7 @@ TEST_F(MessagePoolTest, MultipleReleaseAndAcquire) {
   EXPECT_EQ(stats.max_size_reached, 10);
 
   // Acquire 10 messages - all should be pool hits
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     auto msg = MessagePool::acquire();
     EXPECT_TRUE(msg.msg_id.empty());  // Should be reset
   }
@@ -102,7 +102,7 @@ TEST_F(MessagePoolTest, MultipleReleaseAndAcquire) {
 TEST_F(MessagePoolTest, PoolSizeLimit) {
   // Acquire 1100 messages and hold them
   std::vector<KeystoneMessage> messages;
-  for (int i = 0; i < 1100; ++i) {
+  for (int32_t i = 0; i < 1100; ++i) {
     messages.push_back(MessagePool::acquire());
   }
 
@@ -125,7 +125,7 @@ TEST_F(MessagePoolTest, StatisticsTracking) {
 
   // Acquire 5 messages and hold them (all misses)
   std::vector<KeystoneMessage> messages;
-  for (int i = 0; i < 5; ++i) {
+  for (int32_t i = 0; i < 5; ++i) {
     messages.push_back(MessagePool::acquire());
   }
 
@@ -135,7 +135,7 @@ TEST_F(MessagePoolTest, StatisticsTracking) {
   EXPECT_EQ(stats.pool_hits, 0);
 
   // Release 3 of them
-  for (int i = 0; i < 3; ++i) {
+  for (int32_t i = 0; i < 3; ++i) {
     MessagePool::release(std::move(messages[i]));
   }
 
@@ -146,7 +146,7 @@ TEST_F(MessagePoolTest, StatisticsTracking) {
   EXPECT_EQ(stats.current_size, 3);
 
   // Acquire 3 more (all hits from pool)
-  for (int i = 0; i < 3; ++i) {
+  for (int32_t i = 0; i < 3; ++i) {
     auto msg = MessagePool::acquire();
   }
 
@@ -167,7 +167,7 @@ TEST_F(MessagePoolTest, ThreadLocalIsolation) {
 
     // Acquire and hold 5 messages, then release
     std::vector<KeystoneMessage> messages;
-    for (int i = 0; i < 5; ++i) {
+    for (int32_t i = 0; i < 5; ++i) {
       messages.push_back(MessagePool::acquire());
     }
     for (auto& msg : messages) {
@@ -183,7 +183,7 @@ TEST_F(MessagePoolTest, ThreadLocalIsolation) {
 
     // Acquire and hold 10 messages, then release
     std::vector<KeystoneMessage> messages;
-    for (int i = 0; i < 10; ++i) {
+    for (int32_t i = 0; i < 10; ++i) {
       messages.push_back(MessagePool::acquire());
     }
     for (auto& msg : messages) {
@@ -235,7 +235,7 @@ TEST_F(MessagePoolTest, MessageResetOnRelease) {
 TEST_F(MessagePoolTest, ClearPool) {
   // Acquire and hold 50 messages
   std::vector<KeystoneMessage> messages;
-  for (int i = 0; i < 50; ++i) {
+  for (int32_t i = 0; i < 50; ++i) {
     messages.push_back(MessagePool::acquire());
   }
 
@@ -260,7 +260,7 @@ TEST_F(MessagePoolTest, ClearPool) {
 TEST_F(MessagePoolTest, ResetStats) {
   // Acquire and hold 20 messages
   std::vector<KeystoneMessage> messages;
-  for (int i = 0; i < 20; ++i) {
+  for (int32_t i = 0; i < 20; ++i) {
     messages.push_back(MessagePool::acquire());
   }
 
@@ -291,7 +291,7 @@ TEST_F(MessagePoolTest, HighLoadScenario) {
   // Simulate high-load scenario with many acquires and releases
   const int iterations = 10000;
 
-  for (int i = 0; i < iterations; ++i) {
+  for (int32_t i = 0; i < iterations; ++i) {
     auto msg = MessagePool::acquire();
     msg.msg_id = "msg-" + std::to_string(i);
     msg.command = "high_load_test";

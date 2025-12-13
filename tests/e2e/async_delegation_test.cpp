@@ -84,11 +84,11 @@ TEST(E2E_PhaseA, AsyncDelegationWithWorkStealing) {
 
   // Send 10 commands (round-robin to task agents)
   TaskAgent* agents[] = {task1.get(), task2.get(), task3.get()};
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     TaskAgent* target = agents[i % 3];
-    int num1 = dis(gen);
-    int num2 = dis(gen);
-    int expected = num1 + num2;
+    int32_t num1 = dis(gen);
+    int32_t num2 = dis(gen);
+    int32_t expected = num1 + num2;
 
     std::stringstream cmd;
     cmd << "echo $((" << num1 << " + " << num2 << "))";
@@ -140,8 +140,8 @@ TEST(E2E_PhaseA, AsyncDelegationWithWorkStealing) {
             << " sent commands" << std::endl;
 
   // Verify results by matching msg_id
-  int successful = 0;
-  int total = commands.size();
+  int32_t successful = 0;
+  int32_t total = commands.size();
 
   for (const auto& resp : responses) {
     auto it = commands.find(resp.msg_id);
@@ -160,7 +160,7 @@ TEST(E2E_PhaseA, AsyncDelegationWithWorkStealing) {
         continue;
       }
 
-      int result = std::stoi(resp.payload.value());
+      int32_t result = std::stoi(resp.payload.value());
       if (result == expected) {
         std::cout << "  ✓ Command for msg_id " << resp.msg_id.substr(0, 8) << "... succeeded: got "
                   << result << std::endl;
@@ -210,7 +210,7 @@ TEST(E2E_PhaseA, WorkStealingLoadBalancing) {
   bus->registerAgent(chief->getAgentId(), chief);
   chief->setMessageBus(bus.get());
 
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     auto agent = std::make_shared<TaskAgent>("task_lb_" + std::to_string(i));
     bus->registerAgent(agent->getAgentId(), agent);
     agent->setMessageBus(bus.get());
@@ -218,7 +218,7 @@ TEST(E2E_PhaseA, WorkStealingLoadBalancing) {
   }
 
   // Send 100 commands (will be distributed via work-stealing)
-  for (int i = 0; i < 100; ++i) {
+  for (int32_t i = 0; i < 100; ++i) {
     auto target = task_agents[i % 10].get();
     auto msg = KeystoneMessage::create(chief->getAgentId(), target->getAgentId(), "echo ok");
     chief->sendMessage(msg);
@@ -230,7 +230,7 @@ TEST(E2E_PhaseA, WorkStealingLoadBalancing) {
   // Count how many agents received messages
   int agents_with_messages = 0;
   for (auto& agent : task_agents) {
-    int count = 0;
+    int32_t count = 0;
     while (agent->getMessage().has_value()) {
       count++;
     }

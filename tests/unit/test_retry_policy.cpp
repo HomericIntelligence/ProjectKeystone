@@ -225,11 +225,11 @@ TEST_F(RetryPolicyTest, ConcurrentAccess) {
 
   // Launch multiple threads accessing retry policy
   std::vector<std::thread> threads;
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     threads.emplace_back([&policy, i]() {
       std::string msg_id = "msg" + std::to_string(i);
 
-      for (int attempt = 0; attempt < 3; ++attempt) {
+      for (int32_t attempt = 0; attempt < 3; ++attempt) {
         if (policy.shouldRetry(msg_id)) {
           policy.recordAttempt(msg_id);
           auto delay = policy.getNextDelay(msg_id);

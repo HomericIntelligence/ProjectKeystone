@@ -262,13 +262,14 @@ TEST_F(ChiefArchitectAgentTest, ConcurrentStateAccess) {
   bus_->registerAgent(chief->getAgentId(), chief);
 
   // Send multiple messages rapidly (test thread safety)
-  for (int i = 0; i < 100; ++i) {
-    auto msg = core::KeystoneMessage::create("sender", "chief", "cmd" + std::to_string(i));
+  for (int32_t i = 0; i < 100; ++i) {
+    auto msg = core::KeystoneMessage::create("sender", "chief",
+                                              "cmd" + std::to_string(i));
     EXPECT_NO_THROW(chief->receiveMessage(msg));
   }
 
   // Verify all messages were queued
-  int count = 0;
+  int32_t count = 0;
   while (chief->getMessage().has_value()) {
     ++count;
   }

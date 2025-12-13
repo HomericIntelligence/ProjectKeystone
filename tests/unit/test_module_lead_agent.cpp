@@ -244,13 +244,14 @@ TEST_F(ModuleLeadAgentTest, ConcurrentCoordination) {
   module->setAvailableTaskAgents(task_ids);
 
   // Send many messages concurrently
-  for (int i = 0; i < 50; ++i) {
-    auto msg = core::KeystoneMessage::create("sender", "module_1", "cmd" + std::to_string(i));
+  for (int32_t i = 0; i < 50; ++i) {
+    auto msg = core::KeystoneMessage::create("sender", "module_1",
+                                              "cmd" + std::to_string(i));
     EXPECT_NO_THROW(module->receiveMessage(msg));
   }
 
   // Verify all messages were queued
-  int count = 0;
+  int32_t count = 0;
   while (module->getMessage().has_value()) {
     ++count;
   }

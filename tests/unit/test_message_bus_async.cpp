@@ -94,8 +94,9 @@ TEST(MessageBusAsyncTest, AsyncRoutingWithScheduler) {
   EXPECT_EQ(bus.getScheduler(), &scheduler);
 
   // Send messages - they will be delivered asynchronously
-  for (int i = 0; i < 10; ++i) {
-    auto msg = KeystoneMessage::create("agent1", "agent2", "test_" + std::to_string(i));
+  for (int32_t i = 0; i < 10; ++i) {
+    auto msg = KeystoneMessage::create("agent1", "agent2",
+                                       "test_" + std::to_string(i));
     bus.routeMessage(msg);
   }
 
@@ -103,7 +104,7 @@ TEST(MessageBusAsyncTest, AsyncRoutingWithScheduler) {
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
   // Check that messages were received
-  int received_count = 0;
+  int32_t received_count = 0;
   while (auto msg = agent2->getMessage()) {
     received_count++;
   }
@@ -134,9 +135,11 @@ TEST(MessageBusAsyncTest, MultipleAgentsAsyncRouting) {
   agent3->setMessageBus(&bus);
 
   // Send messages to multiple agents
-  for (int i = 0; i < 20; ++i) {
-    auto msg2 = KeystoneMessage::create("agent1", "agent2", "msg" + std::to_string(i));
-    auto msg3 = KeystoneMessage::create("agent1", "agent3", "msg" + std::to_string(i));
+  for (int32_t i = 0; i < 20; ++i) {
+    auto msg2 =
+        KeystoneMessage::create("agent1", "agent2", "msg" + std::to_string(i));
+    auto msg3 =
+        KeystoneMessage::create("agent1", "agent3", "msg" + std::to_string(i));
     bus.routeMessage(msg2);
     bus.routeMessage(msg3);
   }
@@ -213,8 +216,9 @@ TEST(MessageBusAsyncTest, HighLoadAsyncRouting) {
 
   // Send many messages
   const int num_messages = 1000;
-  for (int i = 0; i < num_messages; ++i) {
-    auto msg = KeystoneMessage::create("agent1", "agent2", "msg" + std::to_string(i));
+  for (int32_t i = 0; i < num_messages; ++i) {
+    auto msg =
+        KeystoneMessage::create("agent1", "agent2", "msg" + std::to_string(i));
     bus.routeMessage(msg);
   }
 
@@ -250,8 +254,9 @@ TEST(MessageBusAsyncTest, SchedulerShutdownGraceful) {
   agent2->setMessageBus(&bus);
 
   // Send messages
-  for (int i = 0; i < 5; ++i) {
-    auto msg = KeystoneMessage::create("agent1", "agent2", "msg" + std::to_string(i));
+  for (int32_t i = 0; i < 5; ++i) {
+    auto msg =
+        KeystoneMessage::create("agent1", "agent2", "msg" + std::to_string(i));
     bus.routeMessage(msg);
   }
 
@@ -292,7 +297,7 @@ TEST(MessageBusAsyncTest, ConcurrentLifecycleStressTest) {
 
   // Thread 1: Register agents
   std::thread register_thread([&]() {
-    int counter = 0;
+    int32_t counter = 0;
     while (!stop.load(std::memory_order_relaxed)) {
       try {
         auto agent_id = get_agent_id(counter++);
@@ -311,7 +316,7 @@ TEST(MessageBusAsyncTest, ConcurrentLifecycleStressTest) {
 
   // Thread 2: Unregister agents
   std::thread unregister_thread([&]() {
-    int counter = 0;
+    int32_t counter = 0;
     while (!stop.load(std::memory_order_relaxed)) {
       auto agent_id = get_agent_id(counter++);
 
@@ -327,7 +332,7 @@ TEST(MessageBusAsyncTest, ConcurrentLifecycleStressTest) {
 
   // Thread 3: Route messages to existing agents
   std::thread route_thread([&]() {
-    int counter = 0;
+    int32_t counter = 0;
     while (!stop.load(std::memory_order_relaxed)) {
       // Get list of registered agents
       auto agents = bus.listAgents();
@@ -354,7 +359,7 @@ TEST(MessageBusAsyncTest, ConcurrentLifecycleStressTest) {
 
   // Thread 4: Additional concurrent registration (stress test)
   std::thread register_thread2([&]() {
-    int counter = 10000;  // Different range to avoid ID conflicts
+    int32_t counter = 10000;  // Different range to avoid ID conflicts
     while (!stop.load(std::memory_order_relaxed)) {
       try {
         auto agent_id = get_agent_id(counter++);
@@ -421,7 +426,7 @@ TEST(MessageBusAsyncTest, ConcurrentUnregistrationSafety) {
 
   // Thread 1: Continuously send messages to agent2
   std::thread sender([&]() {
-    int counter = 0;
+    int32_t counter = 0;
     while (!stop.load()) {
       auto msg = KeystoneMessage::create("agent1", "agent2", "msg_" + std::to_string(counter++));
       bus.routeMessage(msg);
@@ -431,7 +436,7 @@ TEST(MessageBusAsyncTest, ConcurrentUnregistrationSafety) {
 
   // Thread 2: Unregister and re-register agent2
   std::thread lifecycle([&]() {
-    for (int i = 0; i < 10; ++i) {
+    for (int32_t i = 0; i < 10; ++i) {
       std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
       // Unregister
@@ -478,7 +483,7 @@ TEST(MessageBusAsyncTest, MessageToDeletedAgentGraceful) {
   bus.registerAgent("agent2", agent2);
 
   // Send messages to agent2
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     auto msg = KeystoneMessage::create("agent1", "agent2", "msg_" + std::to_string(i));
     bus.routeMessage(msg);
   }

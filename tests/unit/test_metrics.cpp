@@ -139,7 +139,7 @@ TEST_F(MetricsTest, ThroughputCalculation) {
   auto& metrics = Metrics::getInstance();
 
   // Process some messages
-  for (int i = 0; i < 100; ++i) {
+  for (int32_t i = 0; i < 100; ++i) {
     metrics.recordMessageSent("msg" + std::to_string(i), Priority::NORMAL);
     metrics.recordMessageProcessed("msg" + std::to_string(i));
   }
@@ -214,10 +214,11 @@ TEST_F(MetricsTest, ThreadSafety) {
 
   std::vector<std::thread> threads;
 
-  for (int t = 0; t < num_threads; ++t) {
+  for (int32_t t = 0; t < num_threads; ++t) {
     threads.emplace_back([&metrics, t]() {
-      for (int i = 0; i < msgs_per_thread; ++i) {
-        std::string msg_id = "thread" + std::to_string(t) + "_msg" + std::to_string(i);
+      for (int32_t i = 0; i < msgs_per_thread; ++i) {
+        std::string msg_id =
+            "thread" + std::to_string(t) + "_msg" + std::to_string(i);
         // Cycle through priorities: HIGH, NORMAL, LOW
         Priority priority = static_cast<Priority>(i % 3);
         metrics.recordMessageSent(msg_id, priority);

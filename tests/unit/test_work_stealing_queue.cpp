@@ -74,14 +74,14 @@ TEST(WorkStealingQueueTest, MultiplePushPop) {
   std::atomic<int> counter{0};
 
   // Push 10 items
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     queue.push(WorkItem::makeFunction([&]() { counter.fetch_add(1); }));
   }
 
-  EXPECT_EQ(queue.size_approx(), 10);
+  EXPECT_EQ(queue.size_approx(), size_t{10});
 
   // Pop all items
-  int popped = 0;
+  int32_t popped = 0;
   while (auto item = queue.pop()) {
     item->execute();
     popped++;
@@ -96,13 +96,13 @@ TEST(WorkStealingQueueTest, MultiplePushPop) {
 TEST(WorkStealingQueueTest, ConcurrentPush) {
   WorkStealingQueue queue;
   std::atomic<int> push_count{0};
-  constexpr int num_threads = 4;
-  constexpr int items_per_thread = 25;
+  constexpr int32_t num_threads = 4;
+  constexpr int32_t items_per_thread = 25;
 
   std::vector<std::thread> threads;
-  for (int t = 0; t < num_threads; ++t) {
+  for (int32_t t = 0; t < num_threads; ++t) {
     threads.emplace_back([&]() {
-      for (int i = 0; i < items_per_thread; ++i) {
+      for (int32_t i = 0; i < items_per_thread; ++i) {
         queue.push(WorkItem::makeFunction([&]() { push_count.fetch_add(1); }));
       }
     });
@@ -119,16 +119,16 @@ TEST(WorkStealingQueueTest, ConcurrentPush) {
 TEST(WorkStealingQueueTest, WorkStealingMultipleThreads) {
   WorkStealingQueue queue;
   std::atomic<int> executed_count{0};
-  constexpr int total_items = 100;
+  constexpr int32_t total_items = 100;
 
   // Push work items
-  for (int i = 0; i < total_items; ++i) {
+  for (int32_t i = 0; i < total_items; ++i) {
     queue.push(WorkItem::makeFunction([&]() { executed_count.fetch_add(1); }));
   }
 
   // Multiple threads steal and execute
   std::vector<std::thread> thieves;
-  for (int t = 0; t < 4; ++t) {
+  for (int32_t t = 0; t < 4; ++t) {
     thieves.emplace_back([&]() {
       while (auto item = queue.steal()) {
         item->execute();
@@ -157,19 +157,19 @@ TEST(WorkStealingQueueTest, WorkItemValidity) {
 TEST(WorkStealingQueueTest, SizeApproximation) {
   WorkStealingQueue queue;
 
-  EXPECT_EQ(queue.size_approx(), 0);
+  EXPECT_EQ(queue.size_approx(), size_t{0});
 
-  for (int i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     queue.push(WorkItem::makeFunction([]() {}));
   }
 
-  EXPECT_GE(queue.size_approx(), 10);
+  EXPECT_GE(queue.size_approx(), size_t{10});
 
-  for (int i = 0; i < 5; ++i) {
+  for (int32_t i = 0; i < 5; ++i) {
     queue.pop();
   }
 
-  EXPECT_LE(queue.size_approx(), 5);
+  EXPECT_LE(queue.size_approx(), size_t{5});
 }
 
 // Test: Move semantics
