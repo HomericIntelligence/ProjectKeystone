@@ -84,7 +84,7 @@ class ModuleLeadAgent : public LeadAgentBase<ModuleLeadState> {
   void initializeGrpc(const std::string& coordinator_address,
                       const std::string& registry_address,
                       const std::string& agent_type = "ModuleLeadAgent",
-                      int level = 2);
+                      uint8_t level = 2);
 
   /**
    * @brief Process incoming YAML task specification

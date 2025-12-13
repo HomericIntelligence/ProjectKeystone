@@ -76,7 +76,7 @@ concurrency::Task<core::Response> LeadAgentBase<StateEnum>::processMessage(
   }
 
   // Step 5: Initialize coordination for expected results
-  coordination_.initializeCoordination(static_cast<int>(subtasks.size()));
+  coordination_.initializeCoordination(subtasks.size());
 
   // Step 6: Transition to waiting state and delegate
   coordination_.transitionTo(waiting_state_, stateToString(waiting_state_));

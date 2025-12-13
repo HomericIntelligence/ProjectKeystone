@@ -69,7 +69,7 @@ concurrency::Task<core::Response> ChiefArchitectAgent::sendCommand(
 void ChiefArchitectAgent::initializeGrpc(const std::string& coordinator_address,
                                          const std::string& registry_address,
                                          const std::string& agent_type,
-                                         int level) {
+                                         uint8_t level) {
   agent_type_ = agent_type;
   agent_level_ = level;
 

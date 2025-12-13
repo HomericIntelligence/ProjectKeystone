@@ -144,7 +144,7 @@ std::string ComponentLeadAgent::stateToString(State state) const {
 void ComponentLeadAgent::initializeGrpc(const std::string& coordinator_address,
                                         const std::string& registry_address,
                                         const std::string& agent_type,
-                                        int level) {
+                                        uint8_t level) {
   // Delegate gRPC initialization to coordination template
   std::vector<std::string> capabilities = {"module_coordination", "component_synthesis"};
   coordination_.initializeGrpc(

@@ -64,7 +64,7 @@ class TaskAgent : public AsyncAgent {
   void initializeGrpc(const std::string& coordinator_address,
                       const std::string& registry_address,
                       const std::string& agent_type = "TaskAgent",
-                      int level = 3);
+                      uint8_t level = 3);
 
   /**
    * @brief Process incoming YAML task specification
@@ -139,7 +139,7 @@ class TaskAgent : public AsyncAgent {
 
   // Agent metadata
   std::string agent_type_{"TaskAgent"};
-  int agent_level_{3};
+  uint8_t agent_level_{3};
 #endif
 };
 
