@@ -74,7 +74,7 @@ jobs:
 
       - name: Upload test logs
         if: failure()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: test-logs-${{ matrix.sanitizer }}
           path: build/x86.debug.${{ matrix.sanitizer }}/Testing/
@@ -103,7 +103,7 @@ jobs:
         run: make benchmark.native || true  # Don't fail on benchmark results
 
       - name: Upload benchmark results
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: benchmark-results
           path: build/reports/benchmarks/
@@ -140,7 +140,7 @@ jobs:
           ./scripts/generate_coverage.sh || true
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: coverage-report
           path: build/coverage/html/
