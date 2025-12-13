@@ -54,7 +54,7 @@ class SocketHandle {
   int fd_;
 };
 
-HealthCheckServer::HealthCheckServer(int port, ReadinessCheck readiness_check)
+HealthCheckServer::HealthCheckServer(uint16_t port, ReadinessCheck readiness_check)
     : port_(port), readiness_check_(std::move(readiness_check)) {}
 
 HealthCheckServer::~HealthCheckServer() {
@@ -151,9 +151,7 @@ bool HealthCheckServer::isRunning() const {
   return running_.load();
 }
 
-int HealthCheckServer::getPort() const {
-  return port_;
-}
+uint16_t HealthCheckServer::getPort() const { return port_; }
 
 void HealthCheckServer::setReadinessCheck(ReadinessCheck check) {
   readiness_check_ = std::move(check);

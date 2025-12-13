@@ -9,6 +9,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <cstdint>
 #include <functional>
 #include <map>
 #include <mutex>
@@ -59,7 +60,7 @@ class HeartbeatMonitor {
     std::string agent_id;
     std::chrono::steady_clock::time_point last_heartbeat;
     std::chrono::steady_clock::time_point first_heartbeat;
-    int total_heartbeats{0};
+    uint32_t total_heartbeats{0};
     bool is_alive{true};
   };
 
@@ -107,7 +108,7 @@ class HeartbeatMonitor {
    *
    * @return Number of newly detected failures
    */
-  int checkAgents();
+  size_t checkAgents();
 
   /**
    * @brief Get agent status
@@ -160,7 +161,7 @@ class HeartbeatMonitor {
    * @brief Get total number of failures detected
    * @return Failure count
    */
-  int getTotalFailures() const { return total_failures_.load(); }
+  uint32_t getTotalFailures() const { return total_failures_.load(); }
 
  private:
   Config config_;  ///< Heartbeat monitoring configuration
@@ -174,7 +175,7 @@ class HeartbeatMonitor {
   std::mutex callback_mutex_;
 
   // Statistics
-  std::atomic<int> total_failures_{0};
+  std::atomic<uint32_t> total_failures_{0};
 };
 
 }  // namespace core

@@ -9,6 +9,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <cstdint>
 #include <map>
 #include <mutex>
 #include <optional>
@@ -47,7 +48,7 @@ class RetryPolicy {
    * @brief Retry policy configuration
    */
   struct Config {
-    int max_attempts{3};                              ///< Maximum retry attempts
+    uint32_t max_attempts{3};  ///< Maximum retry attempts
     std::chrono::milliseconds initial_delay_ms{100};  ///< Initial backoff delay
     std::chrono::milliseconds max_delay_ms{5000};     ///< Maximum backoff delay
     double backoff_multiplier{2.0};                   ///< Exponential backoff multiplier
@@ -57,10 +58,12 @@ class RetryPolicy {
    * @brief Retry statistics for a message
    */
   struct RetryStats {
-    int attempts{0};                                      ///< Number of attempts made
-    std::chrono::steady_clock::time_point first_attempt;  ///< Time of first attempt
-    std::chrono::steady_clock::time_point last_attempt;   ///< Time of last attempt
-    std::chrono::milliseconds total_delay{0};             ///< Total delay accumulated
+    uint32_t attempts{0};  ///< Number of attempts made
+    std::chrono::steady_clock::time_point
+        first_attempt;  ///< Time of first attempt
+    std::chrono::steady_clock::time_point
+        last_attempt;                          ///< Time of last attempt
+    std::chrono::milliseconds total_delay{0};  ///< Total delay accumulated
   };
 
   /**
@@ -133,25 +136,25 @@ class RetryPolicy {
    * @brief Get total number of retries across all messages
    * @return Total retry count
    */
-  int getTotalRetries() const { return total_retries_.load(); }
+  uint32_t getTotalRetries() const { return total_retries_.load(); }
 
   /**
    * @brief Get total number of successful deliveries
    * @return Success count
    */
-  int getTotalSuccesses() const { return total_successes_.load(); }
+  uint32_t getTotalSuccesses() const { return total_successes_.load(); }
 
   /**
    * @brief Get total number of permanent failures
    * @return Failure count
    */
-  int getTotalFailures() const { return total_failures_.load(); }
+  uint32_t getTotalFailures() const { return total_failures_.load(); }
 
   /**
    * @brief Get number of messages currently being retried
    * @return Active retry count
    */
-  int getActiveRetries() const;
+  size_t getActiveRetries() const;
 
   /**
    * @brief Reset all statistics and tracked messages
@@ -166,9 +169,9 @@ class RetryPolicy {
   mutable std::mutex stats_mutex_;
 
   // Global statistics
-  std::atomic<int> total_retries_{0};
-  std::atomic<int> total_successes_{0};
-  std::atomic<int> total_failures_{0};
+  std::atomic<uint32_t> total_retries_{0};
+  std::atomic<uint32_t> total_successes_{0};
+  std::atomic<uint32_t> total_failures_{0};
 
   /**
    * @brief Calculate exponential backoff delay
@@ -179,7 +182,7 @@ class RetryPolicy {
    * @param attempts Number of attempts made
    * @return Backoff delay
    */
-  std::chrono::milliseconds calculateBackoff(int attempts) const;
+  std::chrono::milliseconds calculateBackoff(uint32_t attempts) const;
 };
 
 }  // namespace core

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <string>
@@ -38,7 +39,9 @@ class HealthCheckServer {
    * @param port HTTP server port (default: 8080 for Kubernetes)
    * @param readiness_check Optional custom readiness check function
    */
-  explicit HealthCheckServer(int port = 8080, ReadinessCheck readiness_check = nullptr);
+  explicit HealthCheckServer(
+      uint16_t port = 8080,
+      ReadinessCheck readiness_check = nullptr);
 
   /**
    * @brief Destructor - stops server if running
@@ -68,7 +71,7 @@ class HealthCheckServer {
   /**
    * @brief Get current port
    */
-  int getPort() const;
+  uint16_t getPort() const;
 
   /**
    * @brief Set readiness check function
@@ -103,7 +106,7 @@ class HealthCheckServer {
    */
   static std::string generateReadinessResponse(bool ready);
 
-  int port_;
+  uint16_t port_;
   std::atomic<bool> running_{false};
   std::unique_ptr<std::thread> server_thread_;
   int server_fd_{-1};

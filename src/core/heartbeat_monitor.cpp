@@ -71,10 +71,10 @@ bool HeartbeatMonitor::isAlive(const std::string& agent_id) const {
   return elapsed < config_.timeout_threshold;
 }
 
-int HeartbeatMonitor::checkAgents() {
+size_t HeartbeatMonitor::checkAgents() {
   std::lock_guard<std::mutex> lock(agents_mutex_);
 
-  int newly_failed = 0;
+  size_t newly_failed = 0;
   auto now = std::chrono::steady_clock::now();
 
   std::vector<std::string> to_remove;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <thread>
@@ -30,7 +31,7 @@ class PrometheusExporter {
    * @brief Construct exporter with configuration
    * @param port HTTP server port (default: 9090)
    */
-  explicit PrometheusExporter(int port = 9090);
+  explicit PrometheusExporter(uint16_t port = 9090);
 
   /**
    * @brief Destructor - stops server if running
@@ -60,7 +61,7 @@ class PrometheusExporter {
   /**
    * @brief Get current port
    */
-  int getPort() const;
+  uint16_t getPort() const;
 
   /**
    * @brief Generate Prometheus metrics in text format
@@ -84,7 +85,7 @@ class PrometheusExporter {
    */
   void handleRequest(int client_fd);
 
-  int port_;
+  uint16_t port_;
   std::atomic<bool> running_{false};
   std::unique_ptr<std::thread> server_thread_;
   int server_fd_{-1};
