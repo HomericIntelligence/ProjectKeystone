@@ -179,10 +179,10 @@ std::vector<std::string> CircuitBreaker::getTrackedTargets() const {
   return targets;
 }
 
-int CircuitBreaker::getOpenCircuitCount() const {
+size_t CircuitBreaker::getOpenCircuitCount() const {
   std::lock_guard<std::mutex> lock(circuits_mutex_);
 
-  int count = 0;
+  size_t count = 0;
   for (const auto& [_, status] : circuits_) {
     if (status.state == State::OPEN) {
       count++;

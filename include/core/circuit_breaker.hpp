@@ -9,6 +9,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <cstdint>
 #include <map>
 #include <mutex>
 #include <optional>
@@ -60,9 +61,10 @@ class CircuitBreaker {
    * @brief Circuit breaker configuration
    */
   struct Config {
-    int failure_threshold{5};                     ///< Failures before opening circuit
-    std::chrono::milliseconds timeout_ms{10000};  ///< Time before trying half-open
-    int success_threshold{2};                     ///< Successes to close circuit
+    uint32_t failure_threshold{5};  ///< Failures before opening circuit
+    std::chrono::milliseconds timeout_ms{
+        10000};                      ///< Time before trying half-open
+    uint32_t success_threshold{2};   ///< Successes to close circuit
   };
 
   /**
@@ -71,12 +73,12 @@ class CircuitBreaker {
   struct CircuitStatus {
     std::string target_id;
     State state{State::CLOSED};
-    int consecutive_failures{0};
-    int consecutive_successes{0};
+    uint32_t consecutive_failures{0};
+    uint32_t consecutive_successes{0};
     std::chrono::steady_clock::time_point last_failure_time;
     std::chrono::steady_clock::time_point circuit_opened_time;
-    int total_failures{0};
-    int total_successes{0};
+    uint32_t total_failures{0};
+    uint32_t total_successes{0};
   };
 
   /**
@@ -159,7 +161,7 @@ class CircuitBreaker {
    * @brief Get count of open circuits
    * @return Number of open circuits
    */
-  int getOpenCircuitCount() const;
+  size_t getOpenCircuitCount() const;
 
  private:
   Config config_;  ///< Circuit breaker configuration

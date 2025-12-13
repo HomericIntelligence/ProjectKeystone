@@ -87,7 +87,7 @@ void RetryPolicy::recordSuccess(const std::string& message_id) {
 
   auto it = retry_stats_.find(message_id);
   if (it != retry_stats_.end()) {
-    int attempts = it->second.attempts;
+    uint32_t attempts = it->second.attempts;
     auto total_delay = it->second.total_delay;
 
     retry_stats_.erase(it);
@@ -111,7 +111,7 @@ void RetryPolicy::recordFailure(const std::string& message_id) {
 
   auto it = retry_stats_.find(message_id);
   if (it != retry_stats_.end()) {
-    int attempts = it->second.attempts;
+    uint32_t attempts = it->second.attempts;
     retry_stats_.erase(it);
 
     total_failures_++;
@@ -136,9 +136,9 @@ std::optional<RetryPolicy::RetryStats> RetryPolicy::getStats(const std::string& 
   return it->second;
 }
 
-int RetryPolicy::getActiveRetries() const {
+size_t RetryPolicy::getActiveRetries() const {
   std::lock_guard<std::mutex> lock(stats_mutex_);
-  return static_cast<int>(retry_stats_.size());
+  return retry_stats_.size();
 }
 
 void RetryPolicy::reset() {
@@ -152,7 +152,7 @@ void RetryPolicy::reset() {
   Logger::debug("RetryPolicy: Statistics reset");
 }
 
-std::chrono::milliseconds RetryPolicy::calculateBackoff(int attempts) const {
+std::chrono::milliseconds RetryPolicy::calculateBackoff(uint32_t attempts) const {
   if (attempts == 0) {
     return std::chrono::milliseconds(0);
   }
