@@ -1,0 +1,31 @@
+[workspace]
+name = "project-keystone"
+version = "0.1.0"
+description = "Automated task DAG execution layer for ai-maestro"
+channels = ["conda-forge"]
+platforms = ["linux-64"]
+
+[workspace.dependencies]
+python = ">=3.10"
+
+[pypi-dependencies]
+nats-py = "*"
+httpx = "*"
+pydantic = ">=2.0"
+pydantic-settings = "*"
+rich = "*"
+python-dotenv = "*"
+
+[feature.dev.pypi-dependencies]
+pytest = "*"
+pytest-asyncio = "*"
+ruff = "*"
+mypy = "*"
+
+[environments]
+default = { features = ["dev"] }
+
+[tasks]
+start = "just start"
+test = "just test"
+lint = "just lint"
