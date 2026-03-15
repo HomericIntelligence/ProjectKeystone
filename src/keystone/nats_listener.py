@@ -58,7 +58,7 @@ class NATSListener:
             "Task event: team=%s task=%s status=%s", team_id, task_id, status
         )
 
-        if status == "done":
+        if status == "completed":
             logger.info(
                 "Task %s in team %s marked done — triggering DAG advancement",
                 task_id,

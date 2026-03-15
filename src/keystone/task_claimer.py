@@ -15,30 +15,31 @@ class TaskClaimer:
     def __init__(self, maestro_client: MaestroClient) -> None:
         self._client = maestro_client
 
-    async def claim_task(self, team_id: str, task_id: str, agent_id: str) -> bool:
-        """PUT /api/teams/{id}/tasks/{taskId} → status=in_progress, assignedTo=agent_id.
+    async def claim_task(self, team_id: str, task_id: str, agent_id: str) -> tuple[bool, list[Task]]:
+        """PUT /api/teams/{id}/tasks/{taskId} → status=in_progress, assignee_agent_id=agent_id.
 
-        Returns True on success, False on failure.
+        Returns (success, unblocked_tasks). unblocked_tasks is the list of tasks that just
+        became unblocked as reported by ai-maestro's PUT response.
         """
         try:
-            await self._client.update_task(
+            _task, unblocked = await self._client.update_task(
                 team_id=team_id,
                 task_id=task_id,
                 status=TaskStatus.IN_PROGRESS,
-                assigned_to=agent_id,
+                assignee_agent_id=agent_id,
             )
             logger.info(
                 "Claimed task %s for agent %s in team %s", task_id, agent_id, team_id
             )
-            return True
+            return True, unblocked
         except Exception as exc:
             logger.error(
                 "Failed to claim task %s for agent %s: %s", task_id, agent_id, exc
             )
-            return False
+            return False, []
 
     async def get_available_agents(self) -> list[Agent]:
-        """GET /api/agents/unified → filter for active, unoccupied agents."""
+        """GET /api/agents/unified → filter for active+online, unoccupied agents."""
         try:
             agents = await self._client.get_agents()
         except Exception as exc:
@@ -48,7 +49,7 @@ class TaskClaimer:
         available = [
             a
             for a in agents
-            if a.status == "active" and not a.task_description.strip()
+            if a.status == "active" and a.session_status == "online"
         ]
         logger.debug("Found %d available agents (of %d total)", len(available), len(agents))
         return available
@@ -58,7 +59,7 @@ class TaskClaimer:
 
         Steps:
         1. GET all tasks for the team.
-        2. Find ready tasks (deps all DONE, status TODO).
+        2. Find ready tasks (deps all COMPLETED, status PENDING).
         3. GET available agents.
         4. Claim each ready task for an available agent (round-robin).
         5. Return list of claimed task IDs.
@@ -96,7 +97,7 @@ class TaskClaimer:
         # 4. Claim ready tasks round-robin across available agents
         claimed: list[str] = []
         for task, agent in zip(ready, agents):
-            success = await self.claim_task(team_id, task.id, agent.id)
+            success, _unblocked = await self.claim_task(team_id, task.id, agent.id)
             if success:
                 claimed.append(task.id)
 

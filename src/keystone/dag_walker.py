@@ -13,18 +13,18 @@ class DAGWalker:
 
     @staticmethod
     def find_ready_tasks(tasks: dict[str, Task]) -> list[Task]:
-        """Return tasks where all dependencies are DONE and the task itself is TODO."""
+        """Return tasks where all dependencies are COMPLETED and the task itself is PENDING."""
         ready: list[Task] = []
         for task in tasks.values():
-            if task.status != TaskStatus.TODO:
+            if task.status != TaskStatus.PENDING:
                 continue
             deps_done = all(
-                tasks[dep_id].status == TaskStatus.DONE
-                for dep_id in task.depends_on
+                tasks[dep_id].status == TaskStatus.COMPLETED
+                for dep_id in task.blocked_by
                 if dep_id in tasks
             )
             # Also treat missing dependency IDs as blocking (unknown dep)
-            deps_exist = all(dep_id in tasks for dep_id in task.depends_on)
+            deps_exist = all(dep_id in tasks for dep_id in task.blocked_by)
             if deps_done and deps_exist:
                 ready.append(task)
         return ready
@@ -44,7 +44,7 @@ class DAGWalker:
         ready = {t.id: t for t in DAGWalker.find_ready_tasks(tasks)}
         for task_id in order:
             task = ready.get(task_id)
-            if task is not None and task.assigned_to is None:
+            if task is not None and task.assignee_agent_id is None:
                 return task
         return None
 
@@ -56,7 +56,7 @@ class DAGWalker:
 
         def dfs(node: str) -> None:
             color[node] = GRAY
-            for dep in tasks[node].depends_on:
+            for dep in tasks[node].blocked_by:
                 if dep not in tasks:
                     continue
                 if color[dep] == GRAY:
@@ -84,7 +84,7 @@ class DAGWalker:
         dependents: dict[str, list[str]] = {tid: [] for tid in tasks}
 
         for task in tasks.values():
-            for dep_id in task.depends_on:
+            for dep_id in task.blocked_by:
                 if dep_id in tasks:
                     in_degree[task.id] += 1
                     dependents[dep_id].append(task.id)

@@ -13,26 +13,26 @@ from keystone.task_claimer import TaskClaimer
 
 def _make_task(
     task_id: str,
-    status: TaskStatus = TaskStatus.TODO,
-    depends_on: list[str] | None = None,
+    status: TaskStatus = TaskStatus.PENDING,
+    blocked_by: list[str] | None = None,
     team_id: str = "team-1",
 ) -> Task:
     return Task(
         id=task_id,
-        title=f"Task {task_id}",
+        subject=f"Task {task_id}",
         status=status,
-        depends_on=depends_on or [],
+        blocked_by=blocked_by or [],
         team_id=team_id,
     )
 
 
-def _make_agent(agent_id: str, status: str = "active", task_desc: str = "") -> Agent:
+def _make_agent(agent_id: str, status: str = "active", session_status: str = "online") -> Agent:
     return Agent(
         id=agent_id,
         name=f"Agent {agent_id}",
         host="localhost",
         status=status,
-        task_description=task_desc,
+        session_status=session_status,
     )
 
 
@@ -40,7 +40,9 @@ def _mock_client(tasks: list[Task], agents: list[Agent]) -> MaestroClient:
     client = MagicMock(spec=MaestroClient)
     client.get_tasks = AsyncMock(return_value=tasks)
     client.get_agents = AsyncMock(return_value=agents)
-    client.update_task = AsyncMock(return_value={})
+    # update_task now returns (task, unblocked_list)
+    dummy_task = tasks[0] if tasks else _make_task("dummy")
+    client.update_task = AsyncMock(return_value=(dummy_task, []))
     return client
 
 
@@ -49,10 +51,10 @@ def _mock_client(tasks: list[Task], agents: list[Agent]) -> MaestroClient:
 
 @pytest.mark.asyncio
 async def test_advance_dag_claims_ready_tasks() -> None:
-    """A ready task (deps all done) gets claimed for an available agent."""
+    """A ready task (deps all completed) gets claimed for an available agent."""
     tasks = [
-        _make_task("t1", status=TaskStatus.DONE),
-        _make_task("t2", depends_on=["t1"]),  # ready after t1 done
+        _make_task("t1", status=TaskStatus.COMPLETED),
+        _make_task("t2", blocked_by=["t1"]),  # ready after t1 completed
     ]
     agents = [_make_agent("agent-1")]
     client = _mock_client(tasks, agents)
@@ -65,7 +67,7 @@ async def test_advance_dag_claims_ready_tasks() -> None:
         team_id="team-1",
         task_id="t2",
         status=TaskStatus.IN_PROGRESS,
-        assigned_to="agent-1",
+        assignee_agent_id="agent-1",
     )
 
 
@@ -106,7 +108,7 @@ async def test_no_ready_tasks() -> None:
     """All tasks have incomplete deps → nothing is claimed."""
     tasks = [
         _make_task("t1", status=TaskStatus.IN_PROGRESS),
-        _make_task("t2", depends_on=["t1"]),  # t1 not done yet
+        _make_task("t2", blocked_by=["t1"]),  # t1 not completed yet
     ]
     agents = [_make_agent("agent-1")]
     client = _mock_client(tasks, agents)
@@ -119,10 +121,10 @@ async def test_no_ready_tasks() -> None:
 
 
 @pytest.mark.asyncio
-async def test_hibernated_agents_excluded() -> None:
-    """Hibernated agents are not considered available."""
+async def test_offline_agents_excluded() -> None:
+    """Agents with status!=active or session_status!=online are not considered available."""
     tasks = [_make_task("t1")]
-    agents = [_make_agent("agent-1", status="hibernated")]
+    agents = [_make_agent("agent-1", status="offline")]
     client = _mock_client(tasks, agents)
     claimer = TaskClaimer(client)
 
@@ -133,10 +135,10 @@ async def test_hibernated_agents_excluded() -> None:
 
 
 @pytest.mark.asyncio
-async def test_busy_agents_excluded() -> None:
-    """Agents with a non-empty task_description are treated as occupied."""
+async def test_active_but_session_offline_excluded() -> None:
+    """An agent that is active but session is offline is not available."""
     tasks = [_make_task("t1")]
-    agents = [_make_agent("agent-1", task_desc="Working on something")]
+    agents = [_make_agent("agent-1", status="active", session_status="offline")]
     client = _mock_client(tasks, agents)
     claimer = TaskClaimer(client)
 
@@ -151,23 +153,26 @@ async def test_busy_agents_excluded() -> None:
 
 @pytest.mark.asyncio
 async def test_claim_task_success() -> None:
-    """claim_task returns True when update_task succeeds."""
+    """claim_task returns (True, unblocked) when update_task succeeds."""
+    dummy_task = _make_task("t1")
     client = MagicMock(spec=MaestroClient)
-    client.update_task = AsyncMock(return_value={})
+    client.update_task = AsyncMock(return_value=(dummy_task, []))
     claimer = TaskClaimer(client)
 
-    result = await claimer.claim_task("team-1", "t1", "agent-1")
+    success, unblocked = await claimer.claim_task("team-1", "t1", "agent-1")
 
-    assert result is True
+    assert success is True
+    assert unblocked == []
 
 
 @pytest.mark.asyncio
 async def test_claim_task_failure() -> None:
-    """claim_task returns False when update_task raises an exception."""
+    """claim_task returns (False, []) when update_task raises an exception."""
     client = MagicMock(spec=MaestroClient)
     client.update_task = AsyncMock(side_effect=Exception("HTTP 500"))
     claimer = TaskClaimer(client)
 
-    result = await claimer.claim_task("team-1", "t1", "agent-1")
+    success, unblocked = await claimer.claim_task("team-1", "t1", "agent-1")
 
-    assert result is False
+    assert success is False
+    assert unblocked == []

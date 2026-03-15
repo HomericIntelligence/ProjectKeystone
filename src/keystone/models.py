@@ -6,27 +6,31 @@ from pydantic import BaseModel
 
 
 class TaskStatus(str, Enum):
-    TODO = "todo"
+    BACKLOG = "backlog"
+    PENDING = "pending"
     IN_PROGRESS = "in_progress"
     REVIEW = "review"
-    DONE = "done"
-    BLOCKED = "blocked"
+    COMPLETED = "completed"
 
 
 class Task(BaseModel):
     id: str
-    title: str
-    status: TaskStatus
-    assigned_to: str | None = None
-    depends_on: list[str] = []  # list of task IDs
     team_id: str
+    subject: str
+    description: str = ""
+    status: TaskStatus
+    assignee_agent_id: str | None = None
+    blocked_by: list[str] = []  # list of task IDs (maps to API's blockedBy)
+    started_at: str | None = None
+    completed_at: str | None = None
 
 
 class Agent(BaseModel):
     id: str
     name: str
     host: str
-    status: str  # active, hibernated, etc.
+    status: str   # active, offline
+    session_status: str = "offline"  # online, offline (from session.status)
     task_description: str = ""
 
 
