@@ -168,9 +168,7 @@ TEST_F(SchedulerBackoffTest, WakeUpNotification) {
   // Submit multiple work items rapidly
   // All workers should wake up immediately via notify_all()
   for (int32_t i = 0; i < 10; ++i) {
-    scheduler.submit([work_executed]() {
-      work_executed->fetch_add(1);
-    });
+    scheduler.submit([work_executed]() { work_executed->fetch_add(1); });
   }
 
   // All work should complete quickly (< 100ms)

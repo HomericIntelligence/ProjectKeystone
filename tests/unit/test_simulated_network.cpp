@@ -263,8 +263,7 @@ TEST_F(SimulatedNetworkTest, QueueOrdering) {
 
   // Send messages with identifiable work
   for (int32_t i = 0; i < 5; ++i) {
-    network.send(0, 1,
-                 [&execution_order, i]() { execution_order.push_back(i); });
+    network.send(0, 1, [&execution_order, i]() { execution_order.push_back(i); });
   }
 
   std::this_thread::sleep_for(50us);

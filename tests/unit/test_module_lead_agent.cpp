@@ -245,8 +245,7 @@ TEST_F(ModuleLeadAgentTest, ConcurrentCoordination) {
 
   // Send many messages concurrently
   for (int32_t i = 0; i < 50; ++i) {
-    auto msg = core::KeystoneMessage::create("sender", "module_1",
-                                              "cmd" + std::to_string(i));
+    auto msg = core::KeystoneMessage::create("sender", "module_1", "cmd" + std::to_string(i));
     EXPECT_NO_THROW(module->receiveMessage(msg));
   }
 

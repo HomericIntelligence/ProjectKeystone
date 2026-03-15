@@ -40,8 +40,7 @@ TEST(CPUAffinityTest, DisabledByDefault) {
 
   std::atomic<int> counter{0};
   for (int32_t i = 0; i < 50; ++i) {
-    scheduler.submit(
-        [&counter]() { counter.fetch_add(1, std::memory_order_relaxed); });
+    scheduler.submit([&counter]() { counter.fetch_add(1, std::memory_order_relaxed); });
   }
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));

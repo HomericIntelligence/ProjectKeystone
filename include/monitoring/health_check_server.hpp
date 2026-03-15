@@ -39,9 +39,7 @@ class HealthCheckServer {
    * @param port HTTP server port (default: 8080 for Kubernetes)
    * @param readiness_check Optional custom readiness check function
    */
-  explicit HealthCheckServer(
-      uint16_t port = 8080,
-      ReadinessCheck readiness_check = nullptr);
+  explicit HealthCheckServer(uint16_t port = 8080, ReadinessCheck readiness_check = nullptr);
 
   /**
    * @brief Destructor - stops server if running

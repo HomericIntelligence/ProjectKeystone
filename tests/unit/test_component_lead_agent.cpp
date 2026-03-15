@@ -239,8 +239,7 @@ TEST_F(ComponentLeadAgentTest, ConcurrentCoordination) {
 
   // Send many messages concurrently
   for (int32_t i = 0; i < 50; ++i) {
-    auto msg = core::KeystoneMessage::create("sender", "component_1",
-                                              "cmd" + std::to_string(i));
+    auto msg = core::KeystoneMessage::create("sender", "component_1", "cmd" + std::to_string(i));
     EXPECT_NO_THROW(component->receiveMessage(msg));
   }
 

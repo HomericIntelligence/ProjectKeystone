@@ -15,7 +15,8 @@ namespace concurrency {
 // LogContext thread-local storage
 thread_local LogContext::Context LogContext::context_;
 
-void LogContext::set(const std::string& agent_id, int32_t worker_id,
+void LogContext::set(const std::string& agent_id,
+                     int32_t worker_id,
                      const std::string& session_id) {
   context_.agent_id = agent_id;
   context_.worker_id = worker_id;
@@ -32,7 +33,9 @@ std::string LogContext::getAgentId() {
   return context_.agent_id;
 }
 
-int32_t LogContext::getWorkerId() { return context_.worker_id; }
+int32_t LogContext::getWorkerId() {
+  return context_.worker_id;
+}
 
 std::string LogContext::getSessionId() {
   return context_.session_id;

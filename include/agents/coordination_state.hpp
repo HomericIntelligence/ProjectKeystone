@@ -192,7 +192,8 @@ class CoordinationState {
   void initializeGrpc(const std::string& agent_id,
                       const std::string& coordinator_address,
                       const std::string& registry_address,
-                      const std::string& agent_type, uint8_t level,
+                      const std::string& agent_type,
+                      uint8_t level,
                       const std::vector<std::string>& capabilities,
                       uint32_t max_concurrent_tasks) {
     agent_type_ = agent_type;

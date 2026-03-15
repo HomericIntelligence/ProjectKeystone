@@ -263,8 +263,7 @@ TEST_F(ChiefArchitectAgentTest, ConcurrentStateAccess) {
 
   // Send multiple messages rapidly (test thread safety)
   for (int32_t i = 0; i < 100; ++i) {
-    auto msg = core::KeystoneMessage::create("sender", "chief",
-                                              "cmd" + std::to_string(i));
+    auto msg = core::KeystoneMessage::create("sender", "chief", "cmd" + std::to_string(i));
     EXPECT_NO_THROW(chief->receiveMessage(msg));
   }
 

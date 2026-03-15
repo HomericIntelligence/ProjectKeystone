@@ -231,7 +231,8 @@ std::string TaskAgent::executeBash(const std::string& command) {
 #ifdef ENABLE_GRPC
 void TaskAgent::initializeGrpc(const std::string& coordinator_address,
                                const std::string& registry_address,
-                               const std::string& agent_type, uint8_t level) {
+                               const std::string& agent_type,
+                               uint8_t level) {
   agent_type_ = agent_type;
   agent_level_ = level;
 

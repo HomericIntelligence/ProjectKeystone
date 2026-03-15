@@ -259,9 +259,9 @@ TEST_F(RegistryIntegrationTest, RouteMessageToMultipleAgents) {
 
   // Send message to each agent
   for (int32_t i = 0; i < 3; ++i) {
-    auto msg = KeystoneMessage::create(
-        "sender", "agent_" + std::to_string(i),
-        "message_to_agent_" + std::to_string(i));
+    auto msg = KeystoneMessage::create("sender",
+                                       "agent_" + std::to_string(i),
+                                       "message_to_agent_" + std::to_string(i));
     EXPECT_TRUE(bus_->routeMessage(msg));
   }
 
@@ -294,9 +294,9 @@ TEST_F(RegistryIntegrationTest, ConcurrentRoutingWithInterning) {
   for (int32_t t = 0; t < 10; ++t) {
     threads.emplace_back([this, t]() {
       for (int32_t i = 0; i < 100; ++i) {
-        auto msg = KeystoneMessage::create(
-            "sender", "agent_" + std::to_string(t),
-            "message_" + std::to_string(i));
+        auto msg = KeystoneMessage::create("sender",
+                                           "agent_" + std::to_string(t),
+                                           "message_" + std::to_string(i));
         bool routed = bus_->routeMessage(msg);
         EXPECT_TRUE(routed);
       }
@@ -337,9 +337,9 @@ TEST_F(RegistryIntegrationTest, PerformanceOfIntegerRouting) {
   auto start = std::chrono::steady_clock::now();
   for (int32_t i = 0; i < 10000; ++i) {
     int32_t target = i % 100;
-    auto msg = KeystoneMessage::create(
-        "sender", "agent_" + std::to_string(target),
-        "message_" + std::to_string(i));
+    auto msg = KeystoneMessage::create("sender",
+                                       "agent_" + std::to_string(target),
+                                       "message_" + std::to_string(i));
     bus_->routeMessage(msg);
   }
   auto end = std::chrono::steady_clock::now();
@@ -458,8 +458,7 @@ TEST_F(RegistryIntegrationTest, ThreadSafeRegistryOperations) {
   for (int t = 10; t < 15; ++t) {
     threads.emplace_back([this, &routed]() {
       for (int32_t i = 0; i < 100; ++i) {
-        auto msg = KeystoneMessage::create(
-            "sender", "agent_" + std::to_string(i % 100), "message");
+        auto msg = KeystoneMessage::create("sender", "agent_" + std::to_string(i % 100), "message");
         if (bus_->routeMessage(msg)) {
           ++routed;
         }
@@ -595,8 +594,7 @@ TEST_F(RegistryIntegrationTest, RegisterManyAgents) {
 
   // Register 1000 agents
   for (int32_t i = 0; i < num_agents; ++i) {
-    auto agent =
-        std::make_shared<TaskAgent>("agent_" + std::to_string(i));
+    auto agent = std::make_shared<TaskAgent>("agent_" + std::to_string(i));
     bus_->registerAgent(agent->getAgentId(), agent);
     agents.push_back(agent);
   }

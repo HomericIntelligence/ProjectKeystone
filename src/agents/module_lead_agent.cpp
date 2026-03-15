@@ -141,7 +141,8 @@ std::string ModuleLeadAgent::stateToString(State state) const {
 #ifdef ENABLE_GRPC
 void ModuleLeadAgent::initializeGrpc(const std::string& coordinator_address,
                                      const std::string& registry_address,
-                                     const std::string& agent_type, uint8_t level) {
+                                     const std::string& agent_type,
+                                     uint8_t level) {
   // Delegate gRPC initialization to coordination template
   std::vector<std::string> capabilities = {"task_coordination", "result_synthesis"};
   coordination_.initializeGrpc(
