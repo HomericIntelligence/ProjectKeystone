@@ -252,9 +252,7 @@ TEST_F(CoordinationStateTest, RecordResultThreadSafety) {
 
   std::vector<std::thread> threads;
   for (int32_t i = 0; i < NUM_THREADS; ++i) {
-    threads.emplace_back([this, i]() {
-      state_.recordResult("result_" + std::to_string(i));
-    });
+    threads.emplace_back([this, i]() { state_.recordResult("result_" + std::to_string(i)); });
   }
 
   for (auto& t : threads) {

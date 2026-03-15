@@ -255,8 +255,8 @@ TEST(MessagePriorityTest, FairnessMechanismUsesConfiguredInterval) {
 
   // Send many HIGH priority messages after
   for (int32_t i = 0; i < 5; ++i) {
-    auto high_msg = KeystoneMessage::create("sender", "test_agent", "cmd",
-                                            "HIGH" + std::to_string(i));
+    auto high_msg =
+        KeystoneMessage::create("sender", "test_agent", "cmd", "HIGH" + std::to_string(i));
     high_msg.priority = Priority::HIGH;
     agent->receiveMessage(high_msg);
   }

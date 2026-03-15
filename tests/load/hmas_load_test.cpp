@@ -233,8 +233,8 @@ class LoadTestHarness {
 
     // Create Component Leads (L1)
     for (int32_t i = 0; i < config_.num_component_leads; ++i) {
-      auto comp = std::make_shared<agents::ComponentLeadAgent>(
-          "component_lead_" + std::to_string(i));
+      auto comp = std::make_shared<agents::ComponentLeadAgent>("component_lead_" +
+                                                               std::to_string(i));
       comp->setMessageBus(message_bus_.get());
       message_bus_->registerAgent(comp->getAgentId(), comp);
       component_leads_.push_back(comp);
@@ -242,8 +242,7 @@ class LoadTestHarness {
 
     // Create Module Leads (L2)
     for (int32_t i = 0; i < config_.num_module_leads; ++i) {
-      auto mod = std::make_shared<agents::ModuleLeadAgent>(
-          "module_lead_" + std::to_string(i));
+      auto mod = std::make_shared<agents::ModuleLeadAgent>("module_lead_" + std::to_string(i));
       mod->setMessageBus(message_bus_.get());
       message_bus_->registerAgent(mod->getAgentId(), mod);
       module_leads_.push_back(mod);
@@ -259,8 +258,7 @@ class LoadTestHarness {
 
     // Create Task Agents (L3)
     for (int32_t i = 0; i < config_.num_task_agents; ++i) {
-      auto task = std::make_shared<agents::TaskAgent>(
-          "task_agent_" + std::to_string(i));
+      auto task = std::make_shared<agents::TaskAgent>("task_agent_" + std::to_string(i));
       task->setMessageBus(message_bus_.get());
       message_bus_->registerAgent(task->getAgentId(), task);
       task_agents_.push_back(task);
@@ -310,7 +308,8 @@ class LoadTestHarness {
 
       // Show progress
       auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(
-          std::chrono::steady_clock::now() - start_time).count();
+                         std::chrono::steady_clock::now() - start_time)
+                         .count();
       int32_t progress = (elapsed * 100) / config_.duration_seconds;
       if (progress > last_progress && progress % 10 == 0) {
         std::cout << "Progress: " << progress << "% (" << elapsed << "s)\n";

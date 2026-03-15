@@ -136,7 +136,9 @@ bool PrometheusExporter::isRunning() const {
   return running_.load();
 }
 
-uint16_t PrometheusExporter::getPort() const { return port_; }
+uint16_t PrometheusExporter::getPort() const {
+  return port_;
+}
 
 void PrometheusExporter::serverLoop() {
   while (running_.load()) {

@@ -330,8 +330,7 @@ TEST_F(SimulationCornerCaseTest, ConcurrentAgentRegistration) {
   for (int32_t t = 0; t < THREADS; ++t) {
     threads.emplace_back([&, t]() {
       for (int32_t i = 0; i < AGENTS_PER_THREAD; ++i) {
-        std::string agent_name =
-            "agent_" + std::to_string(t) + "_" + std::to_string(i);
+        std::string agent_name = "agent_" + std::to_string(t) + "_" + std::to_string(i);
         cluster.registerAgent(agent_name, i % 4);
       }
     });
@@ -345,8 +344,7 @@ TEST_F(SimulationCornerCaseTest, ConcurrentAgentRegistration) {
   int32_t registered_count = 0;
   for (int32_t t = 0; t < THREADS; ++t) {
     for (int32_t i = 0; i < AGENTS_PER_THREAD; ++i) {
-      std::string agent_name =
-          "agent_" + std::to_string(t) + "_" + std::to_string(i);
+      std::string agent_name = "agent_" + std::to_string(t) + "_" + std::to_string(i);
       if (cluster.getAgentNode(agent_name).has_value()) {
         registered_count++;
       }

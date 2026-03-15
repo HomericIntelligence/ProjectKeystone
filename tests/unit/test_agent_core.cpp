@@ -278,7 +278,9 @@ TEST_F(AgentCoreTest, EmptyQueueReturnsNullopt) {
 TEST_F(AgentCoreTest, MixedPriorityMessages) {
   // Send mixed priority messages
   for (int32_t i = 0; i < 3; ++i) {
-    auto high = KeystoneMessage::create("sender", agent_->getAgentId(), "high_" + std::to_string(i));
+    auto high = KeystoneMessage::create("sender",
+                                        agent_->getAgentId(),
+                                        "high_" + std::to_string(i));
     high.priority = Priority::HIGH;
     agent_->receiveMessage(high);
 
@@ -472,16 +474,16 @@ TEST_F(AgentCoreTest, FairnessIntervalChangeVisibility) {
 TEST_F(AgentCoreTest, FairnessDoesNotLoseMessages) {
   // Send HIGH messages
   for (int32_t i = 0; i < 10; ++i) {
-    auto msg =
-        KeystoneMessage::create("sender", agent_->getAgentId(), "high_" + std::to_string(i));
+    auto msg = KeystoneMessage::create("sender", agent_->getAgentId(), "high_" + std::to_string(i));
     msg.priority = Priority::HIGH;
     agent_->receiveMessage(msg);
   }
 
   // Send NORMAL messages
   for (int32_t i = 0; i < 5; ++i) {
-    auto msg =
-        KeystoneMessage::create("sender", agent_->getAgentId(), "normal_" + std::to_string(i));
+    auto msg = KeystoneMessage::create("sender",
+                                       agent_->getAgentId(),
+                                       "normal_" + std::to_string(i));
     msg.priority = Priority::NORMAL;
     agent_->receiveMessage(msg);
   }

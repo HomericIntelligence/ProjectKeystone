@@ -30,8 +30,7 @@ class LogContext {
    * @param worker_id Worker thread index
    * @param session_id Session identifier
    */
-  static void set(const std::string& agent_id, int32_t worker_id,
-                  const std::string& session_id);
+  static void set(const std::string& agent_id, int32_t worker_id, const std::string& session_id);
 
   /**
    * @brief Clear the thread-local logging context

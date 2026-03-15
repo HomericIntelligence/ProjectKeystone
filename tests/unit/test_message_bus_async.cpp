@@ -95,8 +95,7 @@ TEST(MessageBusAsyncTest, AsyncRoutingWithScheduler) {
 
   // Send messages - they will be delivered asynchronously
   for (int32_t i = 0; i < 10; ++i) {
-    auto msg = KeystoneMessage::create("agent1", "agent2",
-                                       "test_" + std::to_string(i));
+    auto msg = KeystoneMessage::create("agent1", "agent2", "test_" + std::to_string(i));
     bus.routeMessage(msg);
   }
 
@@ -136,10 +135,8 @@ TEST(MessageBusAsyncTest, MultipleAgentsAsyncRouting) {
 
   // Send messages to multiple agents
   for (int32_t i = 0; i < 20; ++i) {
-    auto msg2 =
-        KeystoneMessage::create("agent1", "agent2", "msg" + std::to_string(i));
-    auto msg3 =
-        KeystoneMessage::create("agent1", "agent3", "msg" + std::to_string(i));
+    auto msg2 = KeystoneMessage::create("agent1", "agent2", "msg" + std::to_string(i));
+    auto msg3 = KeystoneMessage::create("agent1", "agent3", "msg" + std::to_string(i));
     bus.routeMessage(msg2);
     bus.routeMessage(msg3);
   }
@@ -217,8 +214,7 @@ TEST(MessageBusAsyncTest, HighLoadAsyncRouting) {
   // Send many messages
   const int num_messages = 1000;
   for (int32_t i = 0; i < num_messages; ++i) {
-    auto msg =
-        KeystoneMessage::create("agent1", "agent2", "msg" + std::to_string(i));
+    auto msg = KeystoneMessage::create("agent1", "agent2", "msg" + std::to_string(i));
     bus.routeMessage(msg);
   }
 
@@ -255,8 +251,7 @@ TEST(MessageBusAsyncTest, SchedulerShutdownGraceful) {
 
   // Send messages
   for (int32_t i = 0; i < 5; ++i) {
-    auto msg =
-        KeystoneMessage::create("agent1", "agent2", "msg" + std::to_string(i));
+    auto msg = KeystoneMessage::create("agent1", "agent2", "msg" + std::to_string(i));
     bus.routeMessage(msg);
   }
 

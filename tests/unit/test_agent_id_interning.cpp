@@ -24,7 +24,7 @@ TEST(AgentIdInterningTest, InternExistingString) {
   uint32_t id1 = interning.intern("agent_1");
   uint32_t id2 = interning.intern("agent_1");
 
-  EXPECT_EQ(id1, id2);  // Should return same ID
+  EXPECT_EQ(id1, id2);              // Should return same ID
   EXPECT_EQ(interning.size(), 1u);  // Only one unique string
 }
 
