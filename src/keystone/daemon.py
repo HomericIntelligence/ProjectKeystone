@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import json
 import logging
 import signal
 import sys
@@ -76,10 +75,10 @@ async def _print_status(maestro_client: MaestroClient) -> None:
         for task in tasks:
             table.add_row(
                 task.id,
-                task.title,
+                task.subject,
                 task.status.value,
-                task.assigned_to or "",
-                ", ".join(task.depends_on),
+                task.assignee_agent_id or "",
+                ", ".join(task.blocked_by),
             )
         console.print(table)
 
@@ -92,7 +91,6 @@ async def main(args: argparse.Namespace) -> None:
 
     if args.status:
         await _print_status(maestro_client)
-        await maestro_client.close()
         return
 
     task_claimer = TaskClaimer(maestro_client)
