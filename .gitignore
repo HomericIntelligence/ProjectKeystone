@@ -3,3 +3,7 @@ __pycache__/
 *.pyc
 .pixi/
 pixi.lock
+
+# Cloned repos from /advise skill
+ProjectMnemosyne/
+build/

@@ -6,13 +6,17 @@ import logging
 import nats
 from nats.aio.client import Client as NATSClient
 from nats.aio.msg import Msg
+from nats.js import JetStreamContext
 
 from keystone.task_claimer import TaskClaimer
 
 logger = logging.getLogger(__name__)
 
-# Subject pattern published by ProjectHermes for all task state changes
-TASK_SUBJECT = "hi.tasks.*.*.updated"
+# Wildcard subject to receive all task events (updated, completed, failed, etc.)
+TASK_SUBJECT = "hi.tasks.>"
+
+# Durable consumer name for JetStream at-least-once delivery
+DURABLE_NAME = "keystone-dag"
 
 
 class NATSListener:
@@ -22,30 +26,33 @@ class NATSListener:
         self._nats_url = nats_url
         self._task_claimer = task_claimer
         self._nc: NATSClient | None = None
+        self._js: JetStreamContext | None = None
 
     async def start(self) -> None:
-        """Connect to NATS and subscribe to task events."""
+        """Connect to NATS and subscribe to task events via JetStream durable consumer."""
         logger.info("Connecting to NATS at %s", self._nats_url)
         self._nc = await nats.connect(self._nats_url)
-        await self._nc.subscribe(TASK_SUBJECT, cb=self._on_task_event)
-        logger.info("Subscribed to %s", TASK_SUBJECT)
+        self._js = self._nc.jetstream()
+        await self._js.subscribe(TASK_SUBJECT, durable=DURABLE_NAME, cb=self._on_task_event)
+        logger.info("Subscribed to %s (durable=%s)", TASK_SUBJECT, DURABLE_NAME)
 
     async def _on_task_event(self, msg: Msg) -> None:
-        """Handle incoming task update events.
+        """Handle incoming task events.
 
-        Subject format: hi.tasks.{team_id}.{task_id}.updated
+        Subject format: hi.tasks.{team_id}.{task_id}.{verb}  (5 parts)
         Payload: JSON with at least {"status": "...", ...}
-        When status transitions to "done", advance the DAG for the team.
+        When verb is "completed" or payload status is "completed", advance the DAG.
         """
         subject = msg.subject
         parts = subject.split(".")
-        # Expected: hi . tasks . {team_id} . {task_id} . updated  (6 parts)
-        if len(parts) < 6:
+        # Expected: hi . tasks . {team_id} . {task_id} . {verb}  (5 parts)
+        if len(parts) < 5:
             logger.warning("Unexpected subject format: %s", subject)
             return
 
         team_id = parts[2]
         task_id = parts[3]
+        verb = parts[4]
 
         try:
             payload = json.loads(msg.data.decode())
@@ -55,12 +62,14 @@ class NATSListener:
 
         status = payload.get("status") or payload.get("newStatus")
         logger.debug(
-            "Task event: team=%s task=%s status=%s", team_id, task_id, status
+            "Task event: team=%s task=%s verb=%s status=%s",
+            team_id, task_id, verb, status,
         )
 
-        if status == "completed":
+        # Advance DAG if the subject verb is "completed" or the payload status is "completed"
+        if verb == "completed" or status == "completed":
             logger.info(
-                "Task %s in team %s marked done — triggering DAG advancement",
+                "Task %s in team %s completed — triggering DAG advancement",
                 task_id,
                 team_id,
             )
