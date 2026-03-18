@@ -1,2 +1,5 @@
-# Python dependencies for ProjectKeystone
-# Currently no Python dependencies required
+# Python dependencies for ProjectKeystone daemon
+httpx>=0.27.0
+nats-py>=2.7.0
+structlog>=24.1.0
+aiohttp>=3.9.0
