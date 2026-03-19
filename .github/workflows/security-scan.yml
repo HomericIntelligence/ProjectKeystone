@@ -50,9 +50,8 @@ jobs:
         with:
           config: >-
             p/security-audit
-            p/cpp
+            p/python
             p/docker
-            p/cmake
           generateSarif: true
         continue-on-error: true
 
@@ -72,25 +71,13 @@ jobs:
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:
-          languages: cpp
+          languages: python
           queries: security-and-quality
-
-      - name: Install build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential cmake ninja-build
-
-      - name: Build for CodeQL
-        run: |
-          mkdir -p build
-          cd build
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug ..
-          ninja
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4
         with:
-          category: "/language:cpp"
+          category: "/language:python"
 
   dependency-scanning:
     runs-on: ubuntu-latest
@@ -121,106 +108,6 @@ jobs:
           # Note: For production, use tools like Trivy or Snyk
           echo "::warning::Manual Docker image security review recommended"
 
-  docker-image-scanning:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Build Docker image for scanning
-        run: |
-          docker build --target production -t projectkeystone:scan .
-
-      - name: Run Trivy vulnerability scanner (table format)
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: 'projectkeystone:scan'
-          format: 'table'
-          exit-code: '0'  # Don't fail on vulnerabilities (report only)
-          severity: 'CRITICAL,HIGH,MEDIUM'
-
-      - name: Run Trivy vulnerability scanner (SARIF format)
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: 'projectkeystone:scan'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH,MEDIUM,LOW'
-
-      - name: Upload Trivy results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v4
-        if: always()
-        with:
-          sarif_file: 'trivy-results.sarif'
-          category: 'trivy-container-scan'
-
-      - name: Run Trivy vulnerability scanner (JSON format)
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: 'projectkeystone:scan'
-          format: 'json'
-          output: 'trivy-results.json'
-          severity: 'CRITICAL,HIGH,MEDIUM,LOW'
-
-      - name: Parse Trivy results
-        id: trivy-summary
-        if: always()
-        run: |
-          if [ -f trivy-results.json ]; then
-            # Count vulnerabilities by severity
-            CRITICAL=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="CRITICAL")] | length' trivy-results.json)
-            HIGH=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="HIGH")] | length' trivy-results.json)
-            MEDIUM=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="MEDIUM")] | length' trivy-results.json)
-            LOW=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="LOW")] | length' trivy-results.json)
-
-            echo "critical=$CRITICAL" >> $GITHUB_OUTPUT
-            echo "high=$HIGH" >> $GITHUB_OUTPUT
-            echo "medium=$MEDIUM" >> $GITHUB_OUTPUT
-            echo "low=$LOW" >> $GITHUB_OUTPUT
-
-            echo "### Trivy Scan Summary" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "- **Critical**: $CRITICAL" >> $GITHUB_STEP_SUMMARY
-            echo "- **High**: $HIGH" >> $GITHUB_STEP_SUMMARY
-            echo "- **Medium**: $MEDIUM" >> $GITHUB_STEP_SUMMARY
-            echo "- **Low**: $LOW" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "critical=0" >> $GITHUB_OUTPUT
-            echo "high=0" >> $GITHUB_OUTPUT
-            echo "medium=0" >> $GITHUB_OUTPUT
-            echo "low=0" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Upload Trivy scan results
-        uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: trivy-scan-results
-          path: |
-            trivy-results.sarif
-            trivy-results.json
-          retention-days: 90
-
-      - name: Check for critical vulnerabilities
-        if: always()
-        run: |
-          CRITICAL="${{ steps.trivy-summary.outputs.critical }}"
-          HIGH="${{ steps.trivy-summary.outputs.high }}"
-
-          if [ "$CRITICAL" -gt 0 ]; then
-            echo "::error::Found $CRITICAL critical vulnerabilities in Docker image"
-            echo "::warning::Review the Trivy scan results in the Security tab"
-            # Don't fail - let security team review
-          fi
-
-          if [ "$HIGH" -gt 10 ]; then
-            echo "::warning::Found $HIGH high-severity vulnerabilities in Docker image"
-          fi
-
   supply-chain-scanning:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -232,42 +119,10 @@ jobs:
           fail-on-severity: critical
           deny-licenses: GPL-3.0, AGPL-3.0
 
-  cpp-static-analysis:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Install analysis tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y cppcheck clang-tidy-14
-
-      - name: Run cppcheck security analysis
-        run: |
-          cppcheck \
-            --enable=all \
-            --error-exitcode=0 \
-            --xml \
-            --xml-version=2 \
-            --suppress=missingIncludeSystem \
-            --inline-suppr \
-            -I include \
-            src/ tests/ 2> cppcheck-report.xml || true
-
-      - name: Upload cppcheck results
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: cppcheck-report
-          path: cppcheck-report.xml
-          retention-days: 30
-
   security-report:
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [secret-scanning, sast-scanning, dependency-scanning, docker-image-scanning, cpp-static-analysis]
+    needs: [secret-scanning, sast-scanning, dependency-scanning]
     if: always()
     steps:
       - name: Download all scan results
@@ -300,35 +155,10 @@ jobs:
           # Check dependency scanning
           echo "- ✅ Dependency Scanning: Completed" >> report.md
 
-          # Check C++ static analysis
-          if [ -f "scan-results/cppcheck-report/cppcheck-report.xml" ]; then
-            echo "- ✅ C++ Static Analysis: Completed" >> report.md
-          else
-            echo "- ⚠️ C++ Static Analysis: No results" >> report.md
-          fi
-
-          # Check Docker image scanning (Trivy)
-          if [ -f "scan-results/trivy-scan-results/trivy-results.json" ]; then
-            CRITICAL=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="CRITICAL")] | length' scan-results/trivy-scan-results/trivy-results.json 2>/dev/null || echo "0")
-            HIGH=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="HIGH")] | length' scan-results/trivy-scan-results/trivy-results.json 2>/dev/null || echo "0")
-            MEDIUM=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="MEDIUM")] | length' scan-results/trivy-scan-results/trivy-results.json 2>/dev/null || echo "0")
-
-            if [ "$CRITICAL" -gt 0 ]; then
-              echo "- ❌ Docker Image Scanning: $CRITICAL critical, $HIGH high, $MEDIUM medium vulnerabilities" >> report.md
-            elif [ "$HIGH" -gt 10 ]; then
-              echo "- ⚠️ Docker Image Scanning: $HIGH high, $MEDIUM medium vulnerabilities" >> report.md
-            else
-              echo "- ✅ Docker Image Scanning: $HIGH high, $MEDIUM medium vulnerabilities (acceptable)" >> report.md
-            fi
-          else
-            echo "- ⚠️ Docker Image Scanning: No results" >> report.md
-          fi
-
           echo "" >> report.md
           echo "### Recommendations" >> report.md
           echo "- Review findings in the GitHub Security tab" >> report.md
           echo "- Check artifact uploads for detailed reports" >> report.md
-          echo "- Address critical Docker vulnerabilities immediately" >> report.md
           echo "" >> report.md
           echo "---" >> report.md
           echo "*Workflow: [${{ github.workflow }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})*" >> report.md
