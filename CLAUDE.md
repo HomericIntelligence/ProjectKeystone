@@ -206,13 +206,32 @@ ProjectKeystone/
 │       ├── task.hpp
 │       └── coroutine_helpers.hpp
 ├── src/                     # Implementation files
-│   ├── agents/
-│   ├── core/
-│   └── concurrency/
-├── tests/                   # Google Test files
-│   ├── unit/                # Unit tests
-│   └── e2e/                 # End-to-end tests
-│       └── phase1/          # Phase 1 E2E tests
+│   ├── agents/              # C++ agent implementations
+│   ├── core/                # C++ core components
+│   ├── concurrency/         # C++ concurrency primitives
+│   └── keystone/            # Python DAG orchestration daemon
+│       ├── __init__.py
+│       ├── __main__.py      # python -m keystone entry point
+│       ├── config.py        # Lazy settings singleton
+│       ├── daemon.py        # Main daemon with NATS + health
+│       ├── dag_walker.py    # DAG traversal and task scheduling
+│       ├── health.py        # HTTP health check endpoint
+│       ├── logging.py       # Structured JSON logging
+│       ├── maestro_client.py # ai-maestro API client with retries
+│       ├── models.py        # Task/Agent data models
+│       └── nats_listener.py # NATS JetStream event listener
+├── tests/                   # Test files
+│   ├── unit/                # C++ unit tests (Google Test)
+│   ├── e2e/                 # C++ E2E tests
+│   │   └── phase1/
+│   ├── conftest.py          # Python shared fixtures
+│   ├── helpers.py           # Python shared test helpers
+│   ├── test_config.py       # Settings lazy loading tests
+│   ├── test_dag_walker.py   # DAG traversal tests
+│   ├── test_health.py       # Health endpoint tests
+│   ├── test_maestro_client.py # API client parsing tests
+│   ├── test_nats_listener.py  # NATS listener tests
+│   └── test_task_claimer.py # Task assignment tests
 └── third_party/             # External dependencies
     ├── concurrentqueue/
     └── googletest/

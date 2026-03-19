@@ -1,0 +1,46 @@
+name: Python CI
+
+on:
+  push:
+    branches: [main, develop, 'claude/**']
+    paths:
+      - 'src/keystone/**'
+      - 'tests/**'
+      - 'pyproject.toml'
+      - 'requirements*.txt'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'src/keystone/**'
+      - 'tests/**'
+      - 'pyproject.toml'
+      - 'requirements*.txt'
+
+jobs:
+  # Issue #94: pytest with coverage enforcement
+  test:
+    name: Python Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+      - name: Run tests with coverage
+        run: python -m pytest --cov=src/keystone --cov-report=term-missing --cov-fail-under=80
+
+  # Issue #92: mypy type checking
+  typecheck:
+    name: Type Check (mypy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+      - name: Run mypy
+        run: mypy src/

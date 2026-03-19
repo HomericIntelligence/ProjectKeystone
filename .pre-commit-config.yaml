@@ -32,6 +32,7 @@ repos:
 
       # Security
       - id: detect-private-key
+        exclude: '(tests/unit/test_grpc_tls\.cpp|k8s/metrics-security\.yaml)$'
       - id: check-executables-have-shebangs
       - id: check-shebang-scripts-are-executable
 
