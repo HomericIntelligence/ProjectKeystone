@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import sys
+from typing import Any
 
 import structlog
 
@@ -30,6 +31,6 @@ def configure_logging(level: int = logging.INFO) -> None:
     )
 
 
-def get_logger(**initial_context: object) -> structlog.stdlib.BoundLogger:
+def get_logger(**initial_context: object) -> Any:
     """Return a bound structlog logger with optional initial context."""
     return structlog.get_logger(**initial_context)

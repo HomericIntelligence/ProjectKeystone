@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import re
-from typing import Any
+from typing import Any, Awaitable, Callable
 from urllib.parse import urlparse
 
 import httpx
@@ -106,7 +106,9 @@ class MaestroClient:
                 url=self.url,
             )
 
-    async def _with_retries(self, coro_factory: Any) -> httpx.Response:
+    async def _with_retries(
+        self, coro_factory: Callable[[], Awaitable[httpx.Response]]
+    ) -> httpx.Response:
         """Execute an HTTP request with exponential backoff retry.
 
         *coro_factory* must be a zero-argument callable that returns
@@ -174,7 +176,8 @@ class MaestroClient:
             lambda: self._client.get("/api/teams")
         )
         body = resp.json()
-        return self._extract_key(body, "teams", "GET /api/teams")
+        teams: list[dict[str, Any]] = self._extract_key(body, "teams", "GET /api/teams")
+        return teams
 
     async def update_task(
         self, team_id: str, task_id: str, payload: dict[str, Any]
