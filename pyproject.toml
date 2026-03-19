@@ -30,7 +30,6 @@ addopts = "--cov=src/keystone --cov-report=term-missing --cov-fail-under=80"
 [tool.coverage.run]
 omit = [
     "src/keystone/__main__.py",
-    "src/keystone/daemon.py",
 ]
 
 [tool.mypy]
