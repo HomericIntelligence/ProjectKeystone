@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -182,6 +183,7 @@ class SimulatedCluster {
   std::unique_ptr<SimulatedNetwork> network_;              ///< Network layer
 
   // Agent -> Node mapping
+  mutable std::mutex agent_map_mutex_;
   std::unordered_map<std::string, size_t> agent_node_map_;
 
   // Statistics

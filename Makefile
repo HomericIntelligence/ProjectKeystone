@@ -85,7 +85,7 @@ TEST_PROFILING := profiling_tests
 test: compile
 	@echo "Running all tests..."
 	$(DOCKER_CHECK)
-	$(DOCKER_PREFIX) bash -c "cd $(BUILD_DIR)/$(BUILD_SUBDIR) && ctest --output-on-failure -j$(NPROC)"
+	$(DOCKER_PREFIX) bash -c "cd $(BUILD_DIR)/$(BUILD_SUBDIR) && ctest --output-on-failure -j$(NPROC) --timeout 120"
 
 # Individual test suites (run specific executable)
 test.unit: compile
