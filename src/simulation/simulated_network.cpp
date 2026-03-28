@@ -125,6 +125,7 @@ void SimulatedNetwork::resetStats() {
 }
 
 std::chrono::microseconds SimulatedNetwork::generateLatency() {
+  std::lock_guard<std::mutex> lock(rng_mutex_);
   int latency_us = latency_dist_(rng_);
   return std::chrono::microseconds(latency_us);
 }
@@ -133,6 +134,7 @@ bool SimulatedNetwork::shouldDropPacket() {
   if (config_.packet_loss_rate <= 0.0) {
     return false;
   }
+  std::lock_guard<std::mutex> lock(rng_mutex_);
   return loss_dist_(rng_) < config_.packet_loss_rate;
 }
 

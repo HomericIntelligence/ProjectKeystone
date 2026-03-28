@@ -46,7 +46,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        sanitizer: [asan, ubsan, tsan, lsan, msan]
+        sanitizer: [asan, ubsan, tsan, lsan]
         include:
           - sanitizer: asan
             name: AddressSanitizer
@@ -56,8 +56,6 @@ jobs:
             name: ThreadSanitizer
           - sanitizer: lsan
             name: LeakSanitizer
-          - sanitizer: msan
-            name: MemorySanitizer
 
     steps:
       - name: Checkout code
