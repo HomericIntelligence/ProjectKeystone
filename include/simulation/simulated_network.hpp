@@ -195,6 +195,7 @@ class SimulatedNetwork {
   std::atomic<size_t> partition_dropped_messages_{0};
 
   // Random number generator for latency and packet loss
+  mutable std::mutex rng_mutex_;
   std::mt19937 rng_;
   std::uniform_int_distribution<int> latency_dist_;
   std::uniform_real_distribution<double> loss_dist_;

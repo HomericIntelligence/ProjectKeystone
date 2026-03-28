@@ -68,20 +68,18 @@ void SimulatedCluster::submit(const std::string& agent_id, std::function<void()>
   total_tasks_submitted_++;
 
   // Find agent's home node
-  auto it = agent_node_map_.find(agent_id);
-  if (it != agent_node_map_.end()) {
-    // Agent is registered - submit to home node
-    size_t node_id = it->second;
-    nodes_[node_id]->submit(std::move(work));
-    Logger::trace("SimulatedCluster: Submitted work for agent '{}' to node {}", agent_id, node_id);
-  } else {
-    // Agent not registered - round-robin distribution
-    size_t node_id = round_robin_counter_.fetch_add(1) % nodes_.size();
-    nodes_[node_id]->submit(std::move(work));
-    Logger::trace("SimulatedCluster: Round-robin submit for agent '{}' to node {}",
-                  agent_id,
-                  node_id);
+  size_t node_id;
+  {
+    std::lock_guard<std::mutex> lock(agent_map_mutex_);
+    auto it = agent_node_map_.find(agent_id);
+    if (it != agent_node_map_.end()) {
+      node_id = it->second;
+    } else {
+      node_id = round_robin_counter_.fetch_add(1) % nodes_.size();
+    }
   }
+  nodes_[node_id]->submit(std::move(work));
+  Logger::trace("SimulatedCluster: Submitted work for agent '{}' to node {}", agent_id, node_id);
 }
 
 void SimulatedCluster::submitToNode(size_t node_id, std::function<void()> work) {
@@ -99,27 +97,34 @@ void SimulatedCluster::registerAgent(const std::string& agent_id, size_t preferr
     throw std::out_of_range("SimulatedCluster: Invalid preferred_node");
   }
 
-  agent_node_map_[agent_id] = preferred_node;
+  {
+    std::lock_guard<std::mutex> lock(agent_map_mutex_);
+    agent_node_map_[agent_id] = preferred_node;
+  }
   nodes_[preferred_node]->registerAgent(agent_id);
 
   Logger::info("SimulatedCluster: Registered agent '{}' on node {}", agent_id, preferred_node);
 }
 
 void SimulatedCluster::unregisterAgent(const std::string& agent_id) {
-  auto it = agent_node_map_.find(agent_id);
-  if (it == agent_node_map_.end()) {
-    Logger::warn("SimulatedCluster: Agent '{}' not registered", agent_id);
-    return;
+  size_t node_id;
+  {
+    std::lock_guard<std::mutex> lock(agent_map_mutex_);
+    auto it = agent_node_map_.find(agent_id);
+    if (it == agent_node_map_.end()) {
+      Logger::warn("SimulatedCluster: Agent '{}' not registered", agent_id);
+      return;
+    }
+    node_id = it->second;
+    agent_node_map_.erase(it);
   }
-
-  size_t node_id = it->second;
   nodes_[node_id]->unregisterAgent(agent_id);
-  agent_node_map_.erase(it);
 
   Logger::info("SimulatedCluster: Unregistered agent '{}' from node {}", agent_id, node_id);
 }
 
 std::optional<size_t> SimulatedCluster::getAgentNode(const std::string& agent_id) const {
+  std::lock_guard<std::mutex> lock(agent_map_mutex_);
   auto it = agent_node_map_.find(agent_id);
   if (it == agent_node_map_.end()) {
     return std::nullopt;

@@ -77,9 +77,9 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy built test executables from builder
-COPY --from=builder /workspace/build/basic_delegation_tests /usr/local/bin/
-COPY --from=builder /workspace/build/module_coordination_tests /usr/local/bin/
-COPY --from=builder /workspace/build/component_coordination_tests /usr/local/bin/
+COPY --from=builder /workspace/build/bin/basic_delegation_tests /usr/local/bin/
+COPY --from=builder /workspace/build/bin/module_coordination_tests /usr/local/bin/
+COPY --from=builder /workspace/build/bin/component_coordination_tests /usr/local/bin/
 
 # Set working directory
 WORKDIR /app
@@ -104,13 +104,11 @@ RUN groupadd -g 1001 hmas || true && \
     chown -R hmas:hmas /app
 
 # Copy built test executables from builder
-# Note: async_agents_tests, multi_component_tests, chaos_engineering_tests are
-# disabled in CMakeLists.txt (Phases 4-6) and not built yet.
-COPY --from=builder /workspace/build/basic_delegation_tests /usr/local/bin/
-COPY --from=builder /workspace/build/module_coordination_tests /usr/local/bin/
-COPY --from=builder /workspace/build/component_coordination_tests /usr/local/bin/
-COPY --from=builder /workspace/build/async_delegation_tests /usr/local/bin/
-COPY --from=builder /workspace/build/distributed_hierarchy_tests /usr/local/bin/
+COPY --from=builder /workspace/build/bin/basic_delegation_tests /usr/local/bin/
+COPY --from=builder /workspace/build/bin/module_coordination_tests /usr/local/bin/
+COPY --from=builder /workspace/build/bin/component_coordination_tests /usr/local/bin/
+COPY --from=builder /workspace/build/bin/async_delegation_tests /usr/local/bin/
+COPY --from=builder /workspace/build/bin/distributed_hierarchy_tests /usr/local/bin/
 
 # Copy server wrapper script
 COPY scripts/hmas-server.sh /usr/local/bin/hmas-server.sh
