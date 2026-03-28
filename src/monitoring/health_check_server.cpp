@@ -55,7 +55,7 @@ class SocketHandle {
 };
 
 HealthCheckServer::HealthCheckServer(uint16_t port, ReadinessCheck readiness_check)
-    : port_(port), readiness_check_(std::move(readiness_check)) {}
+    : port_(port), server_fd_(-1), readiness_check_(std::move(readiness_check)) {}
 
 HealthCheckServer::~HealthCheckServer() {
   stop();
@@ -134,9 +134,9 @@ void HealthCheckServer::stop() {
   running_.store(false);
 
   // Close server socket to unblock accept()
-  if (server_fd_ >= 0) {
-    close(server_fd_);
-    server_fd_ = -1;
+  int fd = server_fd_.exchange(-1);
+  if (fd >= 0) {
+    close(fd);
   }
 
   // Wait for server thread to finish
@@ -156,6 +156,7 @@ uint16_t HealthCheckServer::getPort() const {
 }
 
 void HealthCheckServer::setReadinessCheck(ReadinessCheck check) {
+  std::lock_guard<std::mutex> lock(readiness_mutex_);
   readiness_check_ = std::move(check);
 }
 
@@ -281,8 +282,11 @@ void HealthCheckServer::handleRequest(int client_fd) {
   } else if (is_readiness) {
     // Readiness probe - check if system is ready
     bool ready = true;
-    if (readiness_check_) {
-      ready = readiness_check_();
+    {
+      std::lock_guard<std::mutex> lock(readiness_mutex_);
+      if (readiness_check_) {
+        ready = readiness_check_();
+      }
     }
 
     std::string body = generateReadinessResponse(ready);

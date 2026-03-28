@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <thread>
 
@@ -104,10 +105,11 @@ class HealthCheckServer {
    */
   static std::string generateReadinessResponse(bool ready);
 
-  uint16_t port_;
+  std::atomic<uint16_t> port_;
   std::atomic<bool> running_{false};
   std::unique_ptr<std::thread> server_thread_;
-  int server_fd_{-1};
+  std::atomic<int> server_fd_{-1};
+  mutable std::mutex readiness_mutex_;
   ReadinessCheck readiness_check_;
 };
 
