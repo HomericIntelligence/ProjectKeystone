@@ -107,3 +107,14 @@ clang-tidy-report.txt
 cppcheck-report.xml
 
 worktrees
+
+# Environment files (may contain secrets)
+.env
+.env.*
+!.env.example
+
+# Secret/credential files
+*.pem
+*.key
+*.p12
+credentials*

@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Setup environment variables for Docker + Justfile
+# Setup environment variables for Docker + Makefile
 # This script ensures proper UID/GID and GIT_COMMIT values
 #
 
@@ -22,7 +22,7 @@ echo "  GIT_COMMIT: $GIT_COMMIT"
 # Create or update .env file with proper values
 cat > .env << EOF
 # .env
-# Global environment variables for Docker + Justfile
+# Global environment variables for Docker + Makefile
 
 # Git commit hash (short), fallback to 'latest'
 GIT_COMMIT=${GIT_COMMIT}
@@ -35,9 +35,9 @@ EOF
 echo "✓ Environment setup complete!"
 echo ""
 echo "You can now use:"
-echo "  just build          # Build debug version"
-echo "  just debug          # Build and enter dev container"
-echo "  just test           # Run tests"
+echo "  make compile.debug          # Build debug version"
+echo "  make docker.shell           # Build and enter dev container"
+echo "  make test.debug.asan        # Run tests with ASan"
 echo ""
 echo "Or use docker-compose directly:"
 echo "  docker-compose up -d dev    # Start dev container"
