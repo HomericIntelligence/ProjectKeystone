@@ -1,0 +1,50 @@
+name: Bug Report
+description: Report a bug in ProjectKeystone
+labels: ["bug"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: How can we reproduce this?
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - Agents
+        - Core (MessageBus, Messages)
+        - Concurrency (ThreadPool, Scheduler)
+        - Network (gRPC, YAML)
+        - Monitoring (Health, Metrics)
+        - Simulation
+        - Build System
+        - CI/CD
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, compiler version, Docker version, etc.
