@@ -68,16 +68,16 @@ bool HealthCheckServer::start() {
 
   // Create socket
   server_fd_ = socket(AF_INET, SOCK_STREAM, 0);
-  if (server_fd_ < 0) {
+  if (server_fd_.load() < 0) {
     std::cerr << "HealthCheckServer: Failed to create socket" << std::endl;
     return false;
   }
 
   // Set socket options (reuse address)
   int opt = 1;
-  if (setsockopt(server_fd_, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
+  if (setsockopt(server_fd_.load(), SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
     std::cerr << "HealthCheckServer: Failed to set socket options" << std::endl;
-    close(server_fd_);
+    close(server_fd_.load());
     server_fd_ = -1;
     return false;
   }
@@ -87,11 +87,11 @@ bool HealthCheckServer::start() {
   std::memset(&address, 0, sizeof(address));
   address.sin_family = AF_INET;
   address.sin_addr.s_addr = INADDR_ANY;
-  address.sin_port = htons(port_);
+  address.sin_port = htons(port_.load());
 
-  if (bind(server_fd_, (struct sockaddr*)&address, sizeof(address)) < 0) {
+  if (::bind(server_fd_.load(), (struct sockaddr*)&address, sizeof(address)) < 0) {
     std::cerr << "HealthCheckServer: Failed to bind to port " << port_ << std::endl;
-    close(server_fd_);
+    close(server_fd_.load());
     server_fd_ = -1;
     return false;
   }
@@ -100,20 +100,20 @@ bool HealthCheckServer::start() {
   if (port_ == 0) {
     struct sockaddr_in actual_address;
     socklen_t len = sizeof(actual_address);
-    if (getsockname(server_fd_, (struct sockaddr*)&actual_address, &len) == 0) {
+    if (getsockname(server_fd_.load(), (struct sockaddr*)&actual_address, &len) == 0) {
       port_ = ntohs(actual_address.sin_port);
     } else {
       std::cerr << "HealthCheckServer: Failed to get assigned port" << std::endl;
-      close(server_fd_);
+      close(server_fd_.load());
       server_fd_ = -1;
       return false;
     }
   }
 
   // Listen for connections
-  if (listen(server_fd_, core::Config::HTTP_MAX_PENDING_CONNECTIONS) < 0) {
+  if (listen(server_fd_.load(), core::Config::HTTP_MAX_PENDING_CONNECTIONS) < 0) {
     std::cerr << "HealthCheckServer: Failed to listen on port " << port_ << std::endl;
-    close(server_fd_);
+    close(server_fd_.load());
     server_fd_ = -1;
     return false;
   }
@@ -165,7 +165,7 @@ void HealthCheckServer::serverLoop() {
     // Use poll() with timeout to check for incoming connections
     // This allows periodic checking of running_ flag without blocking indefinitely
     struct pollfd pfd;
-    pfd.fd = server_fd_;
+    pfd.fd = server_fd_.load();
     pfd.events = POLLIN;
     pfd.revents = 0;
 
@@ -189,7 +189,7 @@ void HealthCheckServer::serverLoop() {
     struct sockaddr_in client_address;
     socklen_t client_len = sizeof(client_address);
 
-    int client_fd = accept(server_fd_, (struct sockaddr*)&client_address, &client_len);
+    int client_fd = accept(server_fd_.load(), (struct sockaddr*)&client_address, &client_len);
     if (client_fd < 0) {
       if (running_.load()) {
         std::cerr << "HealthCheckServer: Accept failed" << std::endl;
