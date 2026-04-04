@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.20)
 project(ProjectKeystone CXX)
 
 # C++20 standard required
@@ -98,109 +98,36 @@ file(MAKE_DIRECTORY "${COVERAGE_OUTPUT_DIR}")
 file(MAKE_DIRECTORY "${BENCHMARK_OUTPUT_DIR}")
 file(MAKE_DIRECTORY "${ANALYSIS_OUTPUT_DIR}")
 
-# FetchContent for dependencies
+# ============================================================================
+# Dependencies — Conan-provided via find_package(), cista via FetchContent
+# ============================================================================
+
 include(FetchContent)
 
-# Google Test - Always use FetchContent to ensure GMock is available
-message(STATUS "Fetching GTest with GMock from GitHub...")
-FetchContent_Declare(
-  googletest
-  URL https://github.com/google/googletest/archive/release-1.12.1.zip)
-set(gtest_force_shared_crt
-    ON
-    CACHE BOOL "" FORCE)
-set(BUILD_GMOCK
-    ON
-    CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(googletest)
-
-# After FetchContent_MakeAvailable, the targets are: gtest, gtest_main, gmock, gmock_main
-# Create GTest:: namespace aliases for compatibility
-if(NOT TARGET GTest::gtest)
-  add_library(GTest::gtest ALIAS gtest)
-endif()
-if(NOT TARGET GTest::gtest_main)
-  add_library(GTest::gtest_main ALIAS gtest_main)
-endif()
-if(NOT TARGET GTest::gmock)
-  add_library(GTest::gmock ALIAS gmock)
-endif()
-if(NOT TARGET GTest::gmock_main)
-  add_library(GTest::gmock_main ALIAS gmock_main)
-endif()
-
-# Include GoogleTest module for gtest_discover_tests()
+# Google Test (Conan: gtest/1.14.0)
+find_package(GTest REQUIRED)
 include(GoogleTest)
 
-# Google Benchmark
-find_package(benchmark QUIET)
-if(NOT benchmark_FOUND)
-  message(STATUS "Google Benchmark not found, fetching from GitHub...")
-  FetchContent_Declare(
-    benchmark
-    GIT_REPOSITORY https://github.com/google/benchmark.git
-    GIT_TAG v1.8.3)
-  set(BENCHMARK_ENABLE_TESTING
-      OFF
-      CACHE BOOL "" FORCE)
-  set(BENCHMARK_ENABLE_GTEST_TESTS
-      OFF
-      CACHE BOOL "" FORCE)
-  FetchContent_MakeAvailable(benchmark)
-endif()
+# Google Benchmark (Conan: benchmark/1.8.3)
+find_package(benchmark REQUIRED)
 
-# concurrentqueue - Lock-free MPMC queue
-FetchContent_Declare(
-  concurrentqueue
-  GIT_REPOSITORY https://github.com/cameron314/concurrentqueue.git
-  GIT_TAG v1.0.4)
+# concurrentqueue — lock-free MPMC queue (Conan: concurrentqueue/1.0.4)
+find_package(concurrentqueue REQUIRED)
 
-# Cista - Zero-copy serialization
+# spdlog — fast logging library (Conan: spdlog/1.12.0)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+find_package(spdlog REQUIRED)
+
+# Cista — zero-copy serialization (NOT on ConanCenter, kept as FetchContent)
 FetchContent_Declare(
   cista
   GIT_REPOSITORY https://github.com/felixguendling/cista.git
   GIT_TAG v0.14)
+FetchContent_MakeAvailable(cista)
 
-# spdlog - Fast logging library
-# Build spdlog with -fPIC since we link it into shared libraries
-set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-FetchContent_Declare(
-  spdlog
-  GIT_REPOSITORY https://github.com/gabime/spdlog.git
-  GIT_TAG v1.12.0)
-
-# yaml-cpp - YAML parser for task specifications (Phase 8 only)
-# Only fetch if ENABLE_GRPC is ON
+# yaml-cpp — YAML parser for task specifications (Phase 8 only)
 if(ENABLE_GRPC)
-  # Disable warnings-as-errors for yaml-cpp to avoid third-party code issues
-  set(YAML_CPP_BUILD_TESTS
-      OFF
-      CACHE BOOL "Disable yaml-cpp tests" FORCE)
-  set(YAML_CPP_BUILD_TOOLS
-      OFF
-      CACHE BOOL "Disable yaml-cpp tools" FORCE)
-  set(YAML_CPP_BUILD_CONTRIB
-      OFF
-      CACHE BOOL "Disable yaml-cpp contrib" FORCE)
-  FetchContent_Declare(
-    yaml-cpp
-    GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
-    GIT_TAG yaml-cpp-0.7.0)
-
-  FetchContent_MakeAvailable(concurrentqueue cista spdlog yaml-cpp)
-
-  # Disable warnings-as-errors for yaml-cpp third-party library
-  if(TARGET yaml-cpp)
-    target_compile_options(yaml-cpp PRIVATE -Wno-error -Wno-shadow)
-  endif()
-else()
-  # Without GRPC, only fetch base dependencies
-  FetchContent_MakeAvailable(concurrentqueue cista spdlog)
-endif()
-
-# Disable warnings-as-errors for spdlog third-party library (GCC 13+ stricter checks)
-if(TARGET spdlog)
-  target_compile_options(spdlog PRIVATE -Wno-error -Wno-dangling-reference)
+  find_package(yaml-cpp REQUIRED)
 endif()
 
 # gRPC and Protobuf for distributed communication (Phase 8)
@@ -269,20 +196,14 @@ target_include_directories(
   PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
     $<BUILD_INTERFACE:${cista_SOURCE_DIR}/include>
-    $<BUILD_INTERFACE:${concurrentqueue_SOURCE_DIR}>
     $<INSTALL_INTERFACE:include/keystone>
-  PRIVATE
-    $<BUILD_INTERFACE:${spdlog_SOURCE_DIR}/include>
 )
 
 # Link dependencies - note: keystone_core depends on keystone_concurrency
 # (circular dependency handled via shared libraries)
 # We'll link keystone_concurrency after it's defined
-if(TARGET spdlog::spdlog)
-    target_link_libraries(keystone_core PRIVATE spdlog::spdlog)
-else()
-    target_link_libraries(keystone_core PRIVATE spdlog)
-endif()
+target_link_libraries(keystone_core PRIVATE spdlog::spdlog)
+target_link_libraries(keystone_core PUBLIC concurrentqueue::concurrentqueue)
 
 # Concurrency library (Phase A)
 add_library(
@@ -296,17 +217,11 @@ target_include_directories(
   keystone_concurrency
   PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
-    $<BUILD_INTERFACE:${concurrentqueue_SOURCE_DIR}>
-    $<BUILD_INTERFACE:${spdlog_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include/keystone>
 )
 
 # Link dependencies (including spdlog for logger.hpp)
-if(TARGET spdlog::spdlog)
-    target_link_libraries(keystone_concurrency PUBLIC keystone_core PRIVATE spdlog::spdlog)
-else()
-    target_link_libraries(keystone_concurrency PUBLIC keystone_core PRIVATE spdlog)
-endif()
+target_link_libraries(keystone_concurrency PUBLIC keystone_core PRIVATE spdlog::spdlog)
 
 # Handle circular dependency: keystone_core uses Logger from keystone_concurrency
 # This works with shared libraries
@@ -335,7 +250,7 @@ if(ENABLE_GRPC AND EXISTS ${PROJECT_SOURCE_DIR}/proto/hmas_coordinator.proto)
 
   target_link_libraries(
     keystone_network PUBLIC keystone_core protobuf::libprotobuf gRPC::grpc++
-                            gRPC::grpc++_reflection yaml-cpp)
+                            gRPC::grpc++_reflection yaml-cpp::yaml-cpp)
 
   message(
     STATUS "keystone_network library configured for distributed communication")
@@ -357,8 +272,6 @@ target_include_directories(
   PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include/keystone>
-  PRIVATE
-    $<BUILD_INTERFACE:${spdlog_SOURCE_DIR}/include>
 )
 
 target_link_libraries(keystone_agents PUBLIC keystone_core keystone_concurrency)
@@ -374,8 +287,6 @@ target_include_directories(
   PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include/keystone>
-  PRIVATE
-    $<BUILD_INTERFACE:${spdlog_SOURCE_DIR}/include>
 )
 
 target_link_libraries(keystone_simulation PUBLIC keystone_concurrency
