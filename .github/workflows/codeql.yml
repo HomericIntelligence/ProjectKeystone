@@ -10,6 +10,14 @@
 # The C++ build uses the Conan toolchain explicitly (autobuild cannot pass
 # -DCMAKE_TOOLCHAIN_FILE), and vendored dependencies under build/**/_deps/ are
 # excluded from analysis via .github/codeql/codeql-config.yml (#614).
+#
+# Pinned-contexts safety: verified via `gh api repos/HomericIntelligence/Keystone/rulesets?includes_parents=true`
+# that neither `Analyze (c-cpp)` nor `Analyze (python)` is a required_status_check —
+# ruleset 15556488 (`homeric-main-baseline`) pins lint, unit-tests, integration-tests,
+# security/dependency-scan, security/secrets-scan, build, schema-validation,
+# deps/version-sync, test, package, release, install; ruleset 18221122
+# (`homeric-main-extras`) pins coverage only. Moving this job out of `_required.yml`
+# therefore cannot brick the merge queue.
 
 name: CodeQL
 
