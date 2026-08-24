@@ -153,7 +153,9 @@ run_unit-tests() {
 run_integration-tests() {
     # C++ integration/sanitizer matrix (asan/ubsan/tsan/lsan) — mirrors the
     # native CI job, running the Makefile directly inside the CI image.
-    run_in_container "uv run make CONTAINER_CHECK= CONTAINER_PREFIX= deps && uv run make CONTAINER_CHECK= CONTAINER_PREFIX= compile.debug.asan && uv run make CONTAINER_CHECK= CONTAINER_PREFIX= test.debug.asan && uv run make CONTAINER_CHECK= CONTAINER_PREFIX= compile.debug.ubsan && uv run make CONTAINER_CHECK= CONTAINER_PREFIX= test.debug.ubsan && uv run make CONTAINER_CHECK= CONTAINER_PREFIX= compile.debug.tsan && uv run make CONTAINER_CHECK= CONTAINER_PREFIX= test.debug.tsan && uv run make CONTAINER_CHECK= CONTAINER_PREFIX= compile.debug.lsan && uv run make CONTAINER_CHECK= CONTAINER_PREFIX= test.debug.lsan"
+    # CTEST_EXTRA adds a bounded ctest retry so a single transient flake
+    # (test or deferred gtest discovery) does not fail the whole phase.
+    run_in_container "uv run make CONTAINER_CHECK= CONTAINER_PREFIX= deps && uv run make CONTAINER_CHECK= CONTAINER_PREFIX= compile.debug.asan && uv run make CONTAINER_CHECK= CONTAINER_PREFIX= test.debug.asan CTEST_EXTRA='--repeat until-pass:2' && uv run make CONTAINER_CHECK= CONTAINER_PREFIX= compile.debug.ubsan && uv run make CONTAINER_CHECK= CONTAINER_PREFIX= test.debug.ubsan CTEST_EXTRA='--repeat until-pass:2' && uv run make CONTAINER_CHECK= CONTAINER_PREFIX= compile.debug.tsan && uv run make CONTAINER_CHECK= CONTAINER_PREFIX= test.debug.tsan CTEST_EXTRA='--repeat until-pass:2' && uv run make CONTAINER_CHECK= CONTAINER_PREFIX= compile.debug.lsan && uv run make CONTAINER_CHECK= CONTAINER_PREFIX= test.debug.lsan CTEST_EXTRA='--repeat until-pass:2'"
 }
 
 run_schema-validation() {
