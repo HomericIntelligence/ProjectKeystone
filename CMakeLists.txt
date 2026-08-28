@@ -176,6 +176,15 @@ set_directory_properties(PROPERTIES COMPILE_OPTIONS "${_saved_compile_options}")
 
 enable_testing()
 
+add_test(
+  NAME tsan_feature_guard
+  COMMAND
+    ${CMAKE_COMMAND} "-DCXX_COMPILER=${CMAKE_CXX_COMPILER}"
+    "-DKEYSTONE_SOURCE_DIR=${PROJECT_SOURCE_DIR}"
+    "-DKEYSTONE_BINARY_DIR=${PROJECT_BINARY_DIR}" -P
+    "${PROJECT_SOURCE_DIR}/cmake/TestTsanFeatureGuard.cmake")
+set_tests_properties(tsan_feature_guard PROPERTIES LABELS unit)
+
 # Core library
 add_library(
   keystone_core
