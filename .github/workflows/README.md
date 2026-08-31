@@ -9,6 +9,9 @@ security scanning of the Keystone HMAS (Hierarchical Multi-Agent System) codebas
 
 - **`_required.yml`** emits the baseline required contexts, including lint,
   build, test, package, security, schema, and dependency-version checks.
+- **`codeql.yml`** is the fleet-standard CodeQL analysis workflow for C++ and
+  Python (weekly schedule); it replaces the `analyze` job formerly in
+  `_required.yml` (#655).
 - **`extras.yml`** emits the separately required `coverage` context and advisory
   benchmark/NATS checks.
 - **`release-please.yml`** manages releases after pushes to `main`.
