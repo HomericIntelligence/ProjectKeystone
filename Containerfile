@@ -16,7 +16,7 @@ FROM ghcr.io/astral-sh/uv:0.12.2@sha256:069a51314a7bb6031777a9273205fe1b0b19e914
 # libgcrypt20 (CVE-2026-4046/4437/4438, CVE-2026-4878, CVE-2025-45582/66382,
 # CVE-2026-2219, CVE-2025-13462, CVE-2024-2236). Bump the digest regularly
 # (see `docker buildx imagetools inspect ubuntu:24.04`).
-FROM ubuntu:24.04@sha256:019e8eb29a85e74d64925745884f2ec79aa27e3feab36353d24656f4d6b89467 AS builder
+FROM ubuntu:26.04@sha256:2260313b31c8c011cd2eebe728008efac1b3982be73eb71348ea2648d2c0e09b AS builder
 
 # Build arguments for user permissions (host UID/GID compatibility)
 ARG BUILD_UID=1000
@@ -128,7 +128,7 @@ RUN cmake -S . -B build/release -G Ninja \
     && cmake --build build/release
 
 # Stage 2: Test runner (runs the built test suites)
-FROM ubuntu:24.04@sha256:019e8eb29a85e74d64925745884f2ec79aa27e3feab36353d24656f4d6b89467 AS test
+FROM ubuntu:26.04@sha256:2260313b31c8c011cd2eebe728008efac1b3982be73eb71348ea2648d2c0e09b AS test
 
 # Install only runtime dependencies
 RUN apt-get update && apt-get upgrade -y && apt-get install -y \
@@ -154,7 +154,7 @@ CMD ["sh", "-c", "transport_unit_tests && bridge_unit_tests && concurrency_unit_
 # Stage 3: Production environment (Kubernetes deployment)
 # Ships the Keystone daemon service binary — NOT test executables.
 # See issue #513: the previous version incorrectly packaged test binaries here.
-FROM ubuntu:24.04@sha256:019e8eb29a85e74d64925745884f2ec79aa27e3feab36353d24656f4d6b89467 AS production
+FROM ubuntu:26.04@sha256:2260313b31c8c011cd2eebe728008efac1b3982be73eb71348ea2648d2c0e09b AS production
 
 # Install runtime dependencies. wget is used for the healthcheck so that
 # Python3 (a dev tool) is not required in the production image.
